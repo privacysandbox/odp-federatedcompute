@@ -1,0 +1,72 @@
+{
+  "verificationResult": "KEY_ATTESTATION_RECORD_VERIFICATION_RESULT_OK",
+  "certificateAttestedDeviceId": {
+    "brand": "google",
+    "product": "<product>",
+    "device": "<device>",
+    "manufacturer": "Google",
+    "model": "Pixel 4a"
+  },
+  "keyDescription": {
+    "attestationSecurityLevel": "TRUSTED_ENVIRONMENT",
+    "keymasterSecurityLevel": "TRUSTED_ENVIRONMENT",
+    "attestationChallenge": "<base64 encoded challenge>",
+    "softwareEnforced": {
+      "authRequired": true,
+      "creationTime": "2020-07-04T05:29:09Z",
+      "attestationApplicationId": {
+        "packageInfos": [
+        ],
+        "signatureDigests": [
+          "<package signature digest>"
+        ]
+      }
+    },
+    "teeEnforced": {
+      "purposes": [
+        "SIGN",
+        "VERIFY"
+      ],
+      "algorithm": "RSA",
+      "keySize": 2048,
+      "digests": [
+        "SHA_2_256"
+      ],
+      "paddings": [
+        "RSA_PSS",
+        "RSA_PKCS1_1_5_SIGN"
+      ],
+      "rsaPublicExponent": "65537",
+      "origin": "GENERATED",
+      "rootOfTrust": {
+        "verifiedBootKey": "<verified boot key>",
+        "deviceLocked": true,
+        "verifiedBootState": "VERIFIED",
+        "verifiedBootHash": "<base64 encoded verified boot hash>"
+      },
+      "osVersion": 130000,
+      "osPatchLevel": {
+        "year": 2023,
+        "month": 5
+      },
+      "attestationIdBrand": "<base64 encoded brand>",
+      "attestationIdDevice": "<base64 encoded device>",
+      "attestationIdProduct": "<base64 encoded product>",
+      "attestationIdManufacturer": "<base64 encoded manufacturer>",
+      "attestationIdModel": "<base64 encoded model>",
+      "vendorPatchLevel": {
+        "year": 2023,
+        "month": 5,
+        "day": 5
+      },
+      "bootPatchLevel": {
+        "year": 2023,
+        "month": 5,
+        "day": 5
+      }
+    },
+    "keyAttestationVersion": 3,
+    "keyMintVersion": 4
+  },
+  "attestedKey": "<base64 encoded key bytes>"
+}

@@ -1,0 +1,34 @@
+# Ignore all bazel-* symlinks. There is no full list since this can change
+# based on the name of the directory bazel is cloned into.
+/bazel-*
+/out
+
+# Compiled libraries.
+**/*.a
+**/*.so
+
+# Bazel cache.
+/.cache/
+
+# Generated vscode files.
+**/.vscode/
+
+# terraform
+.terraform
+# NOTE: .terraform.lock.hcl should be checked into git
+# https://www.terraform.io/docs/language/dependency-lock.html#lock-file-location
+
+# emacs stuff
+*~
+
+# intellij
+.clwb/
+.ijwb/
+.idea/
+**/*.iml
+
+# python venv
+venv/
+
+# code coverage output
+genhtml/

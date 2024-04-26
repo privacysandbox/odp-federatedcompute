@@ -1,0 +1,97 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+version: '3.8'
+services:
+  aggregator:
+    image: aggregator_image:latest
+    ports:
+    - '8085:8082'
+    expose:
+    - '8085'
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/keys/adc.json
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT}
+      # environment and project_id are used to reference GCP resources such as Spanner, PubSub, and SecretsManager.
+      FCP_OPTS: "--project_id '${GOOGLE_CLOUD_PROJECT}' 
+        --environment 'local'"
+    volumes:
+    - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/keys/adc.json:ro
+  collector:
+    image: collector_image:latest
+    ports:
+    - '8084:8082'
+    expose:
+    - '8084'
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/keys/adc.json
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT}
+      FCP_OPTS: "--project_id '${GOOGLE_CLOUD_PROJECT}' 
+      --environment 'local'"
+    volumes:
+    - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/keys/adc.json:ro
+  modelupdater:
+    image: model_updater_image:latest
+    ports:
+    - '8086:8082'
+    expose:
+    - '8086'
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/keys/adc.json
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT}
+      FCP_OPTS: "--project_id '${GOOGLE_CLOUD_PROJECT}' 
+      --environment 'local'"
+    volumes:
+    - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/keys/adc.json:ro
+  taskassignment:
+    image: task_assignment_image:latest
+    ports:
+    - '8083:8083'
+    expose:
+    - '8083'
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/keys/adc.json
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT}
+      FCP_OPTS: "--project_id '${GOOGLE_CLOUD_PROJECT}'
+      --environment 'local'"
+    volumes:
+    - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/keys/adc.json:ro
+  taskmanagement:
+    image: task_management_image:latest
+    ports:
+    - '8082:8082'
+    expose:
+    - '8082'
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/keys/adc.json
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT}
+      FCP_OPTS: "--project_id '${GOOGLE_CLOUD_PROJECT}' --environment 'local'"
+    volumes:
+    - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/keys/adc.json:ro
+  taskscheduler:
+    image: task_scheduler_image:latest
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/keys/adc.json
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT}
+      FCP_OPTS: "--project_id '${GOOGLE_CLOUD_PROJECT}' --environment 'local'"
+    volumes:
+    - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/keys/adc.json:ro
+  nginx:
+    image: nginx:latest
+    container_name: nginx_proxy
+    expose:
+    - 8080
+    volumes:
+    - ./nginx.conf:/etc/nginx/nginx.conf
+    network_mode: host

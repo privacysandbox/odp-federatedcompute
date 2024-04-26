@@ -1,0 +1,3 @@
+[submodule "federatedcompute"]
+	path = federatedcompute
+	url = https://github.com/privacysandbox/federatedcompute.git

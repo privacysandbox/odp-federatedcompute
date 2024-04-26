@@ -1,0 +1,221 @@
+/**
+ * Copyright 2024 Google LLC
+ *
+ * <p>Licensed under the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License. You may obtain a
+ * copy of the License at
+ *
+ * <p>http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * <p>Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+syntax = "proto3";
+
+package google.ondevicepersonalization.federatedcompute.proto;
+
+import "fcp/protos/federatedcompute/common.proto";
+import "shuffler/proto/task.proto";
+
+option java_package = "com.google.ondevicepersonalization.federatedcompute.proto";
+option java_multiple_files = true;
+
+// Type of error information.
+// Next Id: 4
+message ErrorType {
+  enum Enum {
+    // Unknown
+    UNKNOWN = 0;
+
+    // Fails due to invalid format of fields in `BuildTaskRequest`, such as:
+    // 1. Malformed or non-existent artifact URI.
+    // 2. Required files missing inside the artifact URI.
+    // 3. Task configs in violation of privacy policies.
+    INVALID_REQUEST = 1;
+
+    // Errors caused by Task Management APIs, such as:
+    // 1. Fails to connect to task management API endpoint.
+    // 2. Returns error.
+    // 3. Returns an unreadable response.
+    TASK_MANAGEMENT_ERROR = 2;
+
+    // Failed to build artifacts (`google.internal.federated.plan.Plan`,
+    // checkpoint, etc.) from `BuildTaskRequest`, such as:
+    // 1. Internal error when constructing artifacts.
+    // 2. Network or cloud provider failure when uploading artifacts.
+    ARTIFACT_BUILDING_ERROR = 3;
+  }
+}
+
+// Information about error logs in case task building fails.
+// Next Id: 5
+message ErrorInfo {
+  // Error type
+  ErrorType.Enum error_type = 1;
+
+  // Detailed error message.
+  string error_message = 2;
+}
+
+// Build task request.
+// The url to build a task under v1 API is:
+// https://{host}/taskbuilder/v1:build-task
+// Next Id: 3
+message BuildTaskRequest {
+  // Required. Either a URI where model information is downloaded from
+  // or serialized data is inline.
+  // The model should be saved in the `SavedModel` format. See more
+  // instructions in https://www.tensorflow.org/guide/saved_model.
+  // Currently, if `Resource.uri` is set, it has to be prefixed with
+  // `gs://` to indicate it is a remote resource from GCS.
+  google.internal.federatedcompute.v1.Resource saved_model = 1;
+
+  // Required.
+  TaskConfig task_config = 2;
+}
+
+// Build task response.
+// Next Id: 3
+message BuildTaskResponse {
+  // One of two outcomes, depending on whether the task building request
+  // succeeds.
+  oneof result {
+    // If the task is successfully created based on `saved_model`
+    // and `task_config`, return the ID of the created task.
+    // All operations are committed as a transaction.
+    int64 task_id = 1;
+
+    // If the task building process fails at some point, return
+    // detailed error logs for debugging.
+    // All operations are uncommitted as a single transaction.
+    // The task, if created, will be cancelled.
+    ErrorInfo error_info = 2;
+  }
+}
+
+// Task mode
+// Next Id: 3
+message TaskMode {
+  enum Enum {
+    UNKNOWN = 0;
+    TRAINING_ONLY = 1;
+    TRAINING_AND_EVAL = 2;
+    EVAL_ONLY = 3;
+  }
+}
+
+// Model release policy
+// Next Id: 4
+message ModelReleaseManagementPolicy {
+  double dp_target_epsilon = 1;
+  double dp_delta = 2;
+  int64 num_max_training_rounds = 3;
+}
+
+// Policies setup
+// Next Id: 4
+message Policies {
+  MinimumSeparationPolicy min_separation_policy = 1;
+  DataAvailabilityPolicy data_availability_policy = 2;
+  ModelReleaseManagementPolicy model_release_policy = 3;
+}
+
+// Allowed learning algorithms
+// Next Id: 2
+message LearningAlgo {
+  enum Enum {
+    UNKNOWN = 0;
+    FED_AVG = 1;
+    FED_SGD = 2;
+  }
+}
+
+message Optimizer {
+  enum Enum {
+    UNKNOWN = 0;
+    SGD = 1;
+    ADAM = 2;
+  }
+}
+
+message DpAggregator {
+  enum Enum {
+    UNKNOWN = 0;
+    FIXED_GAUSSIAN = 1;
+  }
+}
+
+// Runtime config of training tasks
+// Next Id: 3
+message RuntimeConfig {
+  int64 report_goal = 1;
+  double over_selection_rate = 2;
+}
+
+// Evaluation metric
+// Next Id: 3
+message Metric {
+  string name = 1;
+  string parameter = 2;
+}
+
+// Artifact building metadata
+// Next Id: 4
+message ArtifactBuilding {
+  string plan_url = 1;
+  string client_plan_url = 2;
+  string checkpoint_url = 3;
+}
+
+// Learning process
+// Next Id: 9
+message LearningProcess {
+  LearningAlgo.Enum type = 1;
+  Optimizer.Enum client_optimizer = 2;
+  double client_learning_rate = 3;
+  Optimizer.Enum server_optimizer = 4;
+  double server_learning_rate = 5;
+  RuntimeConfig runtime_config = 6;
+  repeated Metric metrics = 7;
+  ArtifactBuilding artifact_building = 8;
+}
+
+// Evaluation info
+// Next Id: 7
+message Evaluation {
+  string source_training_population = 1;
+  string checkpoint_selector = 2;
+  double evaluation_traffic = 3;
+  int64 report_goal = 4;
+  double over_selection_rate = 5;
+  ArtifactBuilding artifact_building = 6;
+}
+
+// Federated learning setup
+// Next Id: 3
+message FederatedLearning {
+  LearningProcess learning_process = 1;
+  Evaluation evaluation = 2;
+}
+
+// Differential privacy setup
+// Next Id: 4
+message DifferentialPrivacy {
+  DpAggregator.Enum type = 1;
+  double noise_multiplier = 2;
+  double clip_norm = 3;
+}
+
+// Task configuration schema
+// Next Id: 7
+message TaskConfig {
+  TaskMode.Enum mode = 1;
+  string population_name = 2;
+  string label_name = 3;
+  Policies policies = 4;
+  FederatedLearning federated_learning = 5;
+  DifferentialPrivacy differential_privacy = 6;
+}

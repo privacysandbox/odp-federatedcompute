@@ -1,0 +1,190 @@
+/**
+ * Copyright 2023 Google LLC
+ *
+ * <p>Licensed under the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License. You may obtain a
+ * copy of the License at
+ *
+ * <p>http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * <p>Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+syntax = "proto3";
+
+package google.ondevicepersonalization.federatedcompute.proto;
+
+import "google/protobuf/timestamp.proto";
+
+option java_package = "com.google.ondevicepersonalization.federatedcompute.proto";
+option java_multiple_files = true;
+
+message TaskStatus {
+  enum Enum {
+    // Unknown status
+    UNKNOWN = 0;
+
+    // Task is created and open to be scheduled.
+    OPEN = 1;
+
+    // Task is completed.
+    COMPLETED = 2;
+
+    // Task is created and not ready assigning
+    CREATED = 3;
+
+    // Task is canceled.
+    CANCELED = 4;
+
+    // Task failed.
+    FAILED = 5;
+  }
+}
+
+// Next id: 21
+message Task {
+  string population_name = 1;
+  int64 task_id = 2;
+  int64 total_iteration = 3;
+  int64 min_aggregation_size = 4;
+  int64 max_aggregation_size = 5;
+  TaskStatus.Enum status = 6;
+  google.protobuf.Timestamp created_time = 7;
+  google.protobuf.Timestamp started_time = 8;
+  google.protobuf.Timestamp stop_time = 9;
+  google.protobuf.Timestamp start_task_no_earlier_than = 10;
+  google.protobuf.Timestamp do_not_create_iteration_after = 11;
+  int64 max_parallel = 12;
+  string correlation_id = 13;
+  string min_client_version = 14;
+  string max_client_version = 15;
+  repeated string client_only_plan_url = 16;
+  repeated string server_phase_url = 17;
+  repeated string init_checkpoint_url = 18;
+  repeated string metrics_url = 19;
+  TaskInfo info = 20;
+}
+
+message TaskInfo {
+  // A numerical value represents the relative probability of this task been
+  // distributed to devices among the tasks under same population.
+  // The value should be from 0 to 1000.
+  int64 traffic_weight = 1;
+
+  oneof info {
+    TrainingInfo training_info = 2;
+    EvaluationInfo evaluation_info = 3;
+  }
+}
+
+// Next Id: 2
+message TrainingInfo {
+  // The eligibility of the task. Adopter provides it then device will run this
+  // eligibility task to check if it's qualified to start the job before
+  // execute real task.
+  EligibilityTaskInfo eligibility_task_info = 1;
+}
+
+// Provides the information needed to determine eligibility for a task.
+// Next Id: 2
+message EligibilityTaskInfo {
+  // The eligibility policies that apply to this task.
+  repeated EligibilityPolicyEvalSpec eligibility_policies = 1;
+}
+
+// Specification describing the eligibility policy and its parameters.
+// Next Id: 4
+message EligibilityPolicyEvalSpec {
+  // The identifier of the policy. It should be unique within population.
+  string id = 1;
+
+  // The specification of the policy implementation, including the
+  // policy-specific parameters.
+  oneof policy_type {
+    MinimumSeparationPolicy min_sep_policy = 2;
+    DataAvailabilityPolicy data_availability_policy = 3;
+  }
+}
+
+// Minimum separation policy parameters.
+// Next Id: 3
+message MinimumSeparationPolicy {
+  // The current index (e.g., algorithmic round number) of the federated
+  // computation.
+  int64 current_index = 1;
+
+  // The minimum index separation required between successful contributions.
+  int64 minimum_separation = 2;
+}
+
+// Data availability policy parameters.
+// Next Id: 2
+message DataAvailabilityPolicy {
+  // The minimum number of examples from the selector to be considered
+  // eligible.
+  int32 min_example_count = 1;
+}
+
+// Next Id: 4
+message EvaluationInfo {
+  // The mechanism of checkpoint selection of a evaluation task
+  CheckPointSelector check_point_selector = 1;
+
+  // The corresponding training task population name. It looks up training task
+  // under this population. If empty, it looks up the training task from current
+  // evaluation population
+  string training_population_name = 2;
+
+  // The corresponding training task id.
+  // If not set, it looks up latest training task in same population
+  int64 training_task_id = 3;
+}
+
+// Next Id: 3
+message CheckPointSelector {
+  oneof selector_type {
+    EveryKIterationsCheckpointSelector iteration_selector = 1;
+    EveryKHoursCheckpointSelector duration_selector = 2;
+  }
+}
+
+// Select checkpoints from a training task every K iteration from past 24
+// hours, then randomly pick one from this set
+// Next Id: 2
+message EveryKIterationsCheckpointSelector {
+  int64 size = 1;
+}
+
+// Select checkpoints from a training task every K hours from past 24 hours,
+// then randomly pick one from this set
+// Next Id: 2
+message EveryKHoursCheckpointSelector {
+  int64 hours = 1;
+}
+
+// Next id: 2
+message GetTaskByIdResponse {
+  Task task = 1;
+}
+
+// Next Id: 2
+message CreateTaskRequest {
+  Task task = 1;
+}
+
+// Next Id: 2
+message CreateTaskResponse {
+  Task task = 1;
+}
+
+// Next Id : 3
+message IterationInfo {
+  TaskInfo task_info = 1;
+
+  // The iteration id of corresponding training iteration whose checkpoint is
+  // used by an evaluation iteration.
+  int64 evaluation_training_iteration_id = 2;
+}

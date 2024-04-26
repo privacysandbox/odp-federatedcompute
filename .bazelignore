@@ -1,0 +1,5 @@
+# Ignore gitsubmodules
+federatedcompute/
+
+# Ignore requirements_updater. It has its own WORKSPACE file
+toolchain/requirements_updater/

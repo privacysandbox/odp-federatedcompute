@@ -1,0 +1,5 @@
+# We don't need anything from docker context when building the image.
+/*
+
+# Allow files
+!/scripts/docker/install_google_cloud_sdk.bash

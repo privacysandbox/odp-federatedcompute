@@ -1,0 +1,92 @@
+# Bazel default to java 17
+build --java_language_version=17
+build --java_runtime_version=remotejdk_17
+build --tool_java_language_version=17
+build --tool_java_runtime_version=remotejdk_17
+
+build --strategy=CopyFile=sandboxed,standalone
+build --strategy=CopyToDirectory=sandboxed,standalone
+
+# Uncomment for verbose java output, bazel doesn't print all Java compilation errors.
+# build --javacopt="-verbose"
+
+# See https://github.com/bazelbuild/bazel/issues/12837.
+# for lombok
+build --nojava_header_compilation
+test --nojava_header_compilation
+
+# Don't show inactionable warnings when building (not using) external deps.
+build --output_filter='^//((?!(external):).)*$'
+
+# Mount tmpfs on /tmp for sandbox tests
+test --sandbox_tmpfs_path=/tmp
+
+build --incompatible_enable_cc_toolchain_resolution
+
+test --test_env=PYTHONNOUSERSITE=1
+
+# https://github.com/bazelbuild/bazel/issues/7386
+common --incompatible_default_to_explicit_init_py
+
+################
+# Configuration copied from @federatedcompute
+################
+# Default build with clang and libc++.
+build --repo_env=CC=clang --repo_env=CXX=clang++ --linkopt=-fuse-ld=lld
+build --cxxopt=-stdlib=libc++ --linkopt=-stdlib=libc++
+
+# This results in -Werror for all FCP code, but nothing we pull in via
+# repository rules (those labels have a @ prefix).
+build --per_file_copt=+^//@-Werror
+# We pull in some headers from TensorFlow which give the following warning, we
+# don't want to convert them to errors.
+build --per_file_copt=+^//@-Wno-error=ignored-qualifiers
+build --per_file_copt=+^//@-Wno-error=inconsistent-missing-override
+build --per_file_copt=+^//@-Wno-error=mismatched-tags
+build --per_file_copt=+^//@-Wno-error=defaulted-function-deleted
+# Some of the opstats.proto enums are deprecated, but until all references to
+# them have been removed we should be allowed to use them.
+build --per_file_copt=+^//@-Wno-error=deprecated-declarations
+
+# Always true in TensorFlow's .bazelrc
+build --define=open_source_build=true
+# Monolithic build (i.e. no libtensorflow_framework.so)
+# The non-monolithic build seems to fail currently, due to symbols missing from
+# libtensorflow_framework.so but needed by its dependencies. It is likely that
+# this Bazel change is related: https://github.com/bazelbuild/bazel/issues/7362
+build --define=framework_shared_object=false
+
+# Disable some default TF features (avoids some build-time dependencies).
+build --define=no_aws_support=true
+build --define=no_gcp_support=true
+build --define=no_hdfs_support=true
+build --define=no_ignite_support=true
+build --define=no_kafka_support=true
+build --define=no_nccl_support=true
+
+# Prevent gRPC from depending on c-ares. TF's bazelrc sets this. We also don't
+# have a recent-enough version of the library in our build container.
+build --define=grpc_no_ares=true
+
+# TF now has `cc_shared_library` targets, so it needs the experimental flag.
+build --experimental_cc_shared_library
+
+# Bazel defaults to --std=c++0x
+build --cxxopt=-std=c++17
+build --host_cxxopt=-std=c++17
+
+# Use the most hermetic, available sandboxing strategy. This helps ensures all
+# rules explicit declare their dependencies etc.
+build --spawn_strategy=sandboxed
+
+# The version of TensorFlow we use requires this
+common --experimental_repo_remote_exec
+build --noincompatible_remove_legacy_whole_archive
+
+# Use the version 2 TensorFlow API.
+build --define=tf_api_version=2 --action_env=TF2_BEHAVIOR=1
+
+# We avoid building with --compilation_mode=dbg usually, since the artifacts can
+# be very large (a binary with TensorFlow linked in is >2GiB); it costs several
+# minutes just to fetch them from RBE cache.
+build --compilation_mode=opt

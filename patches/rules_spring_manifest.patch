@@ -1,0 +1,10 @@
+diff --git springboot/write_manifest.sh springboot/write_manifest.sh
+index 8ce58b5..2679a05 100755
+--- springboot/write_manifest.sh
++++ springboot/write_manifest.sh
+@@ -52,5 +52,4 @@ echo "Main-Class: org.springframework.boot.loader.JarLauncher" >> $manifestfile
+ echo "Spring-Boot-Classes: BOOT-INF/classes/" >> $manifestfile
+ echo "Spring-Boot-Lib: BOOT-INF/lib/" >> $manifestfile
+ echo "Spring-Boot-Version: $spring_version" >> $manifestfile
+-echo "Build-Jdk: $java_version" >> $manifestfile
+ echo "Start-Class: $mainclass" >> $manifestfile
