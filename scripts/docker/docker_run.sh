@@ -40,9 +40,20 @@ docker_run_flags=(
   '--volume=/dev/log:/dev/log'
 )
 
+docker_build_flags=(
+  '--cache-from=odp-federatedcompute-build:v1'
+)
+
+arch=$(uname -p)
+
+if [[ $arch =~ ^arm ]]; then
+  docker_build_flags+=('--platform=linux/amd64')
+  docker_run_flags+=('--platform=linux/amd64')
+fi
+
 # To run with gcp credentials mount your GCP creds and set GOOGLE_APPLICATION_CREDENTIALS env
 # -v ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/keys/adc.json:ro -e GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys/adc.json -v $HOME/.config/gcloud:/root/.config/gcloud
 
-docker build --cache-from=odp-federatedcompute-build:v1 -t odp-federatedcompute-build:v1 .
+docker build "${docker_build_flags[@]}"  -t odp-federatedcompute-build:v1 .
 # The final parameter passed will be the run with bash. All other parameters will be used as docker run parameters.
 docker run "${docker_run_flags[@]}" "${@:1:$#-1}" "odp-federatedcompute-build:v1" bash -c "${@: -1}"
