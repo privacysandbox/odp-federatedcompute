@@ -16,12 +16,15 @@
 
 package com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao;
 
+import com.google.ondevicepersonalization.federatedcompute.shuffler.common.CompressionUtils.CompressionFormat;
+
 /**
  * The Blob storage URL generater. Each interface generates (a) file location(s) based on the input.
  */
 public interface BlobManager {
-  /** Generates the file location where a device uploads uploads the encrypted gradient. */
-  public BlobDescription generateUploadGradientDescription(AssignmentEntity assignment);
+  /** Generates the file location where a device uploads the encrypted gradient. */
+  public BlobDescription generateUploadGradientDescription(
+      AssignmentEntity assignment, CompressionFormat format);
 
   /** Geneates the file locations where the Collector scans for device uploaded gradients. */
   public BlobDescription[] generateDownloadGradientDescriptions(IterationEntity iteration);

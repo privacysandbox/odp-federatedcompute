@@ -29,6 +29,10 @@ option java_multiple_files = true;
 // Next Id: 2
 message CreateTaskAssignmentRequest {
   google.internal.federatedcompute.v1.ClientVersion client_version = 1;
+
+  // The client's capabilities when processing resources.
+  google.internal.federatedcompute.v1.ResourceCapabilities
+      resource_capabilities = 2;
 }
 
 // Create task assignment response.
@@ -87,7 +91,7 @@ message TaskAssignment {
 // Report result request.
 // The url to report result under v1 API is:
 // https://{host}/taskassignment/v1/population/{populationName}/task/{taskId}/aggregation/{aggregationId}/task-assignment/{assignmentId}:report-result
-// Next Id: 2
+// Next Id: 3
 message ReportResultRequest {
   enum Result {
     // Unknown
@@ -104,6 +108,10 @@ message ReportResultRequest {
   }
 
   Result result = 1;
+
+  // The client's capabilities when processing resources.
+  google.internal.federatedcompute.v1.ResourceCapabilities
+      resource_capabilities = 2;
 }
 
 // Report result response.
@@ -123,6 +131,11 @@ message UploadInstruction {
 
   // extra head for uploading.
   map<string, string> extra_request_headers = 2;
+
+  // The compression used for resource, or unset if the data is
+  // uncompressed.
+  optional google.internal.federatedcompute.v1.ResourceCompressionFormat
+      compression_format = 3;
 }
 
 // The signature information. Device can verify the signature to check integrity

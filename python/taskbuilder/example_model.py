@@ -29,7 +29,7 @@ Non-trainable params: 0 (0.00 Byte)
 
 import tensorflow as tf
 
-_INPUT_DIM = 1024
+_INPUT_DIM = 784
 _FIRST_DENSE_LAYER_DIM = 256
 _SECOND_DENSE_LAYER_DIM = 2
 

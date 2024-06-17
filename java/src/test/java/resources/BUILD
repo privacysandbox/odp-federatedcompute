@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 package(default_visibility = ["//visibility:public"])
 
 filegroup(
@@ -21,6 +20,14 @@ filegroup(
         "KeyAttestationFailVerification1.json",
         "KeyAttestationFailVerification2.json",
         "KeyAttestationFailVerification3.json",
-        "KeyAttestationSuccessVerification.json"
+        "KeyAttestationSuccessVerification.json",
+    ],
+)
+
+filegroup(
+    name = "plans",
+    srcs = [
+        "plan_v1",
+        "plan_v2",
     ],
 )

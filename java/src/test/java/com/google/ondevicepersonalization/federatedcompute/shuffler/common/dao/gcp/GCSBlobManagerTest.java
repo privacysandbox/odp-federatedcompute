@@ -31,6 +31,7 @@ import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.HttpMethod;
 import com.google.cloud.storage.Storage;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.common.CompressionUtils.CompressionFormat;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AssignmentEntity;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AssignmentId;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.BlobDescription;
@@ -38,18 +39,20 @@ import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.I
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.IterationId;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.Partitioner;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.TaskEntity;
+import com.google.testing.junit.testparameterinjector.TestParameterInjector;
+import com.google.testing.junit.testparameterinjector.TestParameters;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-@RunWith(JUnit4.class)
+@RunWith(TestParameterInjector.class)
 public final class GCSBlobManagerTest {
   // default traing settings
   private static final String POPULATION_NAME = "us";
@@ -116,7 +119,7 @@ public final class GCSBlobManagerTest {
 
   public GCSBlobManagerTest() {
     putHeaders = new HashMap<String, String>();
-    putHeaders.put("Content-Type", "application/octet-stream");
+    putHeaders.put("content-type", "application/octet-stream");
     emptyHeaders = new HashMap<String, String>();
   }
 
@@ -127,8 +130,15 @@ public final class GCSBlobManagerTest {
   }
 
   @Test
-  public void testGenerateUploadGradientDescription() throws MalformedURLException {
+  @TestParameters("{format: GZIP}")
+  @TestParameters("{format: null}")
+  public void generateUploadGradientDescription_success(CompressionFormat format)
+      throws MalformedURLException {
     // arrange
+    Map<String, String> headers =
+        format == CompressionFormat.GZIP
+            ? Map.of("content-type", "application/octet-stream", "content-encoding", "gzip")
+            : Map.of("content-type", "application/octet-stream");
     when(mockPartitioner.getDeviceGradientPartition(anyString())).thenReturn(1);
     when(mockStorage.signUrl(
             /* blobInfo= */ any(),
@@ -141,7 +151,7 @@ public final class GCSBlobManagerTest {
         .thenReturn(new URL("https://gcs?token=123"));
 
     // act
-    BlobDescription description = manager.generateUploadGradientDescription(ASSIGNMENT);
+    BlobDescription description = manager.generateUploadGradientDescription(ASSIGNMENT, format);
 
     // assert
     String bucketName = "gra-1";
@@ -152,7 +162,7 @@ public final class GCSBlobManagerTest {
                 .host(bucketName)
                 .resourceObject(objectName)
                 .url("https://gcs?token=123")
-                .headers(putHeaders)
+                .headers(headers)
                 .build());
     verify(mockPartitioner, times(1)).getDeviceGradientPartition("xyz");
     verify(mockStorage, times(1))
@@ -161,7 +171,7 @@ public final class GCSBlobManagerTest {
             eq(UPLOAD_CHECKPOINT_DURATION),
             eq(TimeUnit.SECONDS),
             refEq(Storage.SignUrlOption.httpMethod(HttpMethod.PUT)),
-            refEq(Storage.SignUrlOption.withExtHeaders(putHeaders)),
+            refEq(Storage.SignUrlOption.withExtHeaders(headers)),
             refEq(Storage.SignUrlOption.withV4Signature()));
   }
 

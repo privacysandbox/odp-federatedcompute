@@ -28,6 +28,7 @@ import java.time.Instant;
 import java.time.InstantSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 /** Spanner implementation of AuthorizationTokenDao. */
@@ -42,7 +43,8 @@ public class AuthorizationTokenSpannerDao implements AuthorizationTokenDao {
 
   private static final long TOKEN_TTL_IN_SECONDS = 7 * 24 * 60 * 60L;
 
-  public AuthorizationTokenSpannerDao(DatabaseClient dbClient, InstantSource instantSource) {
+  public AuthorizationTokenSpannerDao(
+      @Qualifier("taskDatabaseClient") DatabaseClient dbClient, InstantSource instantSource) {
     this.dbClient = dbClient;
     this.instantSource = instantSource;
   }

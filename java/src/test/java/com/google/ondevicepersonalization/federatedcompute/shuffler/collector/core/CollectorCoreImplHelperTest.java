@@ -184,7 +184,7 @@ public class CollectorCoreImplHelperTest {
   public void createModelUpdaterMessage_trainingIteration_success() {
     // act
     ModelUpdaterMessage modelUpdaterMessage =
-        collectorCoreImplHelper.createModelUpdaterMessage(TRAINING_ITERATION);
+        collectorCoreImplHelper.createModelUpdaterMessage(TRAINING_ITERATION, List.of("1", "2"));
 
     // assert
     assertThat(modelUpdaterMessage)
@@ -192,8 +192,9 @@ public class CollectorCoreImplHelperTest {
             ModelUpdaterMessage.builder()
                 .serverPlanBucket(SERVER_PLAN_DESCRIPTIONS.getHost())
                 .serverPlanObject(SERVER_PLAN_DESCRIPTIONS.getResourceObject())
-                .aggregatedGradientBucket(GRADIENT.getHost())
-                .aggregatedGradientObject(GRADIENT.getResourceObject() + "gradient")
+                .intermediateGradientBucket(GRADIENT.getHost())
+                .intermediateGradientPrefix(GRADIENT.getResourceObject())
+                .intermediateGradients(List.of("1/gradient", "2/gradient"))
                 .checkpointBucket(SERVER_CHECKPOINT.getHost())
                 .checkpointObject(SERVER_CHECKPOINT.getResourceObject())
                 .newCheckpointOutputBucket(UPLOAD_SERVER_CHECKPOINT.getHost())
@@ -210,7 +211,7 @@ public class CollectorCoreImplHelperTest {
   public void createModelUpdaterMessage_evaluationIteration_success() {
     // act
     ModelUpdaterMessage modelUpdaterMessage =
-        collectorCoreImplHelper.createModelUpdaterMessage(EVALUATION_ITERATION);
+        collectorCoreImplHelper.createModelUpdaterMessage(EVALUATION_ITERATION, List.of("1", "2"));
 
     // assert
     assertThat(modelUpdaterMessage)
@@ -218,8 +219,9 @@ public class CollectorCoreImplHelperTest {
             ModelUpdaterMessage.builder()
                 .serverPlanBucket(SERVER_PLAN_DESCRIPTIONS.getHost())
                 .serverPlanObject(SERVER_PLAN_DESCRIPTIONS.getResourceObject())
-                .aggregatedGradientBucket(GRADIENT.getHost())
-                .aggregatedGradientObject(GRADIENT.getResourceObject() + "gradient")
+                .intermediateGradientBucket(GRADIENT.getHost())
+                .intermediateGradientPrefix(GRADIENT.getResourceObject())
+                .intermediateGradients(List.of("1/gradient", "2/gradient"))
                 .checkpointBucket(SERVER_CHECKPOINT.getHost())
                 .checkpointObject(SERVER_CHECKPOINT.getResourceObject())
                 .metricsOutputBucket(METRICS_DESCRIPTIONS.getHost())

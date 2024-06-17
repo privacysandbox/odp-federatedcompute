@@ -19,6 +19,7 @@ package google.ondevicepersonalization.federatedcompute.proto;
 
 import "fcp/protos/federatedcompute/common.proto";
 import "shuffler/proto/task.proto";
+import "shuffler/proto/common.proto";
 
 option java_package = "com.google.ondevicepersonalization.federatedcompute.proto";
 option java_multiple_files = true;
@@ -60,6 +61,22 @@ message ErrorInfo {
   string error_message = 2;
 }
 
+// Created task group
+// Next Id: 3
+message TaskGroup {
+  // Training task
+  Task training_task = 1;
+  // Evaluation task
+  Task eval_task = 2;
+}
+
+// Experiment flags.
+// Next Id: 3
+message ExperimentFlags {
+  bool skip_flex_ops_check = 1;
+  bool skip_dp_check = 2;
+}
+
 // Build task request.
 // The url to build a task under v1 API is:
 // https://{host}/taskbuilder/v1:build-task
@@ -75,6 +92,9 @@ message BuildTaskRequest {
 
   // Required.
   TaskConfig task_config = 2;
+
+  // Optional. To support different build options and features.
+  ExperimentFlags flags = 3;
 }
 
 // Build task response.
@@ -83,10 +103,10 @@ message BuildTaskResponse {
   // One of two outcomes, depending on whether the task building request
   // succeeds.
   oneof result {
-    // If the task is successfully created based on `saved_model`
-    // and `task_config`, return the ID of the created task.
+    // If the task group is successfully created based on `saved_model`
+    // and `task_config`, return them as a task group.
     // All operations are committed as a transaction.
-    int64 task_id = 1;
+    TaskGroup task_group = 1;
 
     // If the task building process fails at some point, return
     // detailed error logs for debugging.
@@ -115,12 +135,20 @@ message ModelReleaseManagementPolicy {
   int64 num_max_training_rounds = 3;
 }
 
+// Dataset policy
+// Next Id: 3
+message DatasetPolicy {
+  int64 batch_size = 1;
+  int64 max_training_batches_per_client = 2;
+}
+
 // Policies setup
 // Next Id: 4
 message Policies {
   MinimumSeparationPolicy min_separation_policy = 1;
   DataAvailabilityPolicy data_availability_policy = 2;
   ModelReleaseManagementPolicy model_release_policy = 3;
+  DatasetPolicy dataset_policy = 4;
 }
 
 // Allowed learning algorithms
@@ -149,10 +177,11 @@ message DpAggregator {
 }
 
 // Runtime config of training tasks
-// Next Id: 3
+// Next Id: 4
 message RuntimeConfig {
   int64 report_goal = 1;
   double over_selection_rate = 2;
+  string example_selector_uri = 3;
 }
 
 // Evaluation metric
@@ -184,14 +213,15 @@ message LearningProcess {
 }
 
 // Evaluation info
-// Next Id: 7
+// Next Id: 8
 message Evaluation {
   string source_training_population = 1;
   string checkpoint_selector = 2;
   double evaluation_traffic = 3;
   int64 report_goal = 4;
   double over_selection_rate = 5;
-  ArtifactBuilding artifact_building = 6;
+  string example_selector_uri = 6;
+  ArtifactBuilding artifact_building = 7;
 }
 
 // Federated learning setup
@@ -210,7 +240,7 @@ message DifferentialPrivacy {
 }
 
 // Task configuration schema
-// Next Id: 7
+// Next Id: 8
 message TaskConfig {
   TaskMode.Enum mode = 1;
   string population_name = 2;
@@ -218,4 +248,5 @@ message TaskConfig {
   Policies policies = 4;
   FederatedLearning federated_learning = 5;
   DifferentialPrivacy differential_privacy = 6;
+  bool use_daf = 7;
 }

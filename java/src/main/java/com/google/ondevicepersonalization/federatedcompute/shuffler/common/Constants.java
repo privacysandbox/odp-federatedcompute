@@ -78,4 +78,6 @@ public final class Constants {
   public static final String ODP_AUTHORIZATION_KEY = "odp-authorization-key";
 
   public static final String ODP_AUTHENTICATION_KEY = "odp-authentication-key";
+
+  public static final String COMPRESSION_FORMAT_GZIP = "gzip";
 }

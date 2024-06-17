@@ -54,4 +54,9 @@ public class CompressionUtils {
       throw new IllegalStateException("Failed to compress using Gzip", e);
     }
   }
+
+  public enum CompressionFormat {
+    NONE,
+    GZIP,
+  }
 }

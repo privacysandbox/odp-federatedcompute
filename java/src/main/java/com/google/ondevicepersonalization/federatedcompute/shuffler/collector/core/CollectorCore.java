@@ -24,4 +24,7 @@ public interface CollectorCore {
 
   /** Process iterations in status AGGREGATING. */
   public void processAggregating();
+
+  /** Process timeouts for iteration in status COLLECTING. */
+  public void processTimeouts();
 }

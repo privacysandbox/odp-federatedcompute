@@ -27,3 +27,4 @@ bazel run //shuffler/services/taskassignment:task_assignment_image_publish
 bazel run //shuffler/services/modelupdater:model_updater_image_publish
 bazel run //shuffler/services/collector:collector_image_publish
 bazel run //shuffler/services/aggregator:aggregator_image_publish
+bazel run //shuffler/services/taskbuilder:task_builder_image_publish

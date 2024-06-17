@@ -155,3 +155,15 @@ java_test(
         "@maven//:junit_junit",
     ],
 )
+
+java_test(
+    name = "model_metrics_entity_test",
+    size = "small",
+    srcs = ["ModelMetricsEntityTest.java"],
+    test_class = "com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.ModelMetricsEntityTest",
+    deps = [
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:model_metrics_entity",
+        "@maven//:com_google_truth_truth",
+        "@maven//:junit_junit",
+    ],
+)

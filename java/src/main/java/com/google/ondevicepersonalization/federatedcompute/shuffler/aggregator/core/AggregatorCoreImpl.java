@@ -16,10 +16,13 @@
 
 package com.google.ondevicepersonalization.federatedcompute.shuffler.aggregator.core;
 
+import com.google.common.collect.Lists;
+import com.google.fcp.aggregation.AggregationSession;
 import com.google.fcp.plan.PhaseSession;
 import com.google.fcp.plan.PlanSession;
 import com.google.fcp.tensorflow.AppFiles;
 import com.google.gson.Gson;
+import com.google.internal.federated.plan.Plan;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.aggregator.core.message.AggregatorMessage;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.CompressionUtils;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.Constants;
@@ -29,6 +32,7 @@ import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.B
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.BlobDescription;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.tensorflow.TensorflowPlanSessionFactory;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.scp.operator.cpio.cryptoclient.DecryptionKeyService;
 import java.io.IOException;
 import java.time.Duration;
@@ -99,28 +103,24 @@ public class AggregatorCoreImpl implements AggregatorCore {
   }
 
   private void processMessageImpl(AggregatorMessage message) {
-    List<ByteString> encryptedGradients =
+    List<byte[]> encryptedGradients =
         message.getGradients().stream()
             .parallel()
             .map(
                 gradient ->
                     getGradientFullPath(
                         message.getGradientBucket(), message.getGradientPrefix(), gradient))
-            .map(blobDao::download)
+            .map(blobDao::downloadAndDecompressIfNeeded)
             .map((payload) -> Payload.parseAndDecryptPayload(payload, decryptionKeyService))
-            .map(ByteString::copyFrom)
             .collect(Collectors.toList());
 
-    ByteString plan =
-        ByteString.copyFrom(
-            blobDao.download(
-                BlobDescription.builder()
-                    .host(message.getServerPlanBucket())
-                    .resourceObject(message.getServerPlanObject())
-                    .build()));
+    byte[] plan =
+        blobDao.downloadAndDecompressIfNeeded(
+            BlobDescription.builder()
+                .host(message.getServerPlanBucket())
+                .resourceObject(message.getServerPlanObject())
+                .build());
 
-    // TODO(b/295060730): Support parallel aggregation. This is currently blocked by limited tmpfs
-    // volume size on supported TEEs.
     byte[] aggregatedResult =
         aggregate(encryptedGradients, plan, message.isAccumulateIntermediateUpdates());
     byte[] packagedAggregatedResult = encryptAndPackage(aggregatedResult);
@@ -131,10 +131,10 @@ public class AggregatorCoreImpl implements AggregatorCore {
             .resourceObject(message.getAggregatedGradientOutputObject())
             .build();
     try {
-      blobDao.upload(aggregatedResultLocation, packagedAggregatedResult);
+      blobDao.compressAndUpload(aggregatedResultLocation, packagedAggregatedResult);
     } catch (IOException e) {
-      logger.atError().setCause(e).log("failed to upload aggregated result.");
-      throw new RuntimeException("Failed to upload aggregated result", e);
+      logger.atError().setCause(e).log("failed to compressAndUpload aggregated result.");
+      throw new RuntimeException("Failed to compressAndUpload aggregated result", e);
     }
   }
 
@@ -147,18 +147,64 @@ public class AggregatorCoreImpl implements AggregatorCore {
   }
 
   private byte[] aggregate(
-      List<ByteString> encryptedGradients, ByteString plan, boolean accumulateIntermediateUpdates) {
+      List<byte[]> encryptedGradients, byte[] planBytes, boolean accumulateIntermediateUpdates) {
+    Plan plan;
+    try {
+      plan = Plan.parseFrom(planBytes);
+    } catch (InvalidProtocolBufferException e) {
+      throw new IllegalStateException("Failed to decode plan");
+    }
+    if (plan.getPhase(0).hasServerPhaseV2()) {
+      // Take the sqrt to enforce two layers of in-memory tree aggregation.
+      int partitionSize = (int) Math.ceil(Math.sqrt(encryptedGradients.size()));
+
+      // Layer 1
+      List<List<byte[]>> partitionedGradients = Lists.partition(encryptedGradients, partitionSize);
+      encryptedGradients =
+          partitionedGradients.parallelStream()
+              .map(gradients -> aggregateV2(gradients, planBytes, accumulateIntermediateUpdates))
+              .collect(Collectors.toList());
+
+      // Layer 2
+      return aggregateV2(encryptedGradients, planBytes, true);
+    } else {
+      // TODO(b/295060730): Support parallel V1 aggregation. This is currently blocked by limited
+      // tmpfs volume size on supported TEEs.
+      return aggregateV1(encryptedGradients, planBytes, accumulateIntermediateUpdates);
+    }
+  }
+
+  private byte[] aggregateV2(
+      List<byte[]> encryptedGradients, byte[] plan, boolean accumulateIntermediateUpdates) {
+    try (AggregationSession aggregationSession =
+        tensorflowPlanSessionFactory.createAggregationSession(plan)) {
+      if (accumulateIntermediateUpdates) {
+        aggregationSession.mergeWith(encryptedGradients.toArray(byte[][]::new));
+      } else {
+        aggregationSession.accumulate(encryptedGradients.toArray(byte[][]::new));
+      }
+      return aggregationSession.serialize();
+    }
+  }
+
+  private byte[] aggregateV1(
+      List<byte[]> encryptedGradients, byte[] plan, boolean accumulateIntermediateUpdates) {
     PhaseSession phaseSession = null;
     try {
       // Create tensorflow session
-      PlanSession planSession = tensorflowPlanSessionFactory.createPlanSession(plan);
+      PlanSession planSession =
+          tensorflowPlanSessionFactory.createPlanSession(ByteString.copyFrom(plan));
       phaseSession = planSession.createPhaseSession(Optional.empty(), Optional.of(appFiles));
 
       // Perform aggregation with gradient
       if (accumulateIntermediateUpdates) {
-        encryptedGradients.forEach(phaseSession::accumulateIntermediateUpdate);
+        encryptedGradients.stream()
+            .map(ByteString::copyFrom)
+            .forEach(phaseSession::accumulateIntermediateUpdate);
       } else {
-        encryptedGradients.forEach(phaseSession::accumulateClientUpdate);
+        encryptedGradients.stream()
+            .map(ByteString::copyFrom)
+            .forEach(phaseSession::accumulateClientUpdate);
       }
 
       // Finalize aggregation

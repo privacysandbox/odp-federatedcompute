@@ -20,6 +20,7 @@ import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.SpannerException;
 import com.google.ondevicepersonalization.federatedcompute.proto.IterationInfo;
 import com.google.ondevicepersonalization.federatedcompute.proto.TaskInfo;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.common.CompressionUtils.CompressionFormat;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.Constants;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.ProtoParser;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.BlobDao;
@@ -32,6 +33,7 @@ import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.T
 import java.time.Duration;
 import java.time.Instant;
 import java.time.InstantSource;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.locks.Lock;
@@ -47,6 +49,7 @@ public class TaskSchedulerCoreImpl implements TaskSchedulerCore {
 
   private static final Logger logger = LoggerFactory.getLogger(TaskSchedulerCoreImpl.class);
   private static final String LOCK_PREFIX = "taskscheduler_";
+  private static final String LOCK_COMPLETED_ITERATION_PREFIX = "completed_iteration_";
 
   private final TaskDao taskDao;
   private final BlobDao blobDao;
@@ -54,6 +57,7 @@ public class TaskSchedulerCoreImpl implements TaskSchedulerCore {
   private final InstantSource instantSource;
   private final TaskSchedulerCoreHelper taskSchedulerCoreHelper;
   private LockRegistry lockRegistry;
+  private final List<CompressionFormat> compressionFormats;
 
   public TaskSchedulerCoreImpl(
       TaskDao taskDao,
@@ -61,13 +65,23 @@ public class TaskSchedulerCoreImpl implements TaskSchedulerCore {
       BlobManager blobManager,
       InstantSource instantSource,
       TaskSchedulerCoreHelper taskSchedulerCoreHelper,
-      LockRegistry lockRegistry) {
+      LockRegistry lockRegistry,
+      List<CompressionFormat> compressionFormats) {
     this.taskDao = taskDao;
     this.blobDao = blobDao;
     this.blobManager = blobManager;
     this.instantSource = instantSource;
     this.taskSchedulerCoreHelper = taskSchedulerCoreHelper;
     this.lockRegistry = lockRegistry;
+    this.compressionFormats = compressionFormats;
+
+    if (compressionFormats != null
+        && compressionFormats.stream().noneMatch(format -> format == CompressionFormat.GZIP)) {
+      logger.warn(
+          "Only GZIP is currently supported. Client requested format {} including unsupported"
+              + " ones.",
+          compressionFormats);
+    }
   }
 
   public void processActiveTasks() {
@@ -84,6 +98,16 @@ public class TaskSchedulerCoreImpl implements TaskSchedulerCore {
       MDC.put(Constants.ACTIVITY_ID, UUID.randomUUID().toString());
       // Create client_checkpoint from init checkpoint.
       taskDao.getCreatedTasks().stream().forEach(this::processCreatedTask);
+    } finally {
+      MDC.clear();
+    }
+  }
+
+  public void processCompletedIterations() {
+    try {
+      MDC.put(Constants.ACTIVITY_ID, UUID.randomUUID().toString());
+      // Create client_checkpoint from init checkpoint.
+      taskDao.getIterationsOfStatus(Status.COMPLETED).forEach(this::processCompletedIteration);
     } finally {
       MDC.clear();
     }
@@ -203,6 +227,36 @@ public class TaskSchedulerCoreImpl implements TaskSchedulerCore {
       } else {
         throw exception;
       }
+    }
+  }
+
+  private void processCompletedIteration(IterationEntity iterationEntity) {
+    try {
+      Instant startTime = instantSource.instant();
+      Lock lock = lockRegistry.obtain(LOCK_COMPLETED_ITERATION_PREFIX + iterationEntity.getId());
+      if (lock.tryLock()) {
+        try {
+          boolean upsertMetricsSuccess =
+              taskSchedulerCoreHelper.parseMetricsAndUpsert(iterationEntity);
+          if (upsertMetricsSuccess) {
+            taskDao.updateIterationStatus(
+                iterationEntity, iterationEntity.toBuilder().status(Status.POST_PROCESSED).build());
+          }
+        } finally {
+          lock.unlock();
+          Duration duration = Duration.between(startTime, instantSource.instant());
+          logger.info(
+              "processing completed iteration in {} second for iteration {}.",
+              duration.getSeconds(),
+              iterationEntity.getId().toString());
+        }
+      }
+    } catch (Exception e) {
+      // catch and log all exception for one task avoiding breaking other tasks' processing
+      logger
+          .atError()
+          .setCause(e)
+          .log("Failed to process completed iteration {}", iterationEntity.getId());
     }
   }
 }

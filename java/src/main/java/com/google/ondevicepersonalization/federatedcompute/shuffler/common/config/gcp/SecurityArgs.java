@@ -34,4 +34,11 @@ public class SecurityArgs {
       names = "--is_authentication_enabled",
       description = "Whether to enable authentication when accepting clients' requests")
   private Boolean isAuthenticationEnabled;
+
+  @Parameter(
+      names = "--allow_rooted_devices",
+      description =
+          "Whether to allow rooted devices when accepting clients' requests. "
+              + "This setting will have no effect when authentication is disabled.")
+  private Boolean allowRootedDevices;
 }

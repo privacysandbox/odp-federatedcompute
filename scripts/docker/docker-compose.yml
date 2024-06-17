@@ -81,6 +81,10 @@ services:
     - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/keys/adc.json:ro
   taskscheduler:
     image: task_scheduler_image:latest
+    ports:
+      - '8087:8082'
+    expose:
+      - '8087'
     environment:
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/keys/adc.json
       GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT}

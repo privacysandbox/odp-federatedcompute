@@ -15,78 +15,96 @@
 from typing import Tuple
 from absl.testing import absltest
 import dataset_utils
+from shuffler.proto import task_builder_pb2
 import tensorflow as tf
+import test_utils
 
 
 class DatasetUtilsTest(absltest.TestCase):
 
+  def create_example(
+      self, f1_value: str, f2_value: int, label_value: str
+  ) -> tf.train.Example:
+    """Creates a example with 2 features with only string as value type.
+
+    Returns:
+    A tf.Example
+    """
+    return tf.train.Example(
+        features=tf.train.Features(
+            feature={
+                'f1': tf.train.Feature(
+                    bytes_list=tf.train.BytesList(
+                        value=[f1_value.encode('utf-8')]
+                    )
+                ),
+                'f2': tf.train.Feature(
+                    int64_list=tf.train.Int64List(value=[f2_value])
+                ),
+                'label': tf.train.Feature(
+                    bytes_list=tf.train.BytesList(
+                        value=[label_value.encode('utf-8')]
+                    )
+                ),
+            }
+        )
+    )
+
   def test_parse_examples(self):
     examples = [
-        self.create_example(('f1', ii), ('label', ii % 2)) for ii in range(3)
+        self.create_example(str(ii), ii, str(ii % 2)) for ii in range(3)
     ]
     serialized_example = [ex.SerializeToString() for ex in examples]
     decoder = {
-        'f1': tf.io.FixedLenFeature(shape=(1,), dtype=tf.string),
-        'label': tf.io.FixedLenFeature(shape=(1,), dtype=tf.string),
+        'f1': tf.io.FixedLenFeature(shape=(1), dtype=tf.string),
+        'f2': tf.io.FixedLenFeature(shape=(1), dtype=tf.int64),
+        'label': tf.io.FixedLenFeature(shape=(1), dtype=tf.string),
     }
+    is_dtype_int32 = {'f1': False, 'f2': True, 'label': False}
 
     features, label = dataset_utils.parse_tf_example(
-        serialized_example, decoder, 'label'
+        serialized_example, decoder, 'label', is_dtype_int32
     )
     self.assertListEqual(
         list(features['f1']), list(tf.constant(['0', '1', '2']))
     )
     self.assertListEqual(list(label), list(tf.constant(['0', '1', '0'])))
 
-  def create_example(
-      self, feature1: Tuple[str, str], feature2: Tuple[str, str]
-  ) -> tf.train.Example:
-    """Creates a example with 2 features with only string as value type.
-
-    For example, if inpuut is: feature1=('f1', 1), feature2 = ('label', 1),
-    The output looks like this:
-    features {
-    feature {
-        key: "f1"
-        value {
-        bytes_list {
-            value: "1"
-        }
-        }
-    }
-    feature {
-        key: "label"
-        value {
-        bytes_list {
-            value: "1"
-        }
-        }
-    }
-    }
-    Args:
-
-    feature1: The first feature
-    feature2: The second feature
-
-    Returns:
-    A tf.Example
-    """
-    key1 = str(feature1[0])
-    key2 = str(feature2[0])
-    value1 = [s.encode('utf-8') for s in str(feature1[1])]
-    value2 = [s.encode('utf-8') for s in str(feature2[1])]
-    return tf.train.Example(
-        features=tf.train.Features(
-            feature={
-                key1: tf.train.Feature(
-                    bytes_list=tf.train.BytesList(value=value1)
-                ),
-                key2: tf.train.Feature(
-                    bytes_list=tf.train.BytesList(value=value2)
-                ),
-            }
-        )
+  def test_get_data_specs_training_and_eval(self):
+    task_config = test_utils.get_good_training_and_eval_task_config()
+    training_data_spec, eval_data_spec = dataset_utils.get_data_specs(
+        task_config=task_config, preprocessing_fn=None
     )
+    self.assertEqual(
+        'training_collection',
+        training_data_spec.example_selector_proto.collection_uri,
+    )
+    self.assertEqual(
+        'eval_collection', eval_data_spec.example_selector_proto.collection_uri
+    )
+
+  def test_get_data_specs_training_only(self):
+    task_config = test_utils.get_good_training_and_eval_task_config()
+    task_config.mode = task_builder_pb2.TaskMode.Enum.TRAINING_ONLY
+    training_data_spec, missing_eval = dataset_utils.get_data_specs(
+        task_config=task_config, preprocessing_fn=None
+    )
+    self.assertEqual(
+        'training_collection',
+        training_data_spec.example_selector_proto.collection_uri,
+    )
+    self.assertIsNone(missing_eval)
+
+  def test_get_data_specs_eval_only(self):
+    task_config = test_utils.get_good_training_and_eval_task_config()
+    task_config.mode = task_builder_pb2.TaskMode.Enum.EVAL_ONLY
+    eval_data_spec, missing_training = dataset_utils.get_data_specs(
+        task_config=task_config, preprocessing_fn=None
+    )
+    self.assertEqual(
+        'eval_collection', eval_data_spec.example_selector_proto.collection_uri
+    )
+    self.assertIsNone(missing_training)
 
 
 if __name__ == '__main__':

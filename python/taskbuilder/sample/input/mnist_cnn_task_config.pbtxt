@@ -1,0 +1,43 @@
+# Task Configuration in pbtxt format 
+  mode: TRAINING_AND_EVAL  # Task execution mode
+  population_name: "mnist_cnn_task"
+  # Policies
+  policies {
+    min_separation_policy {
+      minimum_separation: 0  # Minimum distance between examples
+    }
+    data_availability_policy {
+      min_example_count: 1  # Minimum examples required 
+    }
+    model_release_policy {
+      num_max_training_rounds: 512
+    }
+  }
+
+  # Federated Learning Configuration
+  federated_learning {
+    learning_process {
+      client_optimizer: SGD
+      client_learning_rate: 0.02
+      server_optimizer: SGD
+      server_learning_rate: 1.0
+      runtime_config {
+	report_goal: 2
+      }
+      metrics {
+        name: "sparse_categorical_accuracy"
+      }
+    }
+    evaluation {
+      checkpoint_selector: "every_1_round"
+      evaluation_traffic: 0.2
+      report_goal: 2
+    }
+  }
+
+  # Differential Privacy Configuration
+  differential_privacy {
+    type: FIXED_GAUSSIAN
+    clip_norm: 0.1
+    noise_multiplier: 0.1
+  }

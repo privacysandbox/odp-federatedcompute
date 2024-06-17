@@ -16,7 +16,7 @@
 
 package com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.gcp;
 
-import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
@@ -116,6 +116,9 @@ public final class TaskSpannerDaoTest {
           .resultId(1)
           .info(ITERATION_INFO)
           .aggregationLevel(0)
+          .maxAggregationSize(MAX_AGGREGATION_SIZE)
+          .minClientVersion(MIN_CLIENT_VERSION)
+          .maxClientVersion(MAX_CLIENT_VERSION)
           .build();
 
   private void deleteDatabase() throws SQLException {
@@ -499,6 +502,9 @@ public final class TaskSpannerDaoTest {
                     .resultId(10)
                     .info(ITERATION_INFO)
                     .aggregationLevel(0)
+                    .maxAggregationSize(301)
+                    .minClientVersion(MIN_CLIENT_VERSION)
+                    .maxClientVersion(MAX_CLIENT_VERSION)
                     .build()));
   }
 
@@ -559,6 +565,9 @@ public final class TaskSpannerDaoTest {
                     .resultId(9)
                     .info(ITERATION_INFO)
                     .aggregationLevel(0)
+                    .maxAggregationSize(301)
+                    .minClientVersion(MIN_CLIENT_VERSION)
+                    .maxClientVersion(MAX_CLIENT_VERSION)
                     .build()));
   }
 
@@ -1421,6 +1430,9 @@ public final class TaskSpannerDaoTest {
                     .resultId(10)
                     .info(ITERATION_INFO)
                     .aggregationLevel(0)
+                    .maxAggregationSize(301)
+                    .minClientVersion(MIN_CLIENT_VERSION)
+                    .maxClientVersion(MAX_CLIENT_VERSION)
                     .build(),
                 IterationEntity.builder()
                     .populationName("us")
@@ -1434,6 +1446,9 @@ public final class TaskSpannerDaoTest {
                     .resultId(8)
                     .info(ITERATION_INFO)
                     .aggregationLevel(0)
+                    .maxAggregationSize(301)
+                    .minClientVersion(MIN_CLIENT_VERSION)
+                    .maxClientVersion(MAX_CLIENT_VERSION)
                     .build()));
   }
 
@@ -1496,6 +1511,9 @@ public final class TaskSpannerDaoTest {
                     .resultId(9)
                     .info(ITERATION_INFO)
                     .aggregationLevel(0)
+                    .maxAggregationSize(301)
+                    .minClientVersion(MIN_CLIENT_VERSION)
+                    .maxClientVersion(MAX_CLIENT_VERSION)
                     .build()));
   }
 
@@ -1548,307 +1566,7 @@ public final class TaskSpannerDaoTest {
   }
 
   @Test
-  public void testGetOpenIteration_noIterationOnPopulation_returnEmpty() {
-    // arrange
-    dbClient
-        .readWriteTransaction()
-        .run(
-            transaction -> {
-              insertTask(
-                  transaction,
-                  "us",
-                  /* taskId= */ 111,
-                  /* status= */ 0,
-                  /* insertStatusHist= */ true);
-              return null;
-            });
-
-    // act
-    Optional<IterationEntity> iteration = dao.getOpenIteration("us", MIN_CLIENT_VERSION);
-
-    // assert
-    assertTrue(iteration.isEmpty());
-  }
-
-  @Test
-  public void testGetOpenIteration_hasIterationButNotOpen_returnEmpty() {
-    // arrange
-    dbClient
-        .readWriteTransaction()
-        .run(
-            transaction -> {
-              insertTask(
-                  transaction,
-                  "us",
-                  /* taskId= */ 111,
-                  /* status= */ 0,
-                  /* insertStatusHist= */ true);
-              insertIteration(
-                  transaction,
-                  /* populationName= */ "us",
-                  /* taskId= */ 111,
-                  /* iterationId= */ 8,
-                  /* status= */ 2,
-                  /* reportGoal= */ 300,
-                  /* insertStatusHist= */ true);
-              insertIteration(
-                  transaction,
-                  /* populationName= */ "us",
-                  /* taskId= */ 111,
-                  /* iterationId= */ 9,
-                  /* status= */ 2,
-                  /* reportGoal= */ 300,
-                  /* insertStatusHist= */ true);
-              return null;
-            });
-
-    // act
-    Optional<IterationEntity> iteration = dao.getOpenIteration("us", MIN_CLIENT_VERSION);
-
-    // assert
-    assertTrue(iteration.isEmpty());
-  }
-
-  @Test
-  public void testGetOpenIteration_hasNonOpenTask_returnEmpty() {
-    // arrange
-    dbClient
-        .readWriteTransaction()
-        .run(
-            transaction -> {
-              insertTask(
-                  transaction,
-                  "us",
-                  /* taskId= */ 111,
-                  /* status= CANCELED */ 101,
-                  /* insertStatusHist= */ true);
-              insertIteration(
-                  transaction,
-                  /* populationName= */ "us",
-                  /* taskId= */ 111,
-                  /* iterationId= */ 8,
-                  /* status= COLLECTING*/ 0,
-                  /* reportGoal= */ 300,
-                  /* insertStatusHist= */ true);
-              insertIteration(
-                  transaction,
-                  /* populationName= */ "us",
-                  /* taskId= */ 111,
-                  /* iterationId= */ 9,
-                  /* status= COMPLETED*/ 2,
-                  /* reportGoal= */ 300,
-                  /* insertStatusHist= */ true);
-              return null;
-            });
-
-    // act
-    Optional<IterationEntity> iteration = dao.getOpenIteration("us", MIN_CLIENT_VERSION);
-
-    // assert
-    assertTrue(iteration.isEmpty());
-  }
-
-  @Test
-  public void testGetOpenIteration_hasEnoughActiveAssignment_returnEmpty() {
-    // arrange
-    dbClient
-        .readWriteTransaction()
-        .run(
-            transaction -> {
-              insertTask(
-                  transaction,
-                  "us",
-                  /* taskId= */ 111,
-                  /* status= OPEN */ 0,
-                  /* insertStatusHist= */ true);
-              insertIteration(
-                  transaction,
-                  /* populationName= */ "us",
-                  /* taskId= */ 111,
-                  /* iterationId= */ 8,
-                  /* status= COLLECTING*/ 0,
-                  /* reportGoal= */ MIN_AGGREGATION_SIZE,
-                  /* insertStatusHist= */ true);
-              insertAssignment(
-                  transaction,
-                  /* populationName= */ "us",
-                  /* taskId= */ 111,
-                  /* iterationId= */ 8,
-                  /* sessionId */ "assignment-1",
-                  /* createdTime */ TS_NOW,
-                  /* active */ true,
-                  /* withStatusHistory */ true);
-              insertAssignment(
-                  transaction,
-                  /* populationName= */ "us",
-                  /* taskId= */ 111,
-                  /* iterationId= */ 8,
-                  /* sessionId */ "assignment-2",
-                  /* createdTime */ TS_NOW,
-                  /* active */ true,
-                  /* withStatusHistory */ true);
-              return null;
-            });
-
-    // act
-    Optional<IterationEntity> iteration = dao.getOpenIteration("us", MIN_CLIENT_VERSION);
-
-    // assert
-    assertTrue(iteration.isEmpty());
-  }
-
-  @Test
-  public void testGetOpenIteration_notEnoughActiveAssignment_returnOpen() {
-    // arrange
-    dbClient
-        .readWriteTransaction()
-        .run(
-            transaction -> {
-              insertTask(
-                  transaction,
-                  "us",
-                  /* taskId= */ 111,
-                  /* status= OPEN */ 0,
-                  /* insertStatusHist= */ true);
-              insertIteration(
-                  transaction,
-                  /* populationName= */ "us",
-                  /* taskId= */ 111,
-                  /* iterationId= */ 8,
-                  /* status= COLLECTING*/ 0,
-                  /* reportGoal= */ MIN_AGGREGATION_SIZE,
-                  /* insertStatusHist= */ true);
-              insertAssignment(
-                  transaction,
-                  /* populationName= */ "us",
-                  /* taskId= */ 111,
-                  /* iterationId= */ 8,
-                  /* sessionId */ "assignment-1",
-                  /* createdTime */ TS_NOW,
-                  /* active */ true,
-                  /* withStatusHistory */ true);
-              insertAssignment(
-                  transaction,
-                  /* populationName= */ "us",
-                  /* taskId= */ 111,
-                  /* iterationId= */ 8,
-                  /* sessionId */ "assignment-2",
-                  /* createdTime */ TS_NOW,
-                  /* active */ false,
-                  /* withStatusHistory */ true);
-              return null;
-            });
-
-    // act
-    Optional<IterationEntity> iteration = dao.getOpenIteration("us", MIN_CLIENT_VERSION);
-
-    // assert
-    assertThat(iteration.get().getId())
-        .isEqualTo(
-            IterationId.builder()
-                .populationName("us")
-                .taskId(111)
-                .iterationId(8)
-                .attemptId(0)
-                .build());
-  }
-
-  @Test
-  public void testGetOpenIteration_hasMultipleIterationWithOnlyOneOpen_returnOpen() {
-    // arrange
-    dbClient
-        .readWriteTransaction()
-        .run(
-            transaction -> {
-              insertTask(
-                  transaction,
-                  "us",
-                  /* taskId= */ 111,
-                  /* status= */ 0,
-                  /* insertStatusHist= */ true);
-              insertIteration(
-                  transaction,
-                  /* populationName= */ "us",
-                  /* taskId= */ 111,
-                  /* iterationId= */ 8,
-                  /* status= */ 2,
-                  /* reportGoal= */ 300,
-                  /* insertStatusHist= */ true);
-              insertIteration(
-                  transaction,
-                  /* populationName= */ "us",
-                  /* taskId= */ 111,
-                  /* iterationId= */ 9,
-                  /* status= */ 2,
-                  /* reportGoal= */ 300,
-                  /* insertStatusHist= */ true);
-              insertIteration(
-                  transaction,
-                  /* populationName= */ "us",
-                  /* taskId= */ 111,
-                  /* iterationId= */ 10,
-                  /* status= */ 0,
-                  /* reportGoal= */ 300,
-                  /* insertStatusHist= */ true);
-              return null;
-            });
-
-    // act
-    Optional<IterationEntity> iteration = dao.getOpenIteration("us", MIN_CLIENT_VERSION);
-
-    // assert
-    assertThat(iteration.get().getId())
-        .isEqualTo(
-            IterationId.builder()
-                .populationName("us")
-                .taskId(111)
-                .iterationId(10)
-                .attemptId(0)
-                .build());
-  }
-
-  @Test
-  public void getOpenTasksAndIterations_hasCancelledTask_returnEmpty() {
-    // arrange
-    dbClient
-        .readWriteTransaction()
-        .run(
-            transaction -> {
-              insertTask(
-                  transaction,
-                  "us",
-                  /* taskId= */ 111,
-                  /* status= CANCELED */ 101,
-                  /* insertStatusHist= */ true);
-              insertIteration(
-                  transaction,
-                  /* populationName= */ "us",
-                  /* taskId= */ 111,
-                  /* iterationId= */ 8,
-                  /* status= COLLECTING*/ 0,
-                  /* reportGoal= */ 300,
-                  /* insertStatusHist= */ true);
-              insertIteration(
-                  transaction,
-                  /* populationName= */ "us",
-                  /* taskId= */ 111,
-                  /* iterationId= */ 9,
-                  /* status= COMPLETED*/ 2,
-                  /* reportGoal= */ 300,
-                  /* insertStatusHist= */ true);
-              return null;
-            });
-
-    // act
-    Map<TaskEntity, IterationEntity> taskEntityIterationEntityMap =
-        dao.getOpenTasksAndIterations("us", MIN_CLIENT_VERSION);
-
-    // assert
-    assertTrue(taskEntityIterationEntityMap.isEmpty());
-  }
-
-  @Test
-  public void getOpenTasksAndIterations_hasOpenTaskWithNoOpenIterations_returnEmpty() {
+  public void getOpenIterations_hasNoCollectingIterations_returnEmpty() {
     // arrange
     dbClient
         .readWriteTransaction()
@@ -1880,15 +1598,14 @@ public final class TaskSpannerDaoTest {
             });
 
     // act
-    Map<TaskEntity, IterationEntity> taskEntityIterationEntityMap =
-        dao.getOpenTasksAndIterations("us", MIN_CLIENT_VERSION);
+    List<IterationEntity> iterations = dao.getOpenIterations("us", MIN_CLIENT_VERSION);
 
     // assert
-    assertTrue(taskEntityIterationEntityMap.isEmpty());
+    assertTrue(iterations.isEmpty());
   }
 
   @Test
-  public void getOpenTasksAndIterations_hasOneOpenTaskAndIteration_returnOne() {
+  public void getOpenIterations_hasOneCollectingIteration_returnOne() {
     // arrange
     dbClient
         .readWriteTransaction()
@@ -1920,21 +1637,14 @@ public final class TaskSpannerDaoTest {
             });
 
     // act
-    Map<TaskEntity, IterationEntity> taskEntityIterationEntityMap =
-        dao.getOpenTasksAndIterations("us", MIN_CLIENT_VERSION);
+    List<IterationEntity> iterations = dao.getOpenIterations("us", MIN_CLIENT_VERSION);
 
     // assert
-    ImmutableMap<TaskId, IterationId> taskIdIterationIdImmutableMap =
-        ImmutableMap.copyOf(
-            taskEntityIterationEntityMap.entrySet().stream()
-                .collect(
-                    toImmutableMap(
-                        entry -> entry.getKey().getId(), entry -> entry.getValue().getId())));
-
-    assertThat(taskIdIterationIdImmutableMap)
-        .isEqualTo(
-            ImmutableMap.of(
-                TaskId.builder().populationName("us").taskId(111).build(),
+    ImmutableList<IterationId> iterationIds =
+        iterations.stream().map(i -> i.getId()).collect(toImmutableList());
+    assertThat(iterationIds)
+        .containsExactlyElementsIn(
+            ImmutableList.of(
                 IterationId.builder()
                     .populationName("us")
                     .taskId(111)
@@ -1942,10 +1652,11 @@ public final class TaskSpannerDaoTest {
                     .attemptId(0)
                     .build()));
   }
+  ;
 
   @Test
   public void
-      getOpenTasksAndIterations_hasMultipleOpenTaskAndIterationWithNotEnoughAssignment_returnMultiple() {
+      getOpenIterations_hasMultipleCollectingIterationWithNotEnoughAssignment_returnMultiple() {
     // arrange
     dbClient
         .readWriteTransaction()
@@ -2010,28 +1721,20 @@ public final class TaskSpannerDaoTest {
             });
 
     // act
-    Map<TaskEntity, IterationEntity> taskEntityIterationEntityMap =
-        dao.getOpenTasksAndIterations("us", MIN_CLIENT_VERSION);
+    List<IterationEntity> iterations = dao.getOpenIterations("us", MIN_CLIENT_VERSION);
 
     // assert
-    ImmutableMap<TaskId, IterationId> taskIdIterationIdImmutableMap =
-        ImmutableMap.copyOf(
-            taskEntityIterationEntityMap.entrySet().stream()
-                .collect(
-                    toImmutableMap(
-                        entry -> entry.getKey().getId(), entry -> entry.getValue().getId())));
-
-    assertThat(taskIdIterationIdImmutableMap)
-        .isEqualTo(
-            ImmutableMap.of(
-                TaskId.builder().populationName("us").taskId(111).build(),
+    ImmutableList<IterationId> iterationIds =
+        iterations.stream().map(i -> i.getId()).collect(toImmutableList());
+    assertThat(iterationIds)
+        .containsExactlyElementsIn(
+            ImmutableList.of(
                 IterationId.builder()
                     .populationName("us")
                     .taskId(111)
                     .iterationId(9)
                     .attemptId(0)
                     .build(),
-                TaskId.builder().populationName("us").taskId(222).build(),
                 IterationId.builder()
                     .populationName("us")
                     .taskId(222)
@@ -2041,7 +1744,7 @@ public final class TaskSpannerDaoTest {
   }
 
   @Test
-  public void getOpenTasksAndIterations_hasOpenIterationOnMultiplePopulation_returnCorrectOne() {
+  public void getOpenIterations_hasOpenIterationOnMultiplePopulation_returnCorrectIterations() {
     // arrange
     dbClient
         .readWriteTransaction()
@@ -2093,26 +1796,21 @@ public final class TaskSpannerDaoTest {
             });
 
     // query population 'us' and assert
-    Map<TaskEntity, IterationEntity> usTaskEntityIterationEntityMap =
-        dao.getOpenTasksAndIterations("us", MIN_CLIENT_VERSION);
-    ImmutableMap<TaskId, IterationId> usTaskIdIterationIdImmutableMap =
-        ImmutableMap.copyOf(
-            usTaskEntityIterationEntityMap.entrySet().stream()
-                .collect(
-                    toImmutableMap(
-                        entry -> entry.getKey().getId(), entry -> entry.getValue().getId())));
+    // act
+    List<IterationEntity> usIterations = dao.getOpenIterations("us", MIN_CLIENT_VERSION);
 
-    assertThat(usTaskIdIterationIdImmutableMap)
-        .isEqualTo(
-            ImmutableMap.of(
-                TaskId.builder().populationName("us").taskId(111).build(),
+    // assert
+    ImmutableList<IterationId> usIterationIds =
+        usIterations.stream().map(i -> i.getId()).collect(toImmutableList());
+    assertThat(usIterationIds)
+        .containsExactlyElementsIn(
+            ImmutableList.of(
                 IterationId.builder()
                     .populationName("us")
                     .taskId(111)
                     .iterationId(9)
                     .attemptId(0)
                     .build(),
-                TaskId.builder().populationName("us").taskId(222).build(),
                 IterationId.builder()
                     .populationName("us")
                     .taskId(222)
@@ -2121,19 +1819,15 @@ public final class TaskSpannerDaoTest {
                     .build()));
 
     // query population ca and assert
-    Map<TaskEntity, IterationEntity> caTaskEntityIterationEntityMap =
-        dao.getOpenTasksAndIterations("ca", MIN_CLIENT_VERSION);
-    ImmutableMap<TaskId, IterationId> caTaskIdIterationIdImmutableMap =
-        ImmutableMap.copyOf(
-            caTaskEntityIterationEntityMap.entrySet().stream()
-                .collect(
-                    toImmutableMap(
-                        entry -> entry.getKey().getId(), entry -> entry.getValue().getId())));
+    // act
+    List<IterationEntity> caIterations = dao.getOpenIterations("ca", MIN_CLIENT_VERSION);
 
-    assertThat(caTaskIdIterationIdImmutableMap)
-        .isEqualTo(
-            ImmutableMap.of(
-                TaskId.builder().populationName("ca").taskId(123).build(),
+    // assert
+    ImmutableList<IterationId> caIterationIds =
+        caIterations.stream().map(i -> i.getId()).collect(toImmutableList());
+    assertThat(caIterationIds)
+        .containsExactlyElementsIn(
+            ImmutableList.of(
                 IterationId.builder()
                     .populationName("ca")
                     .taskId(123)
@@ -2143,7 +1837,7 @@ public final class TaskSpannerDaoTest {
   }
 
   @Test
-  public void getOpenTasksAndIterations_hasEnoughActiveAssignment_returnEmpty() {
+  public void getOpenIterations_hasEnoughActiveAssignments_returnEmpty() {
     // arrange
     dbClient
         .readWriteTransaction()
@@ -2153,7 +1847,7 @@ public final class TaskSpannerDaoTest {
                   transaction,
                   "us",
                   /* taskId= */ 111,
-                  /* status= CANCELED */ 0,
+                  /* status= OPEN */ 0,
                   /* insertStatusHist= */ true);
               insertIteration(
                   transaction,
@@ -2161,7 +1855,7 @@ public final class TaskSpannerDaoTest {
                   /* taskId= */ 111,
                   /* iterationId= */ 9,
                   /* status= COLLECTING*/ 0,
-                  /* reportGoal= */ 300,
+                  /* reportGoal= */ 1,
                   /* insertStatusHist= */ true);
               insertAssignment(
                   transaction,
@@ -2185,7 +1879,7 @@ public final class TaskSpannerDaoTest {
                   transaction,
                   "us",
                   /* taskId= */ 222,
-                  /* status= CANCELED */ 0,
+                  /* status= OPEN */ 0,
                   /* insertStatusHist= */ true);
               insertIteration(
                   transaction,
@@ -2193,7 +1887,7 @@ public final class TaskSpannerDaoTest {
                   /* taskId= */ 222,
                   /* iterationId= */ 5,
                   /* status= COLLECTING*/ 0,
-                  /* reportGoal= */ 300,
+                  /* reportGoal= */ 1,
                   /* insertStatusHist= */ true);
               insertAssignment(
                   transaction,
@@ -2217,11 +1911,10 @@ public final class TaskSpannerDaoTest {
             });
 
     // act
-    Map<TaskEntity, IterationEntity> taskEntityIterationEntityMap =
-        dao.getOpenTasksAndIterations("us", MIN_CLIENT_VERSION);
+    List<IterationEntity> iterations = dao.getOpenIterations("us", MIN_CLIENT_VERSION);
 
     // assert
-    assertTrue(taskEntityIterationEntityMap.isEmpty());
+    assertTrue(iterations.isEmpty());
   }
 
   @Test
@@ -2579,10 +2272,11 @@ public final class TaskSpannerDaoTest {
       Timestamp timestamp) {
     String insertIteration =
         "INSERT INTO Iteration(PopulationName, TaskId, IterationId, AttemptId, Status,"
-            + " BaseIterationId, BaseOnResultId, ReportGoal, ResultId, Info, AggregationLevel)"
+            + " BaseIterationId, BaseOnResultId, ReportGoal, ResultId, Info, AggregationLevel,"
+            + " MaxAggregationSize, MinClientVersion, MaxClientVersion )"
             + " VALUES(@populationName, @taskId, @iterationId, @attemptId, @status,"
             + " @baseIterationId, @baseOnResultId, @reportGoal, @resultId, @info,"
-            + " @aggregationLevel)";
+            + " @aggregationLevel, @maxAggregationSize, @minClientVersion, @maxClientVersion)";
     transaction.executeUpdate(
         Statement.newBuilder(insertIteration)
             .bind("PopulationName")
@@ -2607,6 +2301,12 @@ public final class TaskSpannerDaoTest {
             .to(Value.json(ITERATION_INFO))
             .bind("aggregationLevel")
             .to(0)
+            .bind("maxAggregationSize")
+            .to(reportGoal + 1)
+            .bind("minClientVersion")
+            .to(MIN_CLIENT_VERSION)
+            .bind("maxClientVersion")
+            .to(MAX_CLIENT_VERSION)
             .build());
     if (insertStatusHist) {
       insertIterationStatusHist(

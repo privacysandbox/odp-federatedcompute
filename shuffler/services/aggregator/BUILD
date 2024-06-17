@@ -41,6 +41,7 @@ pkg_tar(
     # Bring the java_binary
     srcs = [
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/aggregator:aggregator_application",
+        "@federatedcompute//fcp/java_src/main/java/com/google/fcp/aggregation/jni:libaggregation-jni.so",
         "@federatedcompute//fcp/java_src/main/java/com/google/fcp/tensorflow/jni:libtensorflow-jni.so",
     ],
 )
@@ -51,6 +52,7 @@ oci_image(
     entrypoint = [
         "java",
         "-Djava.library.path=.",
+        "-Dspring.profiles.active=gcp",
         "-XX:InitialRAMPercentage=70.0",
         "-XX:MaxRAMPercentage=70.0",
         "-jar",
@@ -59,6 +61,8 @@ oci_image(
     exposed_ports = ["8082/tcp"],
     labels = {
         "tee.launch_policy.allow_env_override": "FCP_OPTS",
+        "tee.launch_policy.log_redirect": "always",
+        "tee.launch_policy.monitoring_memory_allow": "always",
     },
     tars = [
         "libcc1-16_amd64.tar",

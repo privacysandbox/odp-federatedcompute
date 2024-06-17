@@ -203,6 +203,7 @@ java_library(
         ":blob_description",
         ":iteration_entity",
         ":task_entity",
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:compression_utils",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:lombok_java",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:assignment_id",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:iteration_id",
@@ -216,5 +217,25 @@ java_library(
     ],
     deps = [
         ":blob_description",
+    ],
+)
+
+java_library(
+    name = "model_metrics_entity",
+    srcs = [
+        "ModelMetricsEntity.java",
+    ],
+    deps = [
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:lombok_java",
+    ],
+)
+
+java_library(
+    name = "model_metrics_dao",
+    srcs = [
+        "ModelMetricsDao.java",
+    ],
+    deps = [
+        ":model_metrics_entity",
     ],
 )

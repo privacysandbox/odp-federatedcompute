@@ -82,15 +82,20 @@ public class CollectorCoreImplHelper {
    * application.
    *
    * @param iteration The IterationEntity containing data to construct the message.
+   * @param intermediates Collection of intermediate gradients to apply during model updating
    * @return ModelUpdaterMessage A message detailing resource locations and a request ID.
    */
-  public ModelUpdaterMessage createModelUpdaterMessage(IterationEntity iteration) {
+  public ModelUpdaterMessage createModelUpdaterMessage(
+      IterationEntity iteration, Collection<String> intermediates) {
     String requestId = iteration.getId().toString();
     BlobDescription serverPlanBlob = blobManager.generateDownloadServerPlanDescription(iteration);
-    BlobDescription aggregatedGradientBlob =
-        blobManager.generateDownloadAggregatedGradientDescription(iteration);
     BlobDescription checkpointBlob = blobManager.generateDownloadCheckpointDescription(iteration);
     BlobDescription metricsBlob = blobManager.generateUploadMetricsDescriptions(iteration)[0];
+
+    List<String> gradients =
+        intermediates.stream().map(path -> path + "/" + GRADIENT_FILE).toList();
+    BlobDescription gradientPath =
+        blobManager.generateDownloadAggregatedGradientDescription(iteration);
 
     // For evaluation task, skip setting new checkpoint related fields to avoid uploading
     // new checkpoints in the model updater.
@@ -98,8 +103,9 @@ public class CollectorCoreImplHelper {
       return ModelUpdaterMessage.builder()
           .serverPlanBucket(serverPlanBlob.getHost())
           .serverPlanObject(serverPlanBlob.getResourceObject())
-          .aggregatedGradientBucket(aggregatedGradientBlob.getHost())
-          .aggregatedGradientObject(aggregatedGradientBlob.getResourceObject() + GRADIENT_FILE)
+          .intermediateGradientBucket(gradientPath.getHost())
+          .intermediateGradientPrefix(gradientPath.getResourceObject())
+          .intermediateGradients(gradients)
           .checkpointBucket(checkpointBlob.getHost())
           .checkpointObject(checkpointBlob.getResourceObject())
           .metricsOutputBucket(metricsBlob.getHost())
@@ -116,8 +122,9 @@ public class CollectorCoreImplHelper {
     return ModelUpdaterMessage.builder()
         .serverPlanBucket(serverPlanBlob.getHost())
         .serverPlanObject(serverPlanBlob.getResourceObject())
-        .aggregatedGradientBucket(aggregatedGradientBlob.getHost())
-        .aggregatedGradientObject(aggregatedGradientBlob.getResourceObject() + GRADIENT_FILE)
+        .intermediateGradientBucket(gradientPath.getHost())
+        .intermediateGradientPrefix(gradientPath.getResourceObject())
+        .intermediateGradients(gradients)
         .checkpointBucket(checkpointBlob.getHost())
         .checkpointObject(checkpointBlob.getResourceObject())
         .newCheckpointOutputBucket(newCheckpointBlob.getHost())

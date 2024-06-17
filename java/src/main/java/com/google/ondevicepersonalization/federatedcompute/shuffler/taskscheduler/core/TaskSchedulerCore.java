@@ -21,4 +21,6 @@ public interface TaskSchedulerCore {
   public void processActiveTasks();
 
   public void processCreatedTasks();
+
+  public void processCompletedIterations();
 }

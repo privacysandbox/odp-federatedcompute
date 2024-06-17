@@ -108,6 +108,24 @@ variable "aggregated_gradient_bucket_versioning" {
   default     = true
 }
 
+variable "model_bucket_lifecycle_age_days" {
+  description = "Duration in days for objects in the model bucket before they are deleted."
+  type        = number
+  default     = 360
+}
+
+variable "client_gradient_bucket_lifecycle_age_days" {
+  description = "Duration in days for objects in the client gradient bucket before they are deleted."
+  type        = number
+  default     = 60
+}
+
+variable "aggregated_gradient_bucket_lifecycle_age_days" {
+  description = "Duration in days for objects in the aggregated gradient bucket before they are deleted."
+  type        = number
+  default     = 60
+}
+
 # https://cloud.google.com/spanner/docs/pitr
 # Must be between 1 hour and 7 days. Can be specified in days, hours, minutes, or seconds.
 # eg: 1d, 24h, 1440m, and 86400s are equivalent.
@@ -127,6 +145,12 @@ variable "spanner_processing_units" {
   description = "Spanner's compute capacity. 1000 processing units = 1 node and must be set as a multiple of 100."
   type        = number
   default     = 1000
+}
+
+variable "metric_spanner_processing_units" {
+  description = "Spanner's compute capacity for Metric instance. 1000 processing units = 1 node and must be set as a multiple of 100."
+  type        = number
+  default     = 100
 }
 
 variable "spanner_database_deletion_protection" {
@@ -200,6 +224,12 @@ variable "key_attestation_api_key" {
 
 variable "is_authentication_enabled" {
   description = "Whether to enable authentication"
+  type        = bool
+  default     = false
+}
+
+variable "allow_rooted_devices" {
+  description = "Whether to allow rooted devices. This setting will have no effect when authentication is disabled. It is recommended to be set false for production environments."
   type        = bool
   default     = false
 }
@@ -350,10 +380,47 @@ variable "task_management_min_replicas" {
   default     = 2
 }
 
+# Task builder parameters
+variable "task_builder_service_account" {
+  description = "The service account to use for task builder"
+  type        = string
+  default     = ""
+}
+
+variable "task_builder_image" {
+  description = "The task builder container image."
+  type        = string
+}
+
+variable "task_builder_port" {
+  description = "The task builder service port."
+  type        = string
+  default     = "5000"
+}
+
+variable "task_builder_max_replicas" {
+  description = "The maximum number of task builder replicas that the autoscaler can scale up to."
+  type        = number
+  default     = 5
+}
+
+variable "task_builder_min_replicas" {
+  description = "The minimum number of task builder replicas that the autoscaler can scale down to."
+  type        = number
+  default     = 2
+}
+
 # Collector parameters
 variable "collector_batch_size" {
   description = "The size of aggregation batches created by the collector"
   type        = number
   default     = 50
 }
+
+variable "initial_deployment" {
+  description = "Set true for first deployment to handle dependencies which rely on features that require dependencies determined after apply"
+  type        = bool
+  default     = false
+}
+
 

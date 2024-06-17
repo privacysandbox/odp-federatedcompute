@@ -58,6 +58,7 @@ cp -avR environments/dev environments/<new_env>
 6. Additional configuration variables are available and defined under `shuffler_variables.tf`
 7. a. (Recommended) Create compute service account to use for confidential space. 
      - This account will need to be allow-listed by the coordinator operators after creation. 
+     - They can be provided as `aggregator_service_account` and `model_updater_service_account`
 
    b. If not provided through `dev.auto.tfvars`, compute service accounts will be created for the aggregator and model updater workloads.
      - If not provided, the services accounts generated will be formatted as:
@@ -68,8 +69,10 @@ cp -avR environments/dev environments/<new_env>
 ```bash
 terraform init
 terraform plan
+terraform apply -auto-approve -var='initial_deployment=true'
 terraform apply -auto-approve
 ```
+Note that the deployment requires two separate terraform applies. One for initial deployment and one for following deployment.
 9. Retrieve and save output for the following for the following deployments
    - Cluster:
      - `static_ip_name`
@@ -78,6 +81,8 @@ terraform apply -auto-approve
    - Database:
      - `spanner_database_name`
      - `spanner_instance_name`
+     - `metrics_spanner_database_name`
+     - `metrics_spanner_instance_name`
 ```bash
 terraform output -json
 ```
@@ -115,7 +120,8 @@ gcloud compute ssl-certificates describe <environment>-cert
 ```
 
 ### Create database tables
-1. From the repository root run the below command replacing `spanner_instance_name` and `spanner_database_name` with the output from shuffler:
+1. From the repository root run the below command replacing `spanner_instance_name`, `spanner_database_name`, `metrics_spanner_instance_name`, and `metrics_spanner_database_name` with the output from shuffler:
 ```bash
 gcloud spanner databases ddl update <spanner_database_name> --instance=<spanner_instance_name> --ddl-file=shuffler/spanner/task_database.sdl
+gcloud spanner databases ddl update <metrics_spanner_database_name> --instance=<metrics_spanner_instance_name> --ddl-file=shuffler/spanner/metrics_database.sdl
 ```

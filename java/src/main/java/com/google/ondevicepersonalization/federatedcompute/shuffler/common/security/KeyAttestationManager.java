@@ -17,14 +17,12 @@
 package com.google.ondevicepersonalization.federatedcompute.shuffler.common.security;
 
 import static com.google.ondevicepersonalization.federatedcompute.shuffler.common.Constants.FEDERATED_COMPUTE_PACKAGE_ALLOWED;
-import static com.google.ondevicepersonalization.federatedcompute.shuffler.common.Constants.KEY_ATTESTATION_VERIFICAITON_OK;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.scp.shared.api.util.ErrorUtil;
-import java.io.IOException;
 import java.net.URI;
 import java.util.Base64;
 import java.util.Objects;
@@ -52,6 +50,7 @@ public class KeyAttestationManager {
   private final String keyAttestationApiKey;
 
   private final CloseableHttpClient httpClient;
+  private final Boolean allowRootedDevices;
 
   private static final String CHALLENGE_BODY = "{\"ttl\": {\"seconds\": 3600}}";
 
@@ -60,7 +59,8 @@ public class KeyAttestationManager {
       @Qualifier("keyAttestationServiceBaseUrl") Optional<String> keyAttestationServiceBaseUrl,
       @Qualifier("keyAttestationApiKey") Optional<String> keyAttestationApiKey,
       CloseableHttpClient keyAttestationServiceHttpClient,
-      @Qualifier("isAuthenticationEnabled") Boolean isAuthenticationEnabled) {
+      @Qualifier("isAuthenticationEnabled") Boolean isAuthenticationEnabled,
+      @Qualifier("allowRootedDevices") Boolean allowRootedDevices) {
     if (isAuthenticationEnabled) {
       this.keyAttestationServiceBaseUrl = keyAttestationServiceBaseUrl.orElseThrow();
       this.keyAttestationApiKey = keyAttestationApiKey.orElseThrow();
@@ -69,6 +69,7 @@ public class KeyAttestationManager {
       this.keyAttestationApiKey = null;
     }
     this.httpClient = keyAttestationServiceHttpClient;
+    this.allowRootedDevices = allowRootedDevices;
   }
 
   /**
@@ -76,8 +77,8 @@ public class KeyAttestationManager {
    *
    * @return the challenge in byte array.
    */
-  public byte[] fetchChallenge() throws IOException {
-    URI fetchUri = URI.create(String.format("%s:generate", keyAttestationServiceBaseUrl));
+  public byte[] fetchChallenge() {
+    URI fetchUri = URI.create(String.format("%s:generateChallenge", keyAttestationServiceBaseUrl));
     HttpPost request = new HttpPost(fetchUri);
     request.setHeader("Content-Type", "application/json; utf-8");
     request.setHeader("Accept", "application/json");
@@ -116,8 +117,10 @@ public class KeyAttestationManager {
    *     throws an exception if there is error parsing the response or the return status is not
    *     successful.
    */
-  public boolean isAttestationRecordVerified(String attestationRecord) throws IOException {
-    URI verifyURI = URI.create(String.format("%s:verify", keyAttestationServiceBaseUrl));
+  public boolean isAttestationRecordVerified(String attestationRecord) {
+    logger.debug("Verifying attestation record: " + attestationRecord);
+    URI verifyURI =
+        URI.create(String.format("%s:verifyKeyAttestationRecord", keyAttestationServiceBaseUrl));
     HttpPost request = new HttpPost(verifyURI);
     request.setHeader("Content-Type", "application/json; utf-8");
     request.setHeader("Accept", "application/json");
@@ -127,6 +130,9 @@ public class KeyAttestationManager {
       verifyRequestJson.add(
           "keyAttestationCertificateChain",
           JsonParser.parseString(attestationRecord).getAsJsonArray());
+      logger.debug(
+          "Sending request to KAVS server for verification with entity: "
+              + verifyRequestJson.toString());
       request.setEntity(new StringEntity(verifyRequestJson.toString()));
 
       CloseableHttpResponse response = httpClient.execute(request);
@@ -161,30 +167,28 @@ public class KeyAttestationManager {
   private boolean isVerificationResponseBodyValid(String responseBody) {
     try {
       JsonObject responseJson = JsonParser.parseString(responseBody).getAsJsonObject();
-      logger.debug("verificationResult: " + responseJson.get("verificationResult").getAsString());
-      // 1. verificationResult
-      if (!Objects.equals(
-          responseJson.get("verificationResult").getAsString(), KEY_ATTESTATION_VERIFICAITON_OK)) {
-        return false;
+
+      // 1. Boot State
+      // Skip boot state check if rooted devices are allowed.
+      // This recommended to only be enabled for testing purposes.
+      if (!allowRootedDevices) {
+        JsonObject rootOfTrust =
+            responseJson
+                .getAsJsonObject("keyDescription")
+                .getAsJsonObject("teeEnforced")
+                .getAsJsonObject("rootOfTrust");
+        logger.debug("rootOfTrust Object: " + rootOfTrust.toString());
+        if (!rootOfTrust.has("verifiedBootState")
+            || !Objects.equals(rootOfTrust.get("verifiedBootState").getAsString(), "VERIFIED")) {
+          return false;
+        }
+
+        if (!rootOfTrust.has("deviceLocked") || !rootOfTrust.get("deviceLocked").getAsBoolean()) {
+          return false;
+        }
       }
 
-      // 2. Boot State
-      JsonObject rootOfTrust =
-          responseJson
-              .getAsJsonObject("keyDescription")
-              .getAsJsonObject("teeEnforced")
-              .getAsJsonObject("rootOfTrust");
-      logger.debug("rootOfTrust Object: " + rootOfTrust.toString());
-      if (!rootOfTrust.has("verifiedBootState")
-          || !Objects.equals(rootOfTrust.get("verifiedBootState").getAsString(), "VERIFIED")) {
-        return false;
-      }
-
-      if (!rootOfTrust.has("deviceLocked") || !rootOfTrust.get("deviceLocked").getAsBoolean()) {
-        return false;
-      }
-
-      // 3. Package name
+      // 2. Package name
       JsonArray packageInfos =
           responseJson
               .getAsJsonObject("keyDescription")

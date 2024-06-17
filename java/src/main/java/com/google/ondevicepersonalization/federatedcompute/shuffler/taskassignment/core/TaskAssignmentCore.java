@@ -18,16 +18,21 @@ package com.google.ondevicepersonalization.federatedcompute.shuffler.taskassignm
 
 import com.google.ondevicepersonalization.federatedcompute.proto.TaskAssignment;
 import com.google.ondevicepersonalization.federatedcompute.proto.UploadInstruction;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.common.CompressionUtils.CompressionFormat;
 import java.util.Optional;
 
 /** The task assignment service core. */
 public interface TaskAssignmentCore {
   public Optional<TaskAssignment> createTaskAssignment(
-      String populationName, String clientVersion, String correlationId);
+      String populationName, String clientVersion, String correlationId, CompressionFormat format);
 
   // Get result upload instruction.
   public Optional<UploadInstruction> getUploadInstruction(
-      String populationName, long taskId, String aggregationId, String assignmentId);
+      String populationName,
+      long taskId,
+      String aggregationId,
+      String assignmentId,
+      CompressionFormat compressionFormat);
 
   // Report local succeeded.
   public void reportLocalCompleted(

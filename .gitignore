@@ -27,8 +27,12 @@
 .idea/
 **/*.iml
 
-# python venv
+# python
+__pycache__/
 venv/
 
 # code coverage output
 genhtml/
+
+# python cache
+**/__pycache__/**

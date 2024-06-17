@@ -112,6 +112,16 @@ output "spanner_instance_name" {
   description = "Name of the FCP task Spanner instance."
 }
 
+output "metrics_spanner_instance_name" {
+  value       = module.shuffler.metrics_spanner_instance_name
+  description = "Name of the FCP metrics Spanner instance."
+}
+
+output "metrics_spanner_database_name" {
+  value       = module.shuffler.spanner_metrics_database_name
+  description = "Name of the FCP metrics Spanner database."
+}
+
 output "aggregator_service_account_email" {
   description = "The service account of the aggregator"
   value       = module.shuffler.aggregator_service_account_email
@@ -150,4 +160,26 @@ output "task_management_name" {
 output "task_management_service_account_email" {
   description = "The service account of the task management"
   value       = module.shuffler.task_management_service_account_email
+}
+
+output "task_management_url" {
+  # https://github.com/hashicorp/terraform-provider-google/issues/15119
+  description = "URL of the task management service. The terraform may need to be re-run if blank to populate."
+  value       = module.shuffler.task_management_url
+}
+
+output "task_builder_name" {
+  description = "Name of task builder cloud run deployment"
+  value       = module.shuffler.task_builder_name
+}
+
+output "task_builder_service_account_email" {
+  value       = module.shuffler.task_builder_service_account_email
+  description = "Email of the task builder service account"
+}
+
+output "task_builder_url" {
+  # https://github.com/hashicorp/terraform-provider-google/issues/15119
+  description = "URL of the task builder service. The terraform may need to be re-run if blank to populate."
+  value       = module.shuffler.task_builder_url
 }

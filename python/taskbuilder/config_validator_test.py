@@ -13,50 +13,11 @@
 # limitations under the License.
 
 
-import copy
 from absl.testing import absltest
 import common
 import config_validator
 from shuffler.proto import task_builder_pb2
-from shuffler.proto import task_pb2
-
-TEST_DATA = task_builder_pb2.TaskConfig(
-    mode=task_builder_pb2.TaskMode.Enum.TRAINING_AND_EVAL,
-    population_name='my_new_population',
-    label_name='y',
-    policies=task_builder_pb2.Policies(
-        min_separation_policy=task_pb2.MinimumSeparationPolicy(
-            minimum_separation=3
-        ),
-        data_availability_policy=task_pb2.DataAvailabilityPolicy(
-            min_example_count=100
-        ),
-        model_release_policy=task_builder_pb2.ModelReleaseManagementPolicy(
-            dp_target_epsilon=6,
-            dp_delta=0.000001,
-            num_max_training_rounds=1000,
-        ),
-    ),
-    federated_learning=task_builder_pb2.FederatedLearning(
-        learning_process=task_builder_pb2.LearningProcess(
-            client_learning_rate=0.01,
-            server_learning_rate=1.0,
-            runtime_config=task_builder_pb2.RuntimeConfig(
-                report_goal=2000, over_selection_rate=0.3
-            ),
-        ),
-        evaluation=task_builder_pb2.Evaluation(
-            source_training_population='source_population',
-            checkpoint_selector='every_2_round',
-            evaluation_traffic=0.1,
-            report_goal=200,
-            over_selection_rate=0.3,
-        ),
-    ),
-    differential_privacy=task_builder_pb2.DifferentialPrivacy(
-        noise_multiplier=0.1, clip_norm=0.1
-    ),
-)
+import test_utils
 
 POSITIVE_NUM_ERROR_MSG = (
     '[Invalid task config]: key `{key_name}` has a bad value: `{value_name}` in'
@@ -69,12 +30,12 @@ PROBABILITY_ERROR_MSG = (
 DP_DELTA_ERROR_MSG = (
     '[Invalid task config]: key `dp_delta` has a bad value: `{value_name}` in'
     ' `model_release_policy`. dp_delta must be a float number between 0'
-    ' and 0.0001.'
+    ' and 3.333333E-07'
 )
 DP_TARGET_EPSILON_ERROR_MSG = (
     '[Invalid task config]: key `dp_target_epsilon` has a bad value:'
     ' `{value_name}` in `model_release_policy`. dp_target_epsilon must be a'
-    ' float number between 0 and 6.0.'
+    ' float number between 0 and 10.000000'
 )
 CHECKPOINT_SELECTOR_ERROR_MSG = (
     '[Invalid task config]: key `checkpoint_selector` has a bad value:'
@@ -97,7 +58,7 @@ class ConfigValidatorTest(absltest.TestCase):
 
   def setUp(self):
     super().setUp()
-    self._test_data = copy.deepcopy(TEST_DATA)
+    self._test_data = test_utils.get_good_training_and_eval_task_config()
 
   def test_validate_good_training_and_eval_task(self):
     mode = config_validator.validate_metadata(self._test_data)
@@ -211,6 +172,18 @@ class ConfigValidatorTest(absltest.TestCase):
     ):
       config_validator.validate_metadata(self._test_data)
 
+    self._test_data.federated_learning.evaluation.over_selection_rate = 0.3
+    self._test_data.policies.dataset_policy.batch_size = -1
+    with self.assertRaisesWithLiteralMatch(
+        common.TaskBuilderException,
+        POSITIVE_NUM_ERROR_MSG.format(
+            key_name='batch_size',
+            value_name=-1,
+            entity_name='dataset_policy',
+        ),
+    ):
+      config_validator.validate_metadata(self._test_data)
+
   def test_validate_probability_bad_value(self):
     self._test_data.federated_learning.learning_process.client_learning_rate = (
         -1.0
@@ -262,10 +235,10 @@ class ConfigValidatorTest(absltest.TestCase):
       config_validator.validate_metadata(self._test_data)
 
   def test_validate_dp_target_bad_value(self):
-    self._test_data.policies.model_release_policy.dp_target_epsilon = 10.0
+    self._test_data.policies.model_release_policy.dp_target_epsilon = 12.0
     with self.assertRaisesWithLiteralMatch(
         common.TaskBuilderException,
-        DP_TARGET_EPSILON_ERROR_MSG.format(value_name=10.0),
+        DP_TARGET_EPSILON_ERROR_MSG.format(value_name=12.0),
     ):
       config_validator.validate_metadata(self._test_data)
 
@@ -306,9 +279,18 @@ class ConfigValidatorTest(absltest.TestCase):
       config_validator.validate_metadata(self._test_data)
 
   def test_validate_fcp_dp(self):
+    dp_parameters = config_validator.validate_fcp_dp(
+        task_config=self._test_data,
+        flags=task_builder_pb2.ExperimentFlags()
+    )
+    self.assertEqual(0.1, dp_parameters.dp_clip_norm)
+    self.assertEqual(6.0, dp_parameters.noise_multiplier)
+
+  def test_validate_fcp_dp_calibration(self):
     self._test_data.differential_privacy.noise_multiplier = 0.0
     dp_parameters = config_validator.validate_fcp_dp(
-        task_config=self._test_data
+        task_config=self._test_data,
+        flags=task_builder_pb2.ExperimentFlags()
     )
     self.assertEqual(0.1, dp_parameters.dp_clip_norm)
     self.assertGreater(dp_parameters.noise_multiplier, 0.0)

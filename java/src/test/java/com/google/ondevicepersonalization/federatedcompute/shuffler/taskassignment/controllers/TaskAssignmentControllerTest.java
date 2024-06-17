@@ -24,6 +24,7 @@ import static com.google.ondevicepersonalization.federatedcompute.shuffler.taska
 import static com.google.ondevicepersonalization.federatedcompute.shuffler.taskassignment.controllers.TaskAssignmentController.RESULT_TAG;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
@@ -42,6 +43,7 @@ import com.google.ondevicepersonalization.federatedcompute.proto.ReportResultReq
 import com.google.ondevicepersonalization.federatedcompute.proto.ReportResultResponse;
 import com.google.ondevicepersonalization.federatedcompute.proto.TaskAssignment;
 import com.google.ondevicepersonalization.federatedcompute.proto.UploadInstruction;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.common.CompressionUtils.CompressionFormat;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.taskassignment.core.TaskAssignmentCore;
 import com.google.protobuf.Duration;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -88,7 +90,7 @@ public final class TaskAssignmentControllerTest {
   @Test
   public void testTimerMetrics_Success() {
     // arrange
-    when(mockCore.createTaskAssignment(anyString(), anyString(), anyString()))
+    when(mockCore.createTaskAssignment(anyString(), anyString(), anyString(), any()))
         .thenReturn(Optional.of(DEFAULT_TASK_ASSIGNMENT));
 
     // act
@@ -105,7 +107,7 @@ public final class TaskAssignmentControllerTest {
   @Test
   public void testCreateTaskAssignment_Success() {
     // arrange
-    when(mockCore.createTaskAssignment(anyString(), anyString(), anyString()))
+    when(mockCore.createTaskAssignment(anyString(), anyString(), anyString(), any()))
         .thenReturn(Optional.of(DEFAULT_TASK_ASSIGNMENT));
 
     // act
@@ -121,13 +123,16 @@ public final class TaskAssignmentControllerTest {
     assertThat(response.getStatusCode()).isEqualTo(HttpStatusCode.valueOf(201));
     verify(mockCore)
         .createTaskAssignment(
-            /* populationName= */ "us", /* clientVersion= */ "1.2.3.4", /* correlationId= */ "");
+            /* populationName= */ "us",
+            /* clientVersion= */ "1.2.3.4",
+            /* correlationId= */ "",
+            CompressionFormat.GZIP);
   }
 
   @Test
   public void testCreateTaskAssignment_NoAssignment() {
     // arrange
-    when(mockCore.createTaskAssignment(anyString(), anyString(), anyString()))
+    when(mockCore.createTaskAssignment(anyString(), anyString(), anyString(), any()))
         .thenReturn(Optional.empty());
 
     // act
@@ -149,13 +154,16 @@ public final class TaskAssignmentControllerTest {
     assertThat(response.getStatusCode()).isEqualTo(HttpStatusCode.valueOf(200));
     verify(mockCore)
         .createTaskAssignment(
-            /* populationName= */ "us", /* clientVersion= */ "1.2.3.4", /* correlationId= */ "");
+            /* populationName= */ "us",
+            /* clientVersion= */ "1.2.3.4",
+            /* correlationId= */ "",
+            CompressionFormat.GZIP);
   }
 
   @Test
   public void testReportResult_COMPLETED_Succeeded() {
     // arrange
-    when(mockCore.getUploadInstruction(anyString(), anyLong(), anyString(), anyString()))
+    when(mockCore.getUploadInstruction(anyString(), anyLong(), anyString(), anyString(), any()))
         .thenReturn(
             Optional.of(
                 UploadInstruction.newBuilder().setUploadLocation("https://upload").build()));
@@ -178,7 +186,7 @@ public final class TaskAssignmentControllerTest {
                 .build());
     assertThat(response.getUploadInstruction().getExtraRequestHeaders()).isNotNull();
     assertThat(response.getUploadInstruction().getExtraRequestHeaders().size()).isEqualTo(0);
-    verify(mockCore).getUploadInstruction("us", 13, "9", "assignment-1");
+    verify(mockCore).getUploadInstruction("us", 13, "9", "assignment-1", CompressionFormat.GZIP);
     verify(mockCore).reportLocalCompleted("us", 13, "9", "assignment-1");
 
     // assert metrics
@@ -194,7 +202,7 @@ public final class TaskAssignmentControllerTest {
     Map<String, String> headers = new HashMap<>();
     headers.put("header1", "value1");
     headers.put("header2", "value2");
-    when(mockCore.getUploadInstruction(anyString(), anyLong(), anyString(), anyString()))
+    when(mockCore.getUploadInstruction(anyString(), anyLong(), anyString(), anyString(), any()))
         .thenReturn(
             Optional.of(
                 UploadInstruction.newBuilder()
@@ -220,7 +228,7 @@ public final class TaskAssignmentControllerTest {
                         .putAllExtraRequestHeaders(headers)
                         .setUploadLocation("https://upload"))
                 .build());
-    verify(mockCore).getUploadInstruction("us", 13, "9", "assignment-1");
+    verify(mockCore).getUploadInstruction("us", 13, "9", "assignment-1", CompressionFormat.GZIP);
     verify(mockCore).reportLocalCompleted("us", 13, "9", "assignment-1");
 
     // assert metrics
@@ -233,7 +241,7 @@ public final class TaskAssignmentControllerTest {
   @Test
   public void testReportResult_COMPLETED_NotFound() {
     // arrange
-    when(mockCore.getUploadInstruction(anyString(), anyLong(), anyString(), anyString()))
+    when(mockCore.getUploadInstruction(anyString(), anyLong(), anyString(), anyString(), any()))
         .thenReturn(Optional.empty());
 
     // act
@@ -250,7 +258,7 @@ public final class TaskAssignmentControllerTest {
 
     // assert
     assertThat(expected).hasMessageThat().contains("404 NOT_FOUND");
-    verify(mockCore).getUploadInstruction("us", 13, "9", "assignment-1");
+    verify(mockCore).getUploadInstruction("us", 13, "9", "assignment-1", CompressionFormat.GZIP);
     verify(mockCore).reportLocalCompleted("us", 13, "9", "assignment-1");
     verifyNoMoreInteractions(mockCore);
 

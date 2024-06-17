@@ -27,6 +27,7 @@ bazel build //shuffler/services/taskassignment:task_assignment_image "$@"
 bazel build //shuffler/services/modelupdater:model_updater_image "$@"
 bazel build //shuffler/services/collector:collector_image "$@"
 bazel build //shuffler/services/aggregator:aggregator_image "$@"
+bazel build //shuffler/services/taskbuilder:task_builder_image "$@"
 
 # Print container digests.
 set +x

@@ -16,6 +16,7 @@
 
 package com.google.ondevicepersonalization.federatedcompute.shuffler.modelupdater.core.message;
 
+import java.util.List;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -32,11 +33,14 @@ public class ModelUpdaterMessage {
   /** Object key of server plan to use for aggregation. */
   private String serverPlanObject;
 
-  /** Bucket of the aggregated gradient. */
-  private String aggregatedGradientBucket;
+  /** Bucket for location of the list of intermediate gradients. */
+  private String intermediateGradientBucket;
 
-  /** Object key for the aggregated gradient. */
-  private String aggregatedGradientObject;
+  /** Prefix for location of the list of intermediate gradients. */
+  private String intermediateGradientPrefix;
+
+  /** List of intermediate gradients to apply. */
+  private List<String> intermediateGradients;
 
   /** Bucket of checkpoint to use for applying the aggregated gradient. */
   private String checkpointBucket;

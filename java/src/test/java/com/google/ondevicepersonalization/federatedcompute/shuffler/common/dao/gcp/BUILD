@@ -18,7 +18,7 @@ java_test(
     name = "task_spanner_dao_test",
     size = "small",
     srcs = ["TaskSpannerDaoTest.java"],
-    data = ["//shuffler/spanner:sdl_bundle"],
+    data = ["//shuffler/spanner:task_database_sdl"],
     tags = [
         "manual",
         "requires-docker",
@@ -45,7 +45,7 @@ java_test(
     name = "assignment_spanner_dao_test",
     size = "small",
     srcs = ["AssignmentSpannerDaoTest.java"],
-    data = ["//shuffler/spanner:sdl_bundle"],
+    data = ["//shuffler/spanner:task_database_sdl"],
     tags = [
         "manual",
         "requires-docker",
@@ -75,7 +75,7 @@ java_test(
     name = "aggregation_batch_spanner_dao_test",
     size = "small",
     srcs = ["AggregationBatchSpannerDaoTest.java"],
-    data = ["//shuffler/spanner:sdl_bundle"],
+    data = ["//shuffler/spanner:task_database_sdl"],
     tags = [
         "manual",
         "requires-docker",
@@ -101,11 +101,34 @@ java_test(
 )
 
 java_test(
+    name = "model_metrics_spanner_dao_test",
+    size = "small",
+    srcs = ["ModelMetricsSpannerDaoTest.java"],
+    data = ["//shuffler/spanner:metrics_datbase_sdl"],
+    tags = [
+        "manual",
+        "requires-docker",
+    ],
+    test_class = "com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.gcp.ModelMetricsSpannerDaoTest",
+    deps = [
+        ":spanner_test_harness",
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:model_metrics_entity",
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao/gcp:model_metrics_spanner_dao",
+        "@maven//:com_google_cloud_google_cloud_core",
+        "@maven//:com_google_cloud_google_cloud_spanner",
+        "@maven//:com_google_truth_truth",
+        "@maven//:junit_junit",
+        "@maven//:org_mockito_mockito_core",
+    ],
+)
+
+java_test(
     name = "gcs_blob_manager_test",
     size = "small",
     srcs = ["GCSBlobManagerTest.java"],
     test_class = "com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.gcp.GCSBlobManagerTest",
     deps = [
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:compression_utils",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:assignment_entity",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:assignment_id",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:blob_description",
@@ -117,6 +140,7 @@ java_test(
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao/gcp:gcs_blob_manager",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao/gcp:gcs_config",
         "@maven//:com_google_cloud_google_cloud_storage",
+        "@maven//:com_google_testparameterinjector_test_parameter_injector",
         "@maven//:com_google_truth_truth",
         "@maven//:junit_junit",
         "@maven//:org_mockito_mockito_core",
@@ -130,11 +154,14 @@ java_test(
     srcs = ["GCSBlobDaoTest.java"],
     test_class = "com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.gcp.GCSBlobDaoTest",
     deps = [
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:compression_utils",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:blob_description",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao/gcp:gcs_blob_dao",
         "@maven//:com_google_api_gax",
+        "@maven//:com_google_cloud_google_cloud_core",
         "@maven//:com_google_cloud_google_cloud_storage",
         "@maven//:com_google_guava_guava",
+        "@maven//:com_google_testparameterinjector_test_parameter_injector",
         "@maven//:com_google_truth_truth",
         "@maven//:junit_junit",
         "@maven//:org_mockito_mockito_core",
@@ -146,7 +173,7 @@ java_test(
     name = "authorization_token_spanner_dao_test",
     size = "small",
     srcs = ["AuthorizationTokenSpannerDaoTest.java"],
-    data = ["//shuffler/spanner:sdl_bundle"],
+    data = ["//shuffler/spanner:task_database_sdl"],
     tags = [
         "manual",
         "requires-docker",

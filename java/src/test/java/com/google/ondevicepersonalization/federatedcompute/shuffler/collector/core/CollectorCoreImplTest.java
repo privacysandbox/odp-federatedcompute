@@ -26,7 +26,6 @@ import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableList;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.aggregator.core.message.AggregatorMessage;
-import com.google.ondevicepersonalization.federatedcompute.shuffler.common.Constants;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AggregationBatchDao;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AggregationBatchEntity;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AssignmentDao;
@@ -194,8 +193,9 @@ public final class CollectorCoreImplTest {
       ModelUpdaterMessage.builder()
           .serverPlanBucket(PLAN_1.getHost())
           .serverPlanObject(PLAN_1.getResourceObject())
-          .aggregatedGradientBucket(GRADIENT1.getHost())
-          .aggregatedGradientObject(GRADIENT1.getResourceObject())
+          .intermediateGradientBucket(GRADIENT1.getHost())
+          .intermediateGradientPrefix(GRADIENT1.getResourceObject())
+          .intermediateGradients(List.of("iter_1/gradient", "iter_2/gradient"))
           .checkpointBucket(CURRENT_MODEL1.getHost())
           .checkpointObject(CURRENT_MODEL1.getResourceObject())
           .newCheckpointOutputBucket(NEW_MODEL1_1.getHost())
@@ -283,37 +283,10 @@ public final class CollectorCoreImplTest {
     core.processAggregating();
     core.processCollecting();
 
-    verify(blobDao, times(0)).exists(any());
     verify(lockRegistry, times(1)).obtain("collector_" + AGG_ITERATION1.getId().toString());
     verify(lockRegistry, times(1)).obtain("collector_" + ITERATION1.getId().toString());
     verify(messageSender, times(0)).sendMessage(any(), any());
     verify(taskDao, times(0)).updateIterationStatus(any(), any());
-  }
-
-  @Test
-  public void testProcessAg_OneIterationL2() {
-    when(lockRegistry.obtain("collector_" + AGG_ITERATION2.getId().toString())).thenReturn(lock);
-    when(lock.tryLock()).thenReturn(true);
-    when(blobManager.generateDownloadAggregatedGradientDescription(AGG_ITERATION2))
-        .thenReturn(RESULT_1);
-    when(taskDao.getIterationsOfStatus(any())).thenReturn(ImmutableList.of(AGG_ITERATION2));
-    when(blobDao.exists(any())).thenReturn(true);
-    when(collectorCoreImplHelper.createModelUpdaterMessage(AGG_ITERATION2))
-        .thenReturn(MODEL_UPDATER_MESSAGE);
-
-    core.processAggregating();
-    verify(blobDao, times(1))
-        .exists(
-            new BlobDescription[] {
-              RESULT_1.toBuilder()
-                  .resourceObject(RESULT_1.getResourceObject() + Constants.GRADIENT_FILE)
-                  .build()
-            });
-    verify(lockRegistry, times(1)).obtain("collector_" + AGG_ITERATION2.getId().toString());
-    verify(messageSender, times(1)).sendMessage(eq(MODEL_UPDATER_MESSAGE), eq("muTopic"));
-    verify(taskDao, times(1))
-        .updateIterationStatus(
-            AGG_ITERATION2, AGG_ITERATION2.toBuilder().status(Status.APPLYING).build());
   }
 
   @Test
@@ -327,8 +300,8 @@ public final class CollectorCoreImplTest {
     when(taskDao.getIterationsOfStatus(any())).thenReturn(ImmutableList.of(AGG_ITERATION1));
     when(aggregationBatchDao.queryAggregationBatchIdsOfStatus(any(), anyLong(), any(), any()))
         .thenReturn(List.of("batch1", "batch2"));
-    when(collectorCoreImplHelper.createAggregatorMessage(any(), any(), any(), anyBoolean()))
-        .thenReturn(AGGREGATOR_MESSAGE);
+    when(collectorCoreImplHelper.createModelUpdaterMessage(any(), any()))
+        .thenReturn(MODEL_UPDATER_MESSAGE);
     when(aggregationBatchDao.querySumOfAggregationBatchesOfStatus(
             any(), anyLong(), eq(AggregationBatchEntity.Status.UPLOAD_COMPLETED)))
         .thenReturn(3L);
@@ -347,12 +320,12 @@ public final class CollectorCoreImplTest {
         .querySumOfAggregationBatchesOfStatus(
             AGG_ITERATION1, 0, AggregationBatchEntity.Status.UPLOAD_COMPLETED);
     verify(collectorCoreImplHelper, times(1))
-        .createAggregatorMessage(
-            eq(AGG_ITERATION1), eq(List.of("batch1", "batch2")), any(), eq(true));
-    verify(messageSender, times(1)).sendMessage(eq(AGGREGATOR_MESSAGE), eq("agTopic"));
+        .createModelUpdaterMessage(eq(AGG_ITERATION1), eq(List.of("batch1", "batch2")));
+    verify(messageSender, times(1)).sendMessage(eq(MODEL_UPDATER_MESSAGE), eq("muTopic"));
     verify(taskDao, times(1))
         .updateIterationStatus(
-            AGG_ITERATION1, AGG_ITERATION1.toBuilder().aggregationLevel(2).build());
+            AGG_ITERATION1,
+            AGG_ITERATION1.toBuilder().status(Status.APPLYING).aggregationLevel(2).build());
   }
 
   @Test
@@ -372,12 +345,6 @@ public final class CollectorCoreImplTest {
     when(blobDao.listByPartition(eq(DIR2_1), any()))
         .thenReturn(ImmutableList.of("iter2_1", "iter2_2"));
     when(blobDao.listByPartition(eq(DIR2_2), any())).thenReturn(ImmutableList.of("iter2_3"));
-    when(assignmentDao.queryAssignmentIdsOfStatus(
-            eq(ITERATION1.getId()), eq(AssignmentEntity.Status.UPLOAD_COMPLETED), eq(NOW)))
-        .thenReturn(ImmutableList.of("iter1_1", "iter1_2"));
-    when(assignmentDao.queryAssignmentIdsOfStatus(
-            eq(ITERATION2.getId()), eq(AssignmentEntity.Status.UPLOAD_COMPLETED), eq(NOW)))
-        .thenReturn(ImmutableList.of("iter2_1", "iter2_2", "iter2_3"));
     when(assignmentDao.queryAssignmentIdsOfStatus(
             ITERATION1.getId(), AssignmentEntity.Status.UPLOAD_COMPLETED, Optional.empty()))
         .thenReturn(ImmutableList.of("iter1_1", "iter1_2"));
@@ -479,10 +446,12 @@ public final class CollectorCoreImplTest {
   }
 
   @Test
-  public void testProcess_TimeoutLocalCompute() {
+  public void testProcessTimeouts_TimeoutLocalCompute() {
     // arange
-    when(lockRegistry.obtain("collector_" + ITERATION1.getId().toString())).thenReturn(lock);
-    when(lockRegistry.obtain("collector_" + ITERATION2.getId().toString())).thenReturn(lock);
+    when(lockRegistry.obtain("timeout_collector_" + ITERATION1.getId().toString()))
+        .thenReturn(lock);
+    when(lockRegistry.obtain("timeout_collector_" + ITERATION2.getId().toString()))
+        .thenReturn(lock);
     when(lock.tryLock()).thenReturn(true);
     when(taskDao.getIterationsOfStatus(any())).thenReturn(ImmutableList.of(ITERATION1, ITERATION2));
     when(blobManager.generateDownloadGradientDescriptions(ITERATION1))
@@ -497,7 +466,7 @@ public final class CollectorCoreImplTest {
         .thenReturn(ImmutableList.of("iter2_1"));
 
     // act
-    core.processCollecting();
+    core.processTimeouts();
 
     // assert
     verify(assignmentDao, times(1))
@@ -519,10 +488,12 @@ public final class CollectorCoreImplTest {
   }
 
   @Test
-  public void testProcess_TimeoutResultUpload() {
+  public void testProcessTimeouts_TimeoutResultUpload() {
     // arange
-    when(lockRegistry.obtain("collector_" + ITERATION1.getId().toString())).thenReturn(lock);
-    when(lockRegistry.obtain("collector_" + ITERATION2.getId().toString())).thenReturn(lock);
+    when(lockRegistry.obtain("timeout_collector_" + ITERATION1.getId().toString()))
+        .thenReturn(lock);
+    when(lockRegistry.obtain("timeout_collector_" + ITERATION2.getId().toString()))
+        .thenReturn(lock);
     when(lock.tryLock()).thenReturn(true);
     when(taskDao.getIterationsOfStatus(any())).thenReturn(ImmutableList.of(ITERATION1, ITERATION2));
     when(blobManager.generateDownloadGradientDescriptions(ITERATION1))
@@ -541,7 +512,7 @@ public final class CollectorCoreImplTest {
         .thenReturn(ImmutableList.of("iter2_1"));
 
     // act
-    core.processCollecting();
+    core.processTimeouts();
 
     // assert
     verify(assignmentDao, times(1))
@@ -593,10 +564,9 @@ public final class CollectorCoreImplTest {
     when(blobDao.listByPartition(eq(DIR1_1), any()))
         .thenReturn(ImmutableList.of("iter1_1/", "iter1_2/", "iter1_3/"));
     when(assignmentDao.queryAssignmentIdsOfStatus(
-            eq(ITERATION1.getId()), eq(AssignmentEntity.Status.LOCAL_COMPLETED), eq(NOW)))
-        .thenReturn(ImmutableList.of("iter1_1", "iter1_2", "iter1_3"));
-    when(assignmentDao.queryAssignmentIdsOfStatus(
-            eq(ITERATION1.getId()), eq(AssignmentEntity.Status.UPLOAD_COMPLETED), eq(NOW)))
+            eq(ITERATION1.getId()),
+            eq(AssignmentEntity.Status.LOCAL_COMPLETED),
+            eq(Optional.empty())))
         .thenReturn(ImmutableList.of("iter1_1", "iter1_2", "iter1_3"));
     when(assignmentDao.queryAssignmentIdsOfStatus(
             ITERATION1.getId(), AssignmentEntity.Status.UPLOAD_COMPLETED, Optional.empty()))
@@ -630,7 +600,9 @@ public final class CollectorCoreImplTest {
     // assert
     verify(assignmentDao, times(1))
         .queryAssignmentIdsOfStatus(
-            eq(ITERATION1.getId()), eq(AssignmentEntity.Status.LOCAL_COMPLETED), eq(NOW));
+            eq(ITERATION1.getId()),
+            eq(AssignmentEntity.Status.LOCAL_COMPLETED),
+            eq(Optional.empty()));
     verify(assignmentDao, times(1))
         .batchUpdateAssignmentStatus(
             List.of(toAssignmentId(ITERATION1, "iter1_3")),
@@ -702,15 +674,6 @@ public final class CollectorCoreImplTest {
         .thenReturn(new BlobDescription[] {DIR1_1});
     when(blobDao.listByPartition(eq(DIR1_1), any()))
         .thenReturn(ImmutableList.of("iter1_1/", "iter1_2/", "iter1_3/"));
-    when(assignmentDao.queryAssignmentIdsOfStatus(
-            eq(ITERATION1.getId()), eq(AssignmentEntity.Status.LOCAL_COMPLETED), eq(NOW)))
-        .thenReturn(ImmutableList.of("iter1_1", "iter1_2", "iter1_3"));
-    when(assignmentDao.queryAssignmentIdsOfStatus(
-            eq(ITERATION1.getId()), eq(AssignmentEntity.Status.UPLOAD_COMPLETED), eq(NOW)))
-        .thenReturn(ImmutableList.of("iter1_1", "iter1_2", "iter1_3"));
-    when(assignmentDao.queryAssignmentIdsOfStatus(
-            ITERATION1.getId(), AssignmentEntity.Status.UPLOAD_COMPLETED, Optional.empty()))
-        .thenReturn(ImmutableList.of("iter1_3"));
     when(assignmentDao.createBatchAndUpdateAssignments(any(), any(), any(), any(), any(), any()))
         .thenReturn(true);
     when(assignmentDao.createBatchAndUpdateAssignments(
@@ -742,6 +705,11 @@ public final class CollectorCoreImplTest {
             eq(Optional.empty())))
         .thenReturn(ImmutableList.of("iter1_3"));
     when(assignmentDao.queryAssignmentIdsOfStatus(
+            eq(ITERATION1.getId()),
+            eq(AssignmentEntity.Status.LOCAL_COMPLETED),
+            eq(Optional.empty())))
+        .thenReturn(ImmutableList.of("iter1_1", "iter1_2", "iter1_3"));
+    when(assignmentDao.queryAssignmentIdsOfStatus(
             ITERATION1.getId(), AssignmentEntity.Status.UPLOAD_COMPLETED, Optional.of("batch-1")))
         .thenReturn(ImmutableList.of("iter1_1", "iter1_2"));
     when(collectorCoreImplHelper.createAggregatorMessage(any(), any(), any(), anyBoolean()))
@@ -753,7 +721,9 @@ public final class CollectorCoreImplTest {
     // assert
     verify(assignmentDao, times(1))
         .queryAssignmentIdsOfStatus(
-            eq(ITERATION1.getId()), eq(AssignmentEntity.Status.LOCAL_COMPLETED), eq(NOW));
+            eq(ITERATION1.getId()),
+            eq(AssignmentEntity.Status.LOCAL_COMPLETED),
+            eq(Optional.empty()));
     verify(assignmentDao, times(1))
         .batchUpdateAssignmentStatus(
             List.of(toAssignmentId(ITERATION1, "iter1_3")),
@@ -811,7 +781,9 @@ public final class CollectorCoreImplTest {
     when(blobDao.listByPartition(eq(DIR1_1), any()))
         .thenReturn(ImmutableList.of("iter1_1/", "iter1_2/", "iter1_3/"));
     when(assignmentDao.queryAssignmentIdsOfStatus(
-            eq(ITERATION1.getId()), eq(AssignmentEntity.Status.LOCAL_COMPLETED), eq(NOW)))
+            eq(ITERATION1.getId()),
+            eq(AssignmentEntity.Status.LOCAL_COMPLETED),
+            eq(Optional.empty())))
         .thenReturn(ImmutableList.of("iter1_1", "iter1_3", "iter1_4"));
 
     // act
@@ -820,7 +792,9 @@ public final class CollectorCoreImplTest {
     // assert
     verify(assignmentDao, times(1))
         .queryAssignmentIdsOfStatus(
-            eq(ITERATION1.getId()), eq(AssignmentEntity.Status.LOCAL_COMPLETED), eq(NOW));
+            eq(ITERATION1.getId()),
+            eq(AssignmentEntity.Status.LOCAL_COMPLETED),
+            eq(Optional.empty()));
     verify(assignmentDao, times(1))
         .batchUpdateAssignmentStatus(
             List.of(toAssignmentId(ITERATION1, "iter1_1"), toAssignmentId(ITERATION1, "iter1_3")),

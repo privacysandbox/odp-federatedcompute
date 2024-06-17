@@ -38,3 +38,13 @@ output "spanner_instance_name" {
   value       = google_spanner_instance.fcp_task_spanner_instance.name
   description = "Name of the FCP task Spanner instance."
 }
+
+output "metrics_spanner_instance_name" {
+  value       = google_spanner_instance.fcp_metrics_spanner_instance.name
+  description = "Name of the FCP metrics Spanner instance."
+}
+
+output "spanner_metrics_database_name" {
+  value       = google_spanner_database.fcp_metrics_spanner_database.name
+  description = "Name of the FCP metrics Spanner database."
+}

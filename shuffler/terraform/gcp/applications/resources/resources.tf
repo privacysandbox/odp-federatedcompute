@@ -15,20 +15,24 @@
  */
 
 module "storage" {
-  source                                   = "../../modules/storage"
-  aggregated_gradient_bucket_force_destroy = var.aggregated_gradient_bucket_force_destroy
-  aggregated_gradient_bucket_versioning    = var.aggregated_gradient_bucket_versioning
-  client_gradient_bucket_force_destroy     = var.client_gradient_bucket_force_destroy
-  client_gradient_bucket_versioning        = var.client_gradient_bucket_versioning
-  environment                              = var.environment
-  model_bucket_force_destroy               = var.model_bucket_force_destroy
-  model_bucket_versioning                  = var.model_bucket_versioning
-  project_id                               = var.project_id
-  region                                   = var.region
-  spanner_database_deletion_protection     = var.spanner_database_deletion_protection
-  spanner_database_retention_period        = var.spanner_database_retention_period
-  spanner_instance_config                  = var.spanner_instance_config
-  spanner_processing_units                 = var.spanner_processing_units
+  source                                        = "../../modules/storage"
+  aggregated_gradient_bucket_force_destroy      = var.aggregated_gradient_bucket_force_destroy
+  aggregated_gradient_bucket_versioning         = var.aggregated_gradient_bucket_versioning
+  client_gradient_bucket_force_destroy          = var.client_gradient_bucket_force_destroy
+  client_gradient_bucket_versioning             = var.client_gradient_bucket_versioning
+  environment                                   = var.environment
+  model_bucket_force_destroy                    = var.model_bucket_force_destroy
+  model_bucket_versioning                       = var.model_bucket_versioning
+  aggregated_gradient_bucket_lifecycle_age_days = var.aggregated_gradient_bucket_lifecycle_age_days
+  client_gradient_bucket_lifecycle_age_days     = var.client_gradient_bucket_lifecycle_age_days
+  model_bucket_lifecycle_age_days               = var.model_bucket_lifecycle_age_days
+  project_id                                    = var.project_id
+  region                                        = var.region
+  spanner_database_deletion_protection          = var.spanner_database_deletion_protection
+  spanner_database_retention_period             = var.spanner_database_retention_period
+  spanner_instance_config                       = var.spanner_instance_config
+  spanner_processing_units                      = var.spanner_processing_units
+  metric_spanner_processing_units               = var.metric_spanner_processing_units
 }
 
 module "pubsub" {
@@ -60,6 +64,20 @@ module "lock_database_name" {
   environment     = var.environment
   parameter_name  = "LOCK_DATABASE_NAME"
   parameter_value = module.storage.spanner_lock_database_name
+}
+
+module "metrics_spanner_instance" {
+  source          = "../../modules/parameters"
+  environment     = var.environment
+  parameter_name  = "METRICS_SPANNER_INSTANCE"
+  parameter_value = module.storage.metrics_spanner_instance_name
+}
+
+module "metrics_database_name" {
+  source          = "../../modules/parameters"
+  environment     = var.environment
+  parameter_name  = "METRICS_DATABASE_NAME"
+  parameter_value = module.storage.spanner_metrics_database_name
 }
 
 module "client_gradient_bucket_template" {
@@ -193,6 +211,13 @@ module "is_authentication_enabled" {
   environment     = var.environment
   parameter_name  = "IS_AUTHENTICATION_ENABLED"
   parameter_value = var.is_authentication_enabled
+}
+
+module "allow_rooted_devices" {
+  source          = "../../modules/parameters"
+  environment     = var.environment
+  parameter_name  = "ALLOW_ROOTED_DEVICES"
+  parameter_value = var.allow_rooted_devices
 }
 
 module "download_plan_token_duration" {

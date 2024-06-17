@@ -31,9 +31,14 @@ public class ScheduledTask {
   }
 
   // TODO(b/295018999): Determine a good rate for the task.
-  @Scheduled(fixedRate = 1000)
+  @Scheduled(fixedDelay = 200)
   public void run() throws Exception {
     taskSchedulerCore.processCreatedTasks();
     taskSchedulerCore.processActiveTasks();
+  }
+
+  @Scheduled(fixedDelay = 60000)
+  public void processCompletedIterations() throws Exception {
+    taskSchedulerCore.processCompletedIterations();
   }
 }

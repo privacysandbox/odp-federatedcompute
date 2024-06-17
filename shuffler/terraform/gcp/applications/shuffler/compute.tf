@@ -87,6 +87,19 @@ module "aggregator" {
   region                            = var.region
   subnet_name                       = local.subnet_name
   workload_image                    = var.aggregator_image
+  depends_on = [
+    module.aggregator_pubsub_subscription,
+    module.encryption_key_service_a_base_url,
+    module.encryption_key_service_b_base_url,
+    module.encryption_key_service_a_cloudfunction_url,
+    module.encryption_key_service_b_cloudfunction_url,
+    module.wip_provider_a,
+    module.wip_provider_b,
+    module.service_account_a,
+    module.service_account_b,
+    module.public_key_service_base_url,
+    module.aggregator_subscriber_max_outstanding_element_count
+  ]
 }
 
 module "model_updater_sa" {
@@ -116,6 +129,18 @@ module "model_updater" {
   region                            = var.region
   subnet_name                       = local.subnet_name
   workload_image                    = var.model_updater_image
+  depends_on = [
+    module.model_updater_pubsub_subscription,
+    module.encryption_key_service_a_base_url,
+    module.encryption_key_service_b_base_url,
+    module.encryption_key_service_a_cloudfunction_url,
+    module.encryption_key_service_b_cloudfunction_url,
+    module.wip_provider_a,
+    module.wip_provider_b,
+    module.service_account_a,
+    module.service_account_b,
+    module.model_updater_subscriber_max_outstanding_element_count
+  ]
 }
 
 module "task_management_sa" {
@@ -137,4 +162,43 @@ module "task_management" {
   task_management_max_replicas    = var.task_management_max_replicas
   task_management_min_replicas    = var.task_management_min_replicas
   task_management_port            = var.task_management_port
+  depends_on = [
+    module.spanner_instance,
+    module.task_database_name,
+    module.lock_database_name,
+    module.metrics_spanner_instance,
+    module.metrics_database_name,
+    module.client_gradient_bucket_template,
+    module.model_bucket_template
+  ]
+}
+
+module "task_builder_sa" {
+  source                = "../../modules/serviceaccount"
+  environment           = var.environment
+  project_id            = var.project_id
+  roles                 = ["roles/run.invoker", "roles/logging.logWriter", "roles/storage.objectUser", "roles/secretmanager.secretAccessor", "roles/monitoring.editor"]
+  service_account_email = var.task_builder_service_account
+  service_account_name  = "tb"
+}
+
+module "task_builder" {
+  source                            = "../../modules/taskbuilder"
+  environment                       = var.environment
+  project_id                        = var.project_id
+  region                            = var.region
+  task_builder_service_account      = module.task_builder_sa.service_account_email
+  task_builder_image                = var.task_builder_image
+  task_builder_max_replicas         = var.task_builder_max_replicas
+  task_builder_min_replicas         = var.task_builder_min_replicas
+  task_builder_port                 = var.task_builder_port
+  task_management_server_url_secret = module.task_management_server_url.secret_name
+}
+
+
+module "task_management_server_url" {
+  source          = "../../modules/parameters"
+  environment     = var.environment
+  parameter_name  = "TASK_MANAGEMENT_SERVER_URL"
+  parameter_value = var.initial_deployment ? "undefined" : module.task_management.task_management_url
 }

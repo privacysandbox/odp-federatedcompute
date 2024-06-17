@@ -51,7 +51,7 @@ public class PubSubMessageReceiverTest {
   @Test
   public void messageReceiver_success() {
     pubSubMessageReceiver.messageReceiver(
-        "{\"serverPlanBucket\":\"serverPlanBucket\",\"serverPlanObject\":\"server_phase\",\"aggregatedGradientBucket\":\"aggregatedGradientBucket\",\"aggregatedGradientObject\":\"gradient\",\"outputTopic\":\"topic\",\"requestId\":\"pop/1/1/0\",\"checkpointBucket\":\"checkpointBucket\",\"checkpointObject\":\"checkpoint\",\"newCheckpointOutputBucket\":\"newCheckpointOutputBucket\",\"newCheckpointOutputObject\":\"checkpoint\",\"newClientCheckpointOutputBucket\":\"newClientCheckpointOutputBucket\",\"newClientCheckpointOutputObject\":\"client_checkpoint\",\"metricsOutputBucket\":\"metricsOutputBucket\",\"metricsOutputObject\":\"metrics\"}",
+        "{\"serverPlanBucket\":\"serverPlanBucket\",\"serverPlanObject\":\"server_phase\",\"intermediateGradientBucket\":\"aggregatedGradientBucket\",\"intermediateGradientPrefix\":\"gradient\",\"outputTopic\":\"topic\",\"requestId\":\"pop/1/1/0\",\"checkpointBucket\":\"checkpointBucket\",\"checkpointObject\":\"checkpoint\",\"newCheckpointOutputBucket\":\"newCheckpointOutputBucket\",\"newCheckpointOutputObject\":\"checkpoint\",\"newClientCheckpointOutputBucket\":\"newClientCheckpointOutputBucket\",\"newClientCheckpointOutputObject\":\"client_checkpoint\",\"metricsOutputBucket\":\"metricsOutputBucket\",\"metricsOutputObject\":\"metrics\"}",
         message);
     verify(message, times(1)).ack();
     verify(modelUpdaterCore, times(1)).process(messageCaptor.capture());
@@ -59,8 +59,8 @@ public class PubSubMessageReceiverTest {
         ModelUpdaterMessage.builder()
             .serverPlanBucket("serverPlanBucket")
             .serverPlanObject("server_phase")
-            .aggregatedGradientBucket("aggregatedGradientBucket")
-            .aggregatedGradientObject("gradient")
+            .intermediateGradientBucket("aggregatedGradientBucket")
+            .intermediateGradientPrefix("gradient")
             .checkpointBucket("checkpointBucket")
             .checkpointObject("checkpoint")
             .newCheckpointOutputBucket("newCheckpointOutputBucket")

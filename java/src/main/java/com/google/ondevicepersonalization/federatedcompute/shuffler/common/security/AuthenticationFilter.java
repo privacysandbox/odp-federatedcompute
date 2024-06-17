@@ -68,17 +68,18 @@ public class AuthenticationFilter extends OncePerRequestFilter {
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
       throws ServletException, IOException {
-    String authorizationKey = request.getHeader(ODP_AUTHORIZATION_KEY);
-    String authenticationKey = request.getHeader(ODP_AUTHENTICATION_KEY);
-    if (isAuthorizationKeyInAllowList(authorizationKey)) {
-      filterChain.doFilter(request, response);
-      return;
-    }
-
     String correlationId = request.getHeader(Constants.HEADER_CORRELATION_ID);
     correlationId = correlationId != null ? correlationId : "";
     MDC.put(CORRELATION_ID, correlationId);
     MDC.put(ACTIVITY_ID, idGenerator.generate());
+
+    String authorizationKey = request.getHeader(ODP_AUTHORIZATION_KEY);
+    String authenticationKey = request.getHeader(ODP_AUTHENTICATION_KEY);
+    if (isAuthorizationKeyInAllowList(authorizationKey)) {
+      logger.debug("Passed authorization key allow list");
+      filterChain.doFilter(request, response);
+      return;
+    }
 
     if (authenticationKey == null) {
       response.setHeader(CONTENT_TYPE_HDR, PROTOBUF_CONTENT_TYPE);

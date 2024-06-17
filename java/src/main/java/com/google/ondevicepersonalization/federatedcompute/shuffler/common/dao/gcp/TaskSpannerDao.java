@@ -20,6 +20,7 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.ReadContext;
+import com.google.cloud.spanner.ReadOnlyTransaction;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerExceptionFactory;
@@ -27,8 +28,9 @@ import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.TransactionContext;
 import com.google.cloud.spanner.Value;
 import com.google.common.base.Preconditions;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.Constants;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.IterationEntity;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.IterationId;
@@ -39,10 +41,11 @@ import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.T
 import java.time.InstantSource;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 /** Spanner implementation of TaskDao. */
@@ -60,7 +63,8 @@ public class TaskSpannerDao implements TaskDao {
 
   private static final String SELECT_ITERATIONS =
       "SELECT PopulationName, TaskId, IterationId, AttemptId, Status, BaseIterationId,"
-          + " BaseOnResultId, ReportGoal, ResultId, Info, AggregationLevel\n"
+          + " BaseOnResultId, ReportGoal, ResultId, Info, AggregationLevel, MaxAggregationSize,\n"
+          + " MinClientVersion, MaxClientVersion,\n"
           + "FROM Iteration\n";
 
   private static final String INSERT_INTO_TASK_STATUS_HISTORY =
@@ -135,10 +139,13 @@ public class TaskSpannerDao implements TaskDao {
   private DatabaseClient dbClient;
 
   private InstantSource instantSource;
+  private Cache<String, Long> cache;
 
-  public TaskSpannerDao(DatabaseClient dbClient, InstantSource instantSource) {
+  public TaskSpannerDao(
+      @Qualifier("taskDatabaseClient") DatabaseClient dbClient, InstantSource instantSource) {
     this.dbClient = dbClient;
     this.instantSource = instantSource;
+    this.cache = CacheBuilder.newBuilder().expireAfterWrite(5, TimeUnit.SECONDS).build();
   }
 
   public Optional<TaskEntity> getTaskById(String populationName, long taskId) {
@@ -306,44 +313,28 @@ public class TaskSpannerDao implements TaskDao {
     }
   }
 
-  public Optional<IterationEntity> getOpenIteration(String populationName, String clientVersion) {
-    // TODO(b/331680767): Simplify assignment distribution by removing dependency on Task table.
+  public List<IterationEntity> getOpenIterations(String populationName, String clientVersion) {
     Statement statement =
         Statement.newBuilder(
-                "SELECT itr.PopulationName, itr.TaskId, itr.IterationId, itr.AttemptId,\n"
-                    + " itr.ReportGoal, itr.BaseOnResultId, itr.ResultId, BaseIterationId,\n"
-                    + " itr.Status, ANY_VALUE(task.MaxAggregationSize) as MaxAggregationSize,\n"
-                    + " COUNT(assign.SessionId) as Assigned\n"
-                    + "FROM Task AS task INNER JOIN Iteration AS itr\n"
-                    + "    ON task.PopulationName = itr.PopulationName\n"
-                    + "    AND task.TaskId = itr.TaskId\n"
-                    + "    LEFT OUTER JOIN Assignment AS assign\n"
-                    + "    ON itr.PopulationName = assign.PopulationName\n"
-                    + "    AND itr.TaskId = assign.TaskId\n"
-                    + "    AND itr.IterationId = assign.IterationId\n"
-                    + "    AND itr.AttemptId = assign.AttemptId\n"
-                    + "    AND (assign.Status is Null OR assign.Status <= @maxActiveStatus)\n"
-                    + "WHERE task.Status = 0 AND itr.Status = 0\n"
-                    + "  AND task.PopulationName = @populationName\n"
-                    + "  AND task.MinClientVersion <= @clientVersion\n"
-                    + "  AND task.MaxClientVersion >= @clientVersion\n"
-                    + "GROUP BY itr.PopulationName, itr.TaskId, itr.IterationId, itr.AttemptId,\n"
-                    + " itr.ReportGoal, itr.BaseOnResultId, itr.ResultId, BaseIterationId,\n"
-                    + " itr.Status\n"
-                    + "HAVING Assigned < MaxAggregationSize\n"
-                    + "LIMIT 1;")
+                SELECT_ITERATIONS
+                    + "@{FORCE_INDEX=IterationPopulationNameStatusClientVersionIndex}\n"
+                    + "WHERE Status = @status\n"
+                    + "  AND PopulationName = @populationName\n"
+                    + "  AND MinClientVersion <= @clientVersion\n"
+                    + "  AND MaxClientVersion >= @clientVersion")
+            .bind("status")
+            .to(IterationEntity.Status.COLLECTING.code())
             .bind("clientVersion")
             .to(clientVersion)
             .bind("populationName")
             .to(populationName)
-            .bind("maxActiveStatus")
-            .to(Constants.MAX_ACTIVE_ASSIGNMENT_STATUS_CODE)
             .build();
 
-    try (ResultSet resultSet = dbClient.singleUseReadOnlyTransaction().executeQuery(statement)) {
+    ImmutableList.Builder<IterationEntity> builder = ImmutableList.builder();
+    try (ReadOnlyTransaction transaction = dbClient.readOnlyTransaction()) {
+      ResultSet resultSet = transaction.executeQuery(statement);
       while (resultSet.next()) {
-        // there should be only one
-        return Optional.of(
+        IterationEntity iterationEntity =
             IterationEntity.builder()
                 .populationName(resultSet.getString("PopulationName"))
                 .taskId(resultSet.getLong("TaskId"))
@@ -354,93 +345,47 @@ public class TaskSpannerDao implements TaskDao {
                 .baseIterationId(resultSet.getLong("BaseIterationId"))
                 .baseOnResultId(resultSet.getLong("BaseOnResultId"))
                 .resultId(resultSet.getLong("ResultId"))
-                .assigned(Optional.of(resultSet.getLong("Assigned")))
-                .build());
-      }
-    }
-    return Optional.empty();
-  }
-
-  public Map<TaskEntity, IterationEntity> getOpenTasksAndIterations(
-      String populationName, String clientVersion) {
-    // TODO(b/331680767): Simplify assignment distribution by removing dependency on Task table.
-    Statement statement =
-        Statement.newBuilder(
-                "SELECT itr.PopulationName, itr.TaskId, itr.IterationId, itr.AttemptId,\n"
-                    + " itr.ReportGoal, itr.BaseOnResultId, itr.ResultId, itr.BaseIterationId,\n"
-                    + " itr.Status as IterationStatus, ANY_VALUE(itr.Info) as IterationInfo,\n"
-                    + " ANY_VALUE(task.TotalIteration) as TotalIteration,"
-                    + " ANY_VALUE(task.MinAggregationSize) as MinAggregationSize,\n"
-                    + " ANY_VALUE(task.MaxAggregationSize) as MaxAggregationSize,\n"
-                    + " ANY_VALUE(task.StartTaskNoEarlierThan) as StartTaskNoEarlierThan,\n"
-                    + " ANY_VALUE(task.DoNotCreateIterationAfter) as DoNotCreateIterationAfter,\n"
-                    + " ANY_VALUE(task.MaxParallel) as MaxParallel,\n"
-                    + " ANY_VALUE(task.CreatedTime) as CreatedTime,\n"
-                    + " ANY_VALUE(task.CorrelationId) as CorrelationId,\n"
-                    + " ANY_VALUE(task.MinClientVersion) as MinClientVersion,\n"
-                    + " ANY_VALUE(task.MaxClientVersion) as MaxClientVersion,\n"
-                    + " ANY_VALUE(task.Status) as TaskStatus,\n"
-                    + " ANY_VALUE(task.Info) as TaskInfo,\n"
-                    + " COUNT(assign.SessionId) as Assigned\n"
-                    + "FROM Task AS task INNER JOIN Iteration AS itr\n"
-                    + "    ON task.PopulationName = itr.PopulationName\n"
-                    + "    AND task.TaskId = itr.TaskId\n"
-                    + "    LEFT OUTER JOIN Assignment AS assign\n"
-                    + "    ON itr.PopulationName = assign.PopulationName\n"
-                    + "    AND itr.TaskId = assign.TaskId\n"
-                    + "    AND itr.IterationId = assign.IterationId\n"
-                    + "    AND itr.AttemptId = assign.AttemptId\n"
-                    + "    AND (assign.Status is Null OR assign.Status <= @maxActiveStatus)\n"
-                    + "WHERE task.Status = 0 AND itr.Status = 0\n"
-                    + "  AND task.PopulationName = @populationName\n"
-                    + "  AND task.MinClientVersion <= @clientVersion\n"
-                    + "  AND task.MaxClientVersion >= @clientVersion\n"
-                    + "GROUP BY itr.PopulationName, itr.TaskId, itr.IterationId, itr.AttemptId,\n"
-                    + " itr.ReportGoal, itr.BaseOnResultId, itr.ResultId, BaseIterationId,\n"
-                    + " itr.Status\n"
-                    + "HAVING Assigned < MaxAggregationSize;")
-            .bind("clientVersion")
-            .to(clientVersion)
-            .bind("populationName")
-            .to(populationName)
-            .bind("maxActiveStatus")
-            .to(Constants.MAX_ACTIVE_ASSIGNMENT_STATUS_CODE)
-            .build();
-
-    ImmutableMap.Builder<TaskEntity, IterationEntity> builder = ImmutableMap.builder();
-    try (ResultSet resultSet = dbClient.singleUseReadOnlyTransaction().executeQuery(statement)) {
-      while (resultSet.next()) {
-        // there should be only one
-        builder.put(
-            TaskEntity.builder()
-                .populationName(resultSet.getString("PopulationName"))
-                .taskId(resultSet.getLong("TaskId"))
-                .totalIteration(resultSet.getLong("TotalIteration"))
-                .minAggregationSize(resultSet.getLong("MinAggregationSize"))
+                .info(resultSet.getJson("Info"))
                 .maxAggregationSize(resultSet.getLong("MaxAggregationSize"))
-                .maxParallel(resultSet.getLong("MaxParallel"))
-                .correlationId(resultSet.getString("CorrelationId"))
                 .minClientVersion(resultSet.getString("MinClientVersion"))
                 .maxClientVersion(resultSet.getString("MaxClientVersion"))
-                .status(TaskEntity.Status.fromCode(resultSet.getLong("TaskStatus")))
-                .info(resultSet.getJson("TaskInfo"))
-                .createdTime(
-                    TimestampInstantConverter.TO_INSTANT.convert(
-                        resultSet.getTimestamp("CreatedTime")))
-                .build(),
-            IterationEntity.builder()
-                .populationName(resultSet.getString("PopulationName"))
-                .taskId(resultSet.getLong("TaskId"))
-                .iterationId(resultSet.getLong("IterationId"))
-                .attemptId(resultSet.getLong("AttemptId"))
-                .reportGoal(resultSet.getLong("ReportGoal"))
-                .status(IterationEntity.Status.fromCode(resultSet.getLong("IterationStatus")))
-                .baseIterationId(resultSet.getLong("BaseIterationId"))
-                .baseOnResultId(resultSet.getLong("BaseOnResultId"))
-                .resultId(resultSet.getLong("ResultId"))
-                .assigned(Optional.of(resultSet.getLong("Assigned")))
-                .info(resultSet.getJson("IterationInfo"))
-                .build());
+                .build();
+        // If recently rejected a request for this population due to too many active assignments,
+        // cache and
+        // reject again to reduce running this query.
+        if (cache.getIfPresent(iterationEntity.getId().toString()) == null) {
+          logger.info("Cache miss for iteration. Querying.");
+          ResultSet countResult =
+              transaction.executeQuery(
+                  Statement.newBuilder(
+                          "SELECT COUNT(*) as assigned FROM Assignment WHERE\n"
+                              + "    PopulationName = @populationName\n"
+                              + "    AND TaskId = @taskId\n"
+                              + "    AND IterationId = @iterationId\n"
+                              + "    AND AttemptId = @attemptId\n"
+                              + "    AND Status <= @maxActiveStatus\n"
+                              + "    HAVING assigned < @maxAggregationSize;")
+                      .bind("populationName")
+                      .to(iterationEntity.getPopulationName())
+                      .bind("taskId")
+                      .to(iterationEntity.getTaskId())
+                      .bind("iterationId")
+                      .to(iterationEntity.getIterationId())
+                      .bind("attemptId")
+                      .to(iterationEntity.getAttemptId())
+                      .bind("maxActiveStatus")
+                      .to(Constants.MAX_ACTIVE_ASSIGNMENT_STATUS_CODE)
+                      .bind("maxAggregationSize")
+                      .to(iterationEntity.getMaxAggregationSize())
+                      .build());
+          if (countResult.next()) {
+            // there should be only one
+            builder.add(iterationEntity);
+          } else {
+            // Cache the result of activeAssignments > maxAggregationSize
+            cache.put(iterationEntity.getId().toString(), iterationEntity.getMaxAggregationSize());
+          }
+        }
       }
     }
     return builder.build();
@@ -462,6 +407,9 @@ public class TaskSpannerDao implements TaskDao {
               .resultId(resultSet.getLong("ResultId"))
               .info(resultSet.getJson("Info"))
               .aggregationLevel(resultSet.getLong("AggregationLevel"))
+              .maxAggregationSize(resultSet.getLong("MaxAggregationSize"))
+              .minClientVersion(resultSet.getString("MinClientVersion"))
+              .maxClientVersion(resultSet.getString("MaxClientVersion"))
               .build());
     }
     return entitiesBuilder.build();
@@ -511,10 +459,12 @@ public class TaskSpannerDao implements TaskDao {
         Statement.newBuilder(
                 "INSERT INTO Iteration (PopulationName, TaskId, IterationId, AttemptId, Status,"
                     + " BaseIterationId, BaseOnResultId, ReportGoal, Info, ExpirationTime,"
-                    + " ResultId, AggregationLevel) VALUES(@populationName, @taskId, @iterationId,"
+                    + " ResultId, AggregationLevel, MaxAggregationSize, MinClientVersion,"
+                    + " MaxClientVersion) VALUES(@populationName, @taskId, @iterationId,"
                     + " @attemptId, @status, @baseIterationId, @baseResultId, @reportGoal, @info,"
                     + " TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR), @resultId,"
-                    + " @aggregationLevel )")
+                    + " @aggregationLevel, @maxAggregationSize, "
+                    + "@minClientVersion, @maxClientVersion)")
             .bind("populationName")
             .to(iteration.getPopulationName())
             .bind("taskId")
@@ -537,6 +487,12 @@ public class TaskSpannerDao implements TaskDao {
             .to(Value.json(iteration.getInfo()))
             .bind("aggregationLevel")
             .to(iteration.getAggregationLevel())
+            .bind("maxAggregationSize")
+            .to(iteration.getMaxAggregationSize())
+            .bind("minClientVersion")
+            .to(iteration.getMinClientVersion())
+            .bind("maxClientVersion")
+            .to(iteration.getMaxClientVersion())
             .build();
     long impatedRows = transaction.executeUpdate(statement);
     if (impatedRows > 1) {
@@ -837,6 +793,7 @@ public class TaskSpannerDao implements TaskDao {
     Statement statement =
         Statement.newBuilder(
                 SELECT_ITERATIONS
+                    + "@{FORCE_INDEX=InterationStatusIndex}\n"
                     + "WHERE Status = @status\n"
                     + "ORDER BY PopulationName, TaskId DESC, IterationId DESC, AttemptId DESC LIMIT"
                     + " 1000\n")

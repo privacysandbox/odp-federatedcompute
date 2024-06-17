@@ -58,6 +58,9 @@ public class IterationEntityTest {
             .assigned(Optional.of(8L))
             .info("iteration_info")
             .aggregationLevel(1)
+            .maxAggregationSize(10)
+            .minClientVersion("0")
+            .maxClientVersion("9")
             .build();
     IterationEntity entity2 =
         IterationEntity.builder()
@@ -73,6 +76,9 @@ public class IterationEntityTest {
             .assigned(Optional.of(8L))
             .info("iteration_info")
             .aggregationLevel(1)
+            .maxAggregationSize(10)
+            .minClientVersion("0")
+            .maxClientVersion("9")
             .build();
 
     // act

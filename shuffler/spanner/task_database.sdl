@@ -63,10 +63,14 @@ CREATE TABLE Iteration (
   ResultId INT64 NOT NULL,
   Info JSON NOT NULL,
   AggregationLevel INT64 NOT NULL,
+  MaxAggregationSize INT64 NOT NULL,
+  MinClientVersion STRING(32) NOT NULL,
+  MaxClientVersion STRING(32) NOT NULL,
 ) PRIMARY KEY(PopulationName, TaskId, IterationId, AttemptId),
 INTERLEAVE IN PARENT Task ON DELETE CASCADE;
 
 CREATE INDEX InterationStatusIndex on Iteration(Status);
+CREATE INDEX IterationPopulationNameStatusClientVersionIndex ON Iteration (PopulationName, Status, MinClientVersion, MaxClientVersion) STORING (BaseIterationId, BaseOnResultId, ReportGoal, ResultId, Info, AggregationLevel, MaxAggregationSize);
 
 CREATE TABLE IterationStatusHistory(
  PopulationName STRING(64) NOT NULL,
@@ -91,7 +95,7 @@ CREATE TABLE Assignment(
   SessionId STRING(64) NOT NULL,
   CorrelationId STRING(MAX),
   Status INT64 NOT NULL,
-  CreatedTime TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
+  CreatedTime TIMESTAMP NOT NULL,
   BatchId STRING(64),
 ) PRIMARY KEY(PopulationName, TaskId, IterationId, AttemptId, SessionId),
  INTERLEAVE IN PARENT Iteration ON DELETE CASCADE;
@@ -106,7 +110,7 @@ CREATE TABLE AssignmentStatusHistory(
   SessionId STRING(64) NOT NULL,
   StatusId INT64 NOT NULL,
   Status INT64 NOT NULL,
-  CreatedTime TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
+  CreatedTime TIMESTAMP NOT NULL,
   BatchId STRING(64),
 ) PRIMARY KEY(PopulationName, TaskId, IterationId, AttemptId, SessionId, StatusId),
  INTERLEAVE IN PARENT Assignment ON DELETE CASCADE;
@@ -124,7 +128,7 @@ CREATE TABLE AggregationBatch(
   Status INT64 NOT NULL,
   BatchSize INT64 NOT NULL,
   CreatedByPartition STRING(64) NOT NULL,
-  CreatedTime TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
+  CreatedTime TIMESTAMP NOT NULL,
   AggregatedBy STRING(64),
 ) PRIMARY KEY(PopulationName, TaskId, IterationId, AttemptId, BatchId),
  INTERLEAVE IN PARENT Iteration ON DELETE CASCADE;
@@ -141,7 +145,7 @@ CREATE TABLE AggregationBatchStatusHistory(
   AggregationLevel INT64 NOT NULL,
   Status INT64 NOT NULL,
   CreatedByPartition STRING(64) NOT NULL,
-  CreatedTime TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
+  CreatedTime TIMESTAMP NOT NULL,
   AggregatedBy STRING(64),
 ) PRIMARY KEY(PopulationName, TaskId, IterationId, AttemptId, BatchId, StatusId),
  INTERLEAVE IN PARENT AggregationBatch ON DELETE CASCADE;

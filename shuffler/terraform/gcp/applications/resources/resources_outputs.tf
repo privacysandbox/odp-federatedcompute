@@ -41,6 +41,16 @@ output "spanner_instance_name" {
   description = "Name of the FCP task Spanner instance."
 }
 
+output "metrics_spanner_instance_name" {
+  value       = module.storage.metrics_spanner_instance_name
+  description = "Name of the FCP metrics Spanner instance."
+}
+
+output "spanner_metrics_database_name" {
+  value       = module.storage.spanner_metrics_database_name
+  description = "Name of the FCP metrics Spanner database."
+}
+
 output "aggregator_topic_name" {
   value       = module.pubsub.aggregator_topic_name
   description = "Name of the aggregator pubsub topic."

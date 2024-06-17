@@ -99,3 +99,23 @@ output "task_management_service_account_email" {
   value       = module.task_management_sa.service_account_email
   description = "Email of the task management service account"
 }
+
+output "task_management_url" {
+  description = "URL of the task management service. The terraform may need to be re-run if blank to populate."
+  value       = module.task_management.task_management_url
+}
+
+output "task_builder_name" {
+  description = "Name of task builder cloud run deployment"
+  value       = module.task_builder.task_builder_name
+}
+
+output "task_builder_service_account_email" {
+  value       = module.task_builder_sa.service_account_email
+  description = "Email of the task builder service account"
+}
+
+output "task_builder_url" {
+  description = "URL of the task builder service. The terraform may need to be re-run if blank to populate."
+  value       = module.task_builder.task_builder_url
+}

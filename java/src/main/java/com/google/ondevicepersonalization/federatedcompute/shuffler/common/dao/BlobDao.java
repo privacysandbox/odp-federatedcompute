@@ -39,9 +39,21 @@ public interface BlobDao {
   /** Download content from file. */
   public byte[] download(BlobDescription file);
 
+  /** Download content from file and decompress if needed. */
+  public byte[] downloadAndDecompressIfNeeded(BlobDescription file);
+
   /** Upload content to file. */
   public void upload(BlobDescription file, byte[] content) throws IOException;
 
+  /** Compress content and upload to file. */
+  public void compressAndUpload(BlobDescription file, byte[] content) throws IOException;
+
+  /** Check if file exists, replace by gzip compressed content if encoding is empty. */
+  public boolean checkExistsAndGzipContentIfNeeded(BlobDescription[] files);
+
   /** Check if file exists from server given all uploaded replica. */
   public boolean exists(BlobDescription[] files);
+
+  /** Delete a folder and all its contents. */
+  public boolean delete(BlobDescription folder);
 }

@@ -84,6 +84,7 @@ maven_install(
         "com.google.crypto.tink:tink:1.12.0",
         "com.google.inject:guice:7.0.0",
         "org.slf4j:slf4j-api:2.0.7",
+        "com.google.cloud:google-cloud-logging-logback:0.131.8-alpha",
         # spring
         "org.springframework.boot:spring-boot-autoconfigure:3.1.1",
         "org.springframework.boot:spring-boot-starter-actuator:3.1.1",
@@ -145,10 +146,10 @@ http_archive(
 http_archive(
     name = "coordinator-services-and-shared-libraries",
     build_file = "coordinator.BUILD",
-    sha256 = "90e147c05801bbcd9b25491bea0239c17404f61cdff236edc3da6a522b59ecd0",
-    strip_prefix = "coordinator-services-and-shared-libraries-1.5.0",
+    sha256 = "7879ff1c7bf0f96a6214725fe87bf39ef5297db4aab8d39d7b6fef49c2643c55",
+    strip_prefix = "coordinator-services-and-shared-libraries-1.7.0",
     urls = [
-        "https://github.com/privacysandbox/coordinator-services-and-shared-libraries/archive/refs/tags/v1.5.0.tar.gz",
+        "https://github.com/privacysandbox/coordinator-services-and-shared-libraries/archive/refs/tags/v1.7.0.tar.gz",
     ],
 )
 
@@ -167,6 +168,29 @@ http_archive(
     sha256 = "8bf19718abc453bea10c676178d37479bc309dc193d875e391c27853f1203c8e",
     strip_prefix = "oak-0acf3f6dc0af2035d40884fe1258b1e0e7db5488",
     url = "https://github.com/project-oak/oak/archive/0acf3f6dc0af2035d40884fe1258b1e0e7db5488.tar.gz",
+)
+
+# The following enables the use of the library functions in the differential-
+# privacy github repo
+http_archive(
+    name = "com_google_cc_differential_privacy",
+    sha256 = "6e6e1cd7a819695caae408f4fa938129ab7a86e83fe2410137c85e50131abbe0",
+    strip_prefix = "differential-privacy-3.0.0/cc",
+    url = "https://github.com/google/differential-privacy/archive/refs/tags/v3.0.0.tar.gz",
+)
+
+http_archive(
+    name = "com_google_differential_privacy",
+    sha256 = "6e6e1cd7a819695caae408f4fa938129ab7a86e83fe2410137c85e50131abbe0",
+    strip_prefix = "differential-privacy-3.0.0",
+    url = "https://github.com/google/differential-privacy/archive/refs/tags/v3.0.0.tar.gz",
+)
+
+http_archive(
+    name = "org_tensorflow_federated",
+    sha256 = "2bb1e641a84f05bc1776eefc98eb108454807071ae0bed45ee5e8bee896511be",
+    strip_prefix = "tensorflow-federated-9c5a51af41fccc8e720a63aa754465767113877d",
+    url = "https://github.com/tensorflow/federated/archive/9c5a51af41fccc8e720a63aa754465767113877d.tar.gz",
 )
 
 # Tensorflow v2.14.0
@@ -208,11 +232,9 @@ http_archive(
     url = "https://github.com/bazelbuild/rules_python/releases/download/0.29.0/rules_python-0.29.0.tar.gz",
 )
 
-load("@rules_python//python:repositories.bzl", "py_repositories")
+load("@rules_python//python:repositories.bzl", "py_repositories", "python_register_toolchains")
 
 py_repositories()
-
-load("@rules_python//python:repositories.bzl", "python_register_toolchains")
 
 python_register_toolchains(
     name = "python",
@@ -243,20 +265,20 @@ load("@rules_proto//proto:repositories.bzl", "rules_proto_dependencies", "rules_
 
 rules_proto_toolchains()
 
+load("@federatedcompute//fcp/tensorflow/pip_tf:defs.bzl", "TF_ADDITIVE_BUILD_CONTENT")
 load("@python//:defs.bzl", "interpreter")
 load("@rules_python//python:pip.bzl", "package_annotation", "pip_parse")
-load("@federatedcompute//fcp/tensorflow/pip_tf:defs.bzl", "TF_ADDITIVE_BUILD_CONTENT")
 
 http_archive(
     name = "differential_privacy",
+    repo_mapping = {
+        "@accounting_py_pip_deps": "@pypi",
+    },
     sha256 = "6e6e1cd7a819695caae408f4fa938129ab7a86e83fe2410137c85e50131abbe0",
     strip_prefix = "differential-privacy-3.0.0/python/dp_accounting/",
     urls = [
         "https://github.com/google/differential-privacy/archive/refs/tags/v3.0.0.tar.gz",
     ],
-    repo_mapping = {
-        "@accounting_py_pip_deps": "@pypi"
-    },
 )
 
 pip_parse(
@@ -458,3 +480,23 @@ llvm_toolchain(
 load("@llvm_toolchain//:toolchains.bzl", "llvm_register_toolchains")
 
 llvm_register_toolchains()
+
+
+################
+# pybind11
+################
+
+http_archive(
+  name = "pybind11_bazel",
+  strip_prefix = "pybind11_bazel-2.12.0",
+  sha256 = "a58c25c5fe063a70057fa20cb8e15f3bda19b1030305bcb533af1e45f36a4a55",
+  urls = ["https://github.com/pybind/pybind11_bazel/archive/pybind11_bazel-2.12.0.zip"],
+)
+# We still require the pybind library.
+http_archive(
+  name = "pybind11",
+  build_file = "@pybind11_bazel//:pybind11-BUILD.bazel",
+  strip_prefix = "pybind11-2.12.0",
+  sha256 = "411f77380c43798506b39ec594fc7f2b532a13c4db674fcf2b1ca344efaefb68",
+  urls = ["https://github.com/pybind/pybind11/archive/pybind11-2.12.0.zip"],
+)

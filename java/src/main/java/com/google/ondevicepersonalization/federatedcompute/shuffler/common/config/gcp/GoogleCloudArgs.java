@@ -18,6 +18,10 @@ package com.google.ondevicepersonalization.federatedcompute.shuffler.common.conf
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.validators.PositiveInteger;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.common.CompressionUtils.CompressionFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import lombok.Getter;
 
 /** Google cloud configurations passed in from command line args. */
@@ -35,6 +39,14 @@ public final class GoogleCloudArgs {
 
   @Parameter(names = "--task_database_name", description = "The spanner task database name.")
   private String taskDatabaseName;
+
+  @Parameter(
+      names = "--metrics_spanner_instance",
+      description = "The metrics spanner instance name.")
+  private String metricsSpannerInstance;
+
+  @Parameter(names = "--metrics_database_name", description = "The spanner metrics database name.")
+  private String metricsDatabaseName;
 
   @Parameter(
       names = "--client_gradient_bucket_template",
@@ -169,4 +181,11 @@ public final class GoogleCloudArgs {
       description = "The size of aggregation batches created by the collector",
       validateWith = PositiveInteger.class)
   private int collectorBatchSize;
+
+  @Parameter(
+      names = "--compression_format",
+      description = "Supported client-side file compression formats",
+      variableArity = true)
+  private List<CompressionFormat> compressionFormats =
+      new ArrayList<>(Arrays.asList(CompressionFormat.GZIP));
 }

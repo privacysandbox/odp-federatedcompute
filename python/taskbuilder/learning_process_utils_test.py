@@ -51,7 +51,6 @@ class LearningProcessUtilsTest(absltest.TestCase):
     self.assertIsNotNone(eval_process)
     self.assertIsNotNone(eval_process.initialize)
     self.assertIsNotNone(eval_process.next)
-    self.assertIsNotNone(eval_process.get_model_weights)
 
   def test_compose_iterative_process_training_only(self):
     dp_parameters = common.DpParameter(
@@ -77,7 +76,7 @@ class LearningProcessUtilsTest(absltest.TestCase):
         noise_multiplier=1.0,
         dp_clip_norm=0.1,
     )
-    eval_process, empty = learning_process_utils.compose_iterative_processes(
+    empty, eval_process = learning_process_utils.compose_iterative_processes(
         model=test_utils.get_functional_model_without_metrics(),
         learning_process=TEST_FL_SETUP,
         dp_parameters=dp_parameters,
@@ -86,7 +85,6 @@ class LearningProcessUtilsTest(absltest.TestCase):
     self.assertIsNotNone(eval_process)
     self.assertIsNotNone(eval_process.initialize)
     self.assertIsNotNone(eval_process.next)
-    self.assertIsNotNone(eval_process.get_model_weights)
 
     self.assertIsNone(empty)
 

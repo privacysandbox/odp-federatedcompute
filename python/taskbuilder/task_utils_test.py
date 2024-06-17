@@ -12,68 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import copy
-from unittest.mock import MagicMock, patch
 from absl.testing import absltest
 import common
-from google.cloud import storage
 from shuffler.proto import task_builder_pb2
 from shuffler.proto import task_pb2
 import task_utils
-
-TEST_DATA = task_builder_pb2.TaskConfig(
-    mode=task_builder_pb2.TaskMode.Enum.TRAINING_AND_EVAL,
-    population_name='my_new_population',
-    label_name='y',
-    policies=task_builder_pb2.Policies(
-        min_separation_policy=task_pb2.MinimumSeparationPolicy(
-            minimum_separation=3
-        ),
-        data_availability_policy=task_pb2.DataAvailabilityPolicy(
-            min_example_count=100
-        ),
-        model_release_policy=task_builder_pb2.ModelReleaseManagementPolicy(
-            dp_target_epsilon=6,
-            dp_delta=0.000001,
-            num_max_training_rounds=10000,
-        ),
-    ),
-    federated_learning=task_builder_pb2.FederatedLearning(
-        learning_process=task_builder_pb2.LearningProcess(
-            client_learning_rate=0.01,
-            server_learning_rate=1.0,
-            runtime_config=task_builder_pb2.RuntimeConfig(report_goal=2000),
-            artifact_building=task_builder_pb2.ArtifactBuilding(
-                plan_url='gs://plan',
-                client_plan_url='gs://client_only_plan',
-                checkpoint_url='gs://checkpoint',
-            ),
-        ),
-        evaluation=task_builder_pb2.Evaluation(
-            source_training_population='source_population',
-            checkpoint_selector='every_10_round',
-            evaluation_traffic=0.1,
-            report_goal=200,
-            artifact_building=task_builder_pb2.ArtifactBuilding(
-                plan_url='gs://plan',
-                client_plan_url='gs://client_only_plan',
-                checkpoint_url='gs://checkpoint',
-            ),
-        ),
-    ),
-    differential_privacy=task_builder_pb2.DifferentialPrivacy(
-        noise_multiplier=0.1, clip_norm=0.1
-    ),
-)
+import test_utils
 
 
 class TaskUtilsTest(absltest.TestCase):
 
   def setUp(self):
     super().setUp()
-    self._patcher = patch('task_utils.storage.Client')
-    self._mock_client = self._patcher.start()
-    self._test_data = copy.deepcopy(TEST_DATA)
+    self._test_data = test_utils.get_good_training_and_eval_task_config()
 
   def test_create_tasks(self):
     training_task, eval_task = task_utils.create_tasks(self._test_data)
@@ -148,66 +99,15 @@ class TaskUtilsTest(absltest.TestCase):
     checkpoint_selector = eval_info.check_point_selector
     self.assertTrue(checkpoint_selector.HasField('iteration_selector'))
     iteration_selector = checkpoint_selector.iteration_selector
-    self.assertEqual(10, iteration_selector.size)
+    self.assertEqual(2, iteration_selector.size)
 
   def _validate_task_uris(self, task):
     self.assertLen(task.client_only_plan_url, 1)
-    self.assertEqual('gs://client_only_plan', task.client_only_plan_url[0])
+    self.assertEqual(common.TEST_BLOB_PATH, task.client_only_plan_url[0])
     self.assertLen(task.server_phase_url, 1)
-    self.assertEqual('gs://plan', task.server_phase_url[0])
+    self.assertEqual(common.TEST_BLOB_PATH, task.server_phase_url[0])
     self.assertLen(task.init_checkpoint_url, 1)
-    self.assertEqual('gs://checkpoint', task.init_checkpoint_url[0])
-
-  def test_load_functional_model_fail(self):
-    self._saved_model_blob = MagicMock(spec=storage.Blob)
-    self._saved_model_blob.download_to_file.side_effect = Exception(
-        'Simulated exception.'
-    )
-    self._mock_client.bucket.return_value.list_blobs.return_value = [
-        self._saved_model_blob
-    ]
-
-    with self.assertRaisesWithLiteralMatch(
-        common.TaskBuilderException,
-        'Cannot load TFF functional model from gs://mock-model.',
-    ):
-      functional_model = task_utils.load_functional_model(
-          model_path='gs://mock-model',
-          client=self._mock_client,
-      )
-
-  def test_load_task_config_success(self):
-    self._mock_task_config_blob = (
-        self._mock_client.bucket.return_value.blob.return_value
-    )
-    self._mock_task_config_blob.download_as_text.return_value = (
-        'population_name: "my_new_population" '
-    )
-    task_config = task_utils.load_task_config(
-        task_config_path='gs://mock-task-config/mock-task-config.pbtxt',
-        client=self._mock_client,
-    )
-    self.assertEqual('my_new_population', task_config.population_name)
-
-  def test_load_task_config_fail(self):
-    self._mock_task_config_blob = (
-        self._mock_client.bucket.return_value.blob.return_value
-    )
-    self._mock_task_config_blob.download_as_text.side_effect = Exception(
-        'Simulated exception.'
-    )
-    with self.assertRaisesWithLiteralMatch(
-        common.TaskBuilderException,
-        'Cannot load task config from'
-        ' gs://mock-task-config/mock-task-config.pbtxt.',
-    ):
-      task_utils.load_task_config(
-          task_config_path='gs://mock-task-config/mock-task-config.pbtxt',
-          client=self._mock_client,
-      )
-
-  def tearDown(self):
-    self._patcher.stop()
+    self.assertEqual(common.TEST_BLOB_PATH, task.init_checkpoint_url[0])
 
 
 if __name__ == '__main__':

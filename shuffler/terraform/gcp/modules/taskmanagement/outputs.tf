@@ -18,3 +18,8 @@ output "task_management_name" {
   description = "Name of task management cloud run deployment"
   value       = google_cloud_run_v2_service.taskmanagement.name
 }
+
+output "task_management_url" {
+  description = "URL of the task management service. The terraform may need to be re-run if blank to populate."
+  value       = google_cloud_run_v2_service.taskmanagement.uri
+}

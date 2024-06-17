@@ -71,6 +71,9 @@ public class AggregationBatchSpannerDaoTest {
           .resultId(1)
           .info(ITERATION_INFO.getAsString())
           .aggregationLevel(0)
+          .minClientVersion("0")
+          .maxAggregationSize(444)
+          .maxClientVersion("99999999")
           .build();
 
   // GMT time.
@@ -1238,10 +1241,11 @@ public class AggregationBatchSpannerDaoTest {
       long reportGoal) {
     String insertIteration =
         "INSERT INTO Iteration(PopulationName, TaskId, IterationId, AttemptId, Status,"
-            + " BaseIterationId, BaseOnResultId, ReportGoal, ResultId, Info, AggregationLevel)"
-            + " VALUES(@populationName, @taskId, @iterationId, @attemptId, @status,"
-            + " @baseIterationId, @baseOnResultId, @reportGoal, @resultId, @info,"
-            + " @aggregationLevel)";
+            + " BaseIterationId, BaseOnResultId, ReportGoal, ResultId, Info, AggregationLevel,"
+            + " MinClientVersion, MaxClientVersion, MaxAggregationSize) VALUES(@populationName,"
+            + " @taskId, @iterationId, @attemptId, @status, @baseIterationId, @baseOnResultId,"
+            + " @reportGoal, @resultId, @info, @aggregationLevel, @minClientVersion,"
+            + " @maxClientVersion, @maxAggregationSize)";
     transaction.executeUpdate(
         Statement.newBuilder(insertIteration)
             .bind("PopulationName")
@@ -1266,6 +1270,12 @@ public class AggregationBatchSpannerDaoTest {
             .to(ITERATION_INFO)
             .bind("aggregationLevel")
             .to(1)
+            .bind("minClientVersion")
+            .to("0")
+            .bind("maxClientVersion")
+            .to("99999999")
+            .bind("maxAggregationSize")
+            .to(444)
             .build());
   }
 

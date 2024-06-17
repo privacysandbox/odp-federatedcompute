@@ -146,3 +146,34 @@ variable "task_management_min_replicas" {
   description = "The minimum number of task management replicas that the autoscaler can scale down to."
   type        = number
 }
+
+# Task builder parameters
+variable "task_builder_service_account" {
+  description = "The service account to use for task builder"
+  type        = string
+}
+
+variable "task_builder_image" {
+  description = "The task builder container image."
+  type        = string
+}
+
+variable "task_builder_port" {
+  description = "The task builder service port."
+  type        = string
+}
+
+variable "task_builder_max_replicas" {
+  description = "The maximum number of task builder replicas that the autoscaler can scale up to."
+  type        = number
+}
+
+variable "task_builder_min_replicas" {
+  description = "The minimum number of task builder replicas that the autoscaler can scale down to."
+  type        = number
+}
+
+variable "initial_deployment" {
+  description = "Set true for first deployment to handle dependencies which rely on features that require dependencies determined after apply"
+  type        = bool
+}

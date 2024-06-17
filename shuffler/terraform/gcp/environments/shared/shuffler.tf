@@ -37,10 +37,14 @@ module "shuffler" {
   client_gradient_bucket_versioning                      = var.client_gradient_bucket_versioning
   model_bucket_force_destroy                             = var.model_bucket_force_destroy
   model_bucket_versioning                                = var.model_bucket_versioning
+  aggregated_gradient_bucket_lifecycle_age_days          = var.aggregated_gradient_bucket_lifecycle_age_days
+  client_gradient_bucket_lifecycle_age_days              = var.client_gradient_bucket_lifecycle_age_days
+  model_bucket_lifecycle_age_days                        = var.model_bucket_lifecycle_age_days
   spanner_database_deletion_protection                   = var.spanner_database_deletion_protection
   spanner_database_retention_period                      = var.spanner_database_retention_period
   spanner_instance_config                                = var.spanner_instance_config
   spanner_processing_units                               = var.spanner_processing_units
+  metric_spanner_processing_units                        = var.metric_spanner_processing_units
   encryption_key_service_a_base_url                      = var.encryption_key_service_a_base_url
   encryption_key_service_b_base_url                      = var.encryption_key_service_b_base_url
   encryption_key_service_a_cloudfunction_url             = var.encryption_key_service_a_cloudfunction_url
@@ -54,6 +58,7 @@ module "shuffler" {
   key_attestation_api_key                                = var.key_attestation_api_key
   key_attestation_validation_url                         = var.key_attestation_validation_url
   is_authentication_enabled                              = var.is_authentication_enabled
+  allow_rooted_devices                                   = var.allow_rooted_devices
   download_plan_token_duration                           = var.download_plan_token_duration
   download_checkpoint_token_duration                     = var.download_checkpoint_token_duration
   upload_gradient_token_duration                         = var.upload_gradient_token_duration
@@ -79,4 +84,10 @@ module "shuffler" {
   task_management_max_replicas                           = var.task_management_max_replicas
   task_management_min_replicas                           = var.task_management_min_replicas
   task_management_port                                   = var.task_management_port
+  task_builder_image                                     = var.task_builder_image
+  task_builder_max_replicas                              = var.task_builder_max_replicas
+  task_builder_min_replicas                              = var.task_builder_min_replicas
+  task_builder_port                                      = var.task_builder_port
+  task_builder_service_account                           = var.task_builder_service_account
+  initial_deployment                                     = var.initial_deployment
 }

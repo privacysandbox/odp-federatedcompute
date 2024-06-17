@@ -34,6 +34,7 @@ module "shuffler" {
   spanner_database_retention_period                      = var.spanner_database_retention_period
   spanner_instance_config                                = var.spanner_instance_config
   spanner_processing_units                               = var.spanner_processing_units
+  metric_spanner_processing_units                        = var.metric_spanner_processing_units
   encryption_key_service_a_base_url                      = var.encryption_key_service_a_base_url
   encryption_key_service_b_base_url                      = var.encryption_key_service_b_base_url
   encryption_key_service_a_cloudfunction_url             = var.encryption_key_service_a_cloudfunction_url

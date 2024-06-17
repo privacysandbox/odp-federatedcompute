@@ -18,9 +18,12 @@ java_test(
     name = "model_updater_core_impl_test",
     size = "small",
     srcs = ["ModelUpdaterCoreImplTest.java"],
+    resources = ["//java/src/test/java/resources:plans"],
     test_class = "com.google.ondevicepersonalization.federatedcompute.shuffler.modelupdater.core.ModelUpdaterCoreImplTest",
     deps = [
         "@coordinator-services-and-shared-libraries//:crypto_client",
+        "@federatedcompute//fcp/java_src/main/java/com/google/fcp/aggregation",
+        "@federatedcompute//fcp/java_src/main/java/com/google/fcp/plan:phase_v2",
         "@federatedcompute//fcp/java_src/main/java/com/google/fcp/tensorflow:app_files",
         "@maven//:com_google_crypto_tink_tink",
         "@federatedcompute//fcp/java_src/main/java/com/google/fcp/tensorflow:tensorflow_exception",

@@ -46,6 +46,7 @@ import java.util.Objects;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 /** Spanner implementation of Assignment DAO. */
@@ -103,27 +104,18 @@ public class AssignmentSpannerDao implements AssignmentDao {
           + "ORDER BY h1.CreatedTime";
 
   private static final String SELECT_ASSIGNMENT_IDS_OF_STATUS =
-      "SELECT h1.SessionId \n"
-          + " FROM AssignmentStatusHistory AS h1 \n"
-          + " WHERE h1.PopulationName = @populationName \n"
-          + "   AND h1.TaskId = @taskId \n"
-          + "   AND h1.IterationId = @iterationId \n"
-          + "   AND h1.AttemptId = @attemptId \n"
-          + "   AND h1.Status = @status \n"
+      "SELECT SessionId \n"
+          + " FROM Assignment \n"
+          + " WHERE PopulationName = @populationName \n"
+          + "   AND TaskId = @taskId \n"
+          + "   AND IterationId = @iterationId \n"
+          + "   AND AttemptId = @attemptId \n"
+          + "   AND Status = @status \n"
           + "   %s \n"
-          + "   AND h1.StatusId = ( \n"
-          + "      SELECT MAX(StatusId) \n"
-          + "        FROM AssignmentStatusHistory AS h2 \n"
-          + "          WHERE h1.PopulationName = h2.PopulationName \n"
-          + "            AND h1.TaskId = h2.TaskId \n"
-          + "            AND h1.IterationId = h2.IterationId \n"
-          + "            AND h1.AttemptId = h2.AttemptId \n"
-          + "            AND h1.SessionId = h2.SessionId \n"
-          + ")\n"
-          + "ORDER BY h1.SessionId";
+          + "ORDER BY SessionId";
 
   public AssignmentSpannerDao(
-      DatabaseClient dbClient,
+      @Qualifier("taskDatabaseClient") DatabaseClient dbClient,
       InstantSource instantSource,
       Optional<ListeningExecutorService> executorService) {
     this.dbClient = dbClient;
@@ -303,12 +295,12 @@ public class AssignmentSpannerDao implements AssignmentDao {
     if (batchId.isPresent()) {
       statement =
           Statement.newBuilder(
-              String.format(SELECT_ASSIGNMENT_IDS_OF_STATUS, " AND h1.BatchId = @batchId \n"));
+              String.format(SELECT_ASSIGNMENT_IDS_OF_STATUS, " AND BatchId = @batchId \n"));
       statement.bind("batchId").to(batchId.get());
     } else {
       statement =
           Statement.newBuilder(
-              String.format(SELECT_ASSIGNMENT_IDS_OF_STATUS, " AND h1.BatchId is NULL \n"));
+              String.format(SELECT_ASSIGNMENT_IDS_OF_STATUS, " AND BatchId is NULL \n"));
     }
 
     statement

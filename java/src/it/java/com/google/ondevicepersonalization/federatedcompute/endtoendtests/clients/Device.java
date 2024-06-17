@@ -168,6 +168,7 @@ public class Device {
     }
 
     String assignmentUri = taskAssignment.getSelfUri();
+    System.out.println("submitResult: " + assignmentUri);
     upload(assignmentUri, content);
   }
 
@@ -201,6 +202,7 @@ public class Device {
             .PUT(HttpRequest.BodyPublishers.ofByteArray(content))
             .timeout(Duration.ofSeconds(10))
             .header("Content-Type", "application/octet-stream")
+            .header("content-encoding", "gzip")
             .build();
 
     HttpResponse<byte[]> response = client.send(request, BodyHandlers.ofByteArray());

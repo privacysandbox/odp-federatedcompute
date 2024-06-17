@@ -1,0 +1,11 @@
+<configuration>
+    <springProfile name="gcp">
+        <appender name="CLOUD" class="com.google.cloud.logging.logback.LoggingAppender">
+            <flushLevel>WARN</flushLevel>
+            <redirectToStdout>true</redirectToStdout>
+        </appender>
+        <root level="info">
+            <appender-ref ref="CLOUD" />
+        </root>
+    </springProfile>
+</configuration>

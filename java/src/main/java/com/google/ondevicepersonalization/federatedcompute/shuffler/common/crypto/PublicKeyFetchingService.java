@@ -47,7 +47,7 @@ public class PublicKeyFetchingService {
   }
 
   public PublicKeys fetchPublicKeys() {
-    URI fetchUri = URI.create(String.format("%s/publicKeys", publicKeyServiceBaseUrl));
+    URI fetchUri = URI.create(publicKeyServiceBaseUrl);
     var request = new HttpGet(fetchUri);
 
     final RequestConfig requestConfig =

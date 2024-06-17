@@ -37,6 +37,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.ondevicepersonalization.federatedcompute.proto.IterationInfo;
 import com.google.ondevicepersonalization.federatedcompute.proto.TaskInfo;
 import com.google.ondevicepersonalization.federatedcompute.proto.TrainingInfo;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.common.CompressionUtils.CompressionFormat;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.ProtoParser;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.BlobDao;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.BlobDescription;
@@ -51,6 +52,8 @@ import com.google.testing.junit.testparameterinjector.TestParameters;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.InstantSource;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.locks.Lock;
 import org.junit.Before;
@@ -145,9 +148,12 @@ public final class TaskSchedulerCoreImplTest {
       BlobDescription.builder().host("test-m-1").resourceObject("us/35/17/s/0/metrics").build();
   private static final BlobDescription NEW_CHECKPOINT1_1 =
       BlobDescription.builder().host("test-m-1").resourceObject("us/35/16/s/0/checkpoint").build();
+  private static final List<CompressionFormat> COMPRESSION_FORMATS =
+      Arrays.asList(CompressionFormat.GZIP);
 
   private static Instant NOW = Instant.parse("2023-09-01T00:00:00Z");
   private static InstantSource instanceSource = InstantSource.fixed(NOW);
+
   @Mock TaskDao mockTaskDao;
   @Mock BlobDao mockBlobDao;
   @Mock BlobManager mockBlobManager;
@@ -168,7 +174,8 @@ public final class TaskSchedulerCoreImplTest {
             mockBlobManager,
             instanceSource,
             mockTaskSchedulerCoreHelper,
-            lockRegistry);
+            lockRegistry,
+            COMPRESSION_FORMATS);
 
     // Init common mocks
     when(lockRegistry.obtain("taskscheduler_" + DEFAULT_TASK.getId().toString())).thenReturn(lock);
@@ -808,5 +815,44 @@ public final class TaskSchedulerCoreImplTest {
 
     verify(mockTaskDao, times(0)).updateTaskStatus(any(), any(), any());
     verify(mockTaskDao, times(0)).createIteration(any());
+  }
+
+  @Test
+  public void processCompletedIteration_upsertMetricsSuccessful_updateIterationStatus() {
+    when(lockRegistry.obtain("completed_iteration_" + BASE_ITERATION1.getId())).thenReturn(lock);
+    when(lock.tryLock()).thenReturn(true);
+    when(mockTaskDao.getIterationsOfStatus(any())).thenReturn(ImmutableList.of(BASE_ITERATION1));
+    when(mockTaskSchedulerCoreHelper.parseMetricsAndUpsert(BASE_ITERATION1)).thenReturn(true);
+
+    taskScheduler.processCompletedIterations();
+
+    verify(mockTaskDao, times(1)).updateIterationStatus(any(), any());
+    verify(lock, times(1)).unlock();
+  }
+
+  @Test
+  public void processCompletedIteration_tryLockFailed_doNothing() {
+    when(lockRegistry.obtain("completed_iteration_" + BASE_ITERATION1.getId())).thenReturn(lock);
+    when(lock.tryLock()).thenReturn(false);
+    when(mockTaskDao.getIterationsOfStatus(any())).thenReturn(ImmutableList.of(BASE_ITERATION1));
+
+    taskScheduler.processCompletedIterations();
+
+    verify(mockTaskDao, times(0)).updateIterationStatus(any(), any());
+    verify(mockTaskSchedulerCoreHelper, times(0)).parseMetricsAndUpsert(any());
+    verify(lock, times(0)).unlock();
+  }
+
+  @Test
+  public void processCompletedIteration_upsertMetricsFailed_doNothing() {
+    when(lockRegistry.obtain("completed_iteration_" + BASE_ITERATION1.getId())).thenReturn(lock);
+    when(lock.tryLock()).thenReturn(true);
+    when(mockTaskDao.getIterationsOfStatus(any())).thenReturn(ImmutableList.of(BASE_ITERATION1));
+    when(mockTaskSchedulerCoreHelper.parseMetricsAndUpsert(BASE_ITERATION1)).thenReturn(false);
+
+    taskScheduler.processCompletedIterations();
+
+    verify(mockTaskDao, times(0)).updateIterationStatus(any(), any());
+    verify(lock, times(1)).unlock();
   }
 }

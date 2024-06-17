@@ -42,15 +42,42 @@ resource "kubernetes_deployment_v1" "collector" {
           app = "collector"
         }
       }
-      // TODO(b/331826774): Configure support for health checks/probes.
       spec {
         service_account_name = module.gke-workload-identity.k8s_service_account_name
+        node_selector = {
+          "cloud.google.com/compute-class" : "Balanced"
+        }
         container {
           image = var.collector_image
           name  = "${var.environment}-collector"
           env {
             name  = "FCP_OPTS"
             value = "--environment '${var.environment}'"
+          }
+          port {
+            container_port = 8082
+          }
+          readiness_probe {
+            http_get {
+              path = "/ready"
+              port = 8082
+            }
+          }
+          liveness_probe {
+            http_get {
+              path = "/healthz"
+              port = 8082
+            }
+          }
+          startup_probe {
+            http_get {
+              path = "/healthz"
+              port = 8082
+            }
+            success_threshold = 1
+            failure_threshold = 20
+            period_seconds    = 10
+            timeout_seconds   = 5
           }
           security_context {
             allow_privilege_escalation = false
@@ -65,9 +92,9 @@ resource "kubernetes_deployment_v1" "collector" {
           resources {
             // Limits are not used for autopilot: https://cloud.google.com/kubernetes-engine/docs/concepts/autopilot-resource-requests#resource-limits
             requests = {
-              cpu               = "1500m"
+              cpu               = var.collector_cpu
               ephemeral-storage = "1Gi"
-              memory            = "8Gi"
+              memory            = "${var.collector_cpu}Gi" # Use 1:1 CPU-to-memory
             }
           }
         }
@@ -83,6 +110,12 @@ resource "kubernetes_deployment_v1" "collector" {
           key      = "kubernetes.io/arch"
           operator = "Equal"
           value    = "amd64"
+        }
+        toleration {
+          effect   = "NoSchedule"
+          key      = "cloud.google.com/compute-class"
+          operator = "Equal"
+          value    = "Balanced"
         }
       }
     }

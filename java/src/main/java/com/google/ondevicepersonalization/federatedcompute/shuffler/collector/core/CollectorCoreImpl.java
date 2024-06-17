@@ -25,7 +25,6 @@ import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.A
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AssignmentEntity;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AssignmentId;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.BlobDao;
-import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.BlobDescription;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.BlobManager;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.IterationEntity;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.IterationEntity.Status;
@@ -131,6 +130,48 @@ public class CollectorCoreImpl implements CollectorCore {
     }
   }
 
+  public void processTimeouts() {
+    try {
+      MDC.put(Constants.ACTIVITY_ID, UUID.randomUUID().toString());
+      MDC.put(Constants.STATUS_ID, "COLLECTING");
+      taskDao.getIterationsOfStatus(IterationEntity.Status.COLLECTING).stream()
+          .forEach(this::processTimeouts);
+    } finally {
+      MDC.clear();
+    }
+  }
+
+  private void processTimeouts(IterationEntity iteration) {
+    Instant startTime = instantSource.instant();
+    try {
+      String partition = iteration.getId().toString();
+      Lock lock = lockRegistry.obtain("timeout_" + LOCK_PREFIX + partition);
+      if (lock.tryLock()) {
+        try {
+          MDC.put(Constants.ITERATION_ID, iteration.getId().toString());
+          if (Status.COLLECTING == iteration.getStatus()) {
+            // mark the assignment timeout if result is not uploaded in time.
+            queryAndSetUploadResultTimeout(iteration);
+
+            // mark the assignment timeout if the local compute is not finished in time.
+            queryAndSetLocalComputeTimeout(iteration);
+          }
+        } finally {
+          lock.unlock();
+          Duration duration = Duration.between(startTime, instantSource.instant());
+          logger.info(
+              "processing timeouts completed in {} second for iteration in status {}.",
+              duration.getSeconds(),
+              iteration.getStatus(),
+              iteration.getAggregationLevel());
+          MDC.remove(Constants.ITERATION_ID);
+        }
+      }
+    } catch (Exception e) {
+      logger.atError().setCause(e).log();
+    }
+  }
+
   private void processIteration(IterationEntity iteration) {
     Instant startTime = instantSource.instant();
     try {
@@ -163,10 +204,6 @@ public class CollectorCoreImpl implements CollectorCore {
 
   private void processAggregatingIterationImp(IterationEntity iteration, String partition) {
     // Only support 1 level of aggregation for now. L0 - Clients, L1 - Intermediates
-    if (iteration.getAggregationLevel() == 2) {
-      handleFinalAggregationLevel(iteration);
-      return;
-    }
     if (iteration.getAggregationLevel() == 1) {
       handleFirstLevelAggregation(iteration, partition);
       return;
@@ -232,45 +269,19 @@ public class CollectorCoreImpl implements CollectorCore {
               iteration.getAggregationLevel() - 1,
               AggregationBatchEntity.Status.UPLOAD_COMPLETED,
               Optional.empty());
-      // Send message to aggregator
+      // Send message to model updater
       messageSender.sendMessage(
-          collectorCoreImplHelper.createAggregatorMessage(
-              iteration, uploaded, Optional.empty(), /* intermediate */ true),
-          aggregatorPubsubTopic);
+          collectorCoreImplHelper.createModelUpdaterMessage(iteration, uploaded),
+          modelUpdaterPubsubTopic);
       logger.info("Message sent to pubsub for iteration {}", iteration.getId().toString());
       // Update iteration state
       if (!taskDao.updateIterationStatus(
-          iteration, iteration.toBuilder().aggregationLevel(2).build())) {
+          iteration, iteration.toBuilder().status(Status.APPLYING).aggregationLevel(2).build())) {
         logger.error(
             "Failed to update iteration {} from {} to {}",
             iteration.getId().toString(),
             iteration.getStatus(),
             Status.AGGREGATING);
-      }
-    }
-  }
-
-  private void handleFinalAggregationLevel(IterationEntity iteration) {
-    BlobDescription gradientLocation =
-        blobManager.generateDownloadAggregatedGradientDescription(iteration);
-    boolean uploadedAggregatedGradientExists =
-        blobDao.exists(
-            new BlobDescription[] {
-              gradientLocation.toBuilder()
-                  .resourceObject(gradientLocation.getResourceObject() + Constants.GRADIENT_FILE)
-                  .build()
-            });
-    if (uploadedAggregatedGradientExists) {
-      messageSender.sendMessage(
-          collectorCoreImplHelper.createModelUpdaterMessage(iteration), modelUpdaterPubsubTopic);
-      logger.info("Message sent to pubsub for iteration {}", iteration.getId().toString());
-      if (!taskDao.updateIterationStatus(
-          iteration, iteration.toBuilder().status(Status.APPLYING).build())) {
-        logger.error(
-            "Failed to update iteration {} from {} to {}",
-            iteration.getId().toString(),
-            iteration.getStatus(),
-            Status.APPLYING);
       }
     }
   }
@@ -298,12 +309,6 @@ public class CollectorCoreImpl implements CollectorCore {
           uploadCompletedFromFolder,
           publishedAssignmentsCount);
     }
-
-    // mark the assignment timeout if result is not uploaded in time.
-    queryAndSetUploadResultTimeout(iteration);
-
-    // mark the assignment timeout if the local compute is not finished in time.
-    queryAndSetLocalComputeTimeout(iteration);
   }
 
   private List<String> queryAndBatchLeftoverAssignments(
@@ -333,7 +338,7 @@ public class CollectorCoreImpl implements CollectorCore {
     Set<String> allLocalCompleted =
         assignmentDao
             .queryAssignmentIdsOfStatus(
-                iteration.getId(), AssignmentEntity.Status.LOCAL_COMPLETED, instantSource.instant())
+                iteration.getId(), AssignmentEntity.Status.LOCAL_COMPLETED, Optional.empty())
             .stream()
             .collect(Collectors.toSet());
 

@@ -33,6 +33,7 @@ java_binary(
         ":end_to_end_args",
         "//java/src/it/java/com/google/ondevicepersonalization/federatedcompute/endtoendtests/clients:device",
         "//java/src/it/java/com/google/ondevicepersonalization/federatedcompute/endtoendtests/clients:partner",
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:compression_utils",
         "//shuffler/proto:task_java_proto",
         "@maven//:com_beust_jcommander",
         "@maven//:com_google_guava_guava",

@@ -20,6 +20,7 @@ java_library(
         "GoogleCloudArgs.java",
     ],
     deps = [
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:compression_utils",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:lombok_java",
         "@maven//:com_beust_jcommander",
     ],
@@ -98,6 +99,7 @@ java_library(
         ":gcp_parameter_client",
         ":google_cloud_args",
         ":security_args",
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:compression_utils",
         "@maven//:com_google_guava_guava",
         "@maven//:org_slf4j_slf4j_api",
         "@maven//:org_springframework_spring_beans",

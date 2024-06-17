@@ -26,9 +26,12 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.crypto.tink.HybridDecrypt;
 import com.google.crypto.tink.subtle.Base64;
+import com.google.fcp.aggregation.AggregationSession;
 import com.google.fcp.plan.PhaseSession;
+import com.google.fcp.plan.PhaseSessionV2;
 import com.google.fcp.plan.TensorflowPlanSession;
 import com.google.fcp.tensorflow.AppFiles;
 import com.google.fcp.tensorflow.TensorflowException;
@@ -59,6 +62,7 @@ import org.mockito.MockitoAnnotations;
 public final class ModelUpdaterCoreImplTest {
 
   private static final Map<String, Double> metricsMap = new HashMap<>();
+  private static final ImmutableMap<String, Double> metricsMapV2 = ImmutableMap.copyOf(metricsMap);
 
   private static final IterationEntity ITERATION1 =
       IterationEntity.builder()
@@ -126,8 +130,9 @@ public final class ModelUpdaterCoreImplTest {
       ModelUpdaterMessage.builder()
           .serverPlanBucket(PLAN_1.getHost())
           .serverPlanObject(PLAN_1.getResourceObject())
-          .aggregatedGradientBucket(GRADIENT1.getHost())
-          .aggregatedGradientObject(GRADIENT1.getResourceObject())
+          .intermediateGradientBucket(GRADIENT1.getHost())
+          .intermediateGradientPrefix("us/35/17/s/0/")
+          .intermediateGradients(List.of("gradient"))
           .checkpointBucket(CURRENT_MODEL1.getHost())
           .checkpointObject(CURRENT_MODEL1.getResourceObject())
           .newCheckpointOutputBucket(NEW_MODEL1_1.getHost())
@@ -143,8 +148,9 @@ public final class ModelUpdaterCoreImplTest {
       ModelUpdaterMessage.builder()
           .serverPlanBucket(PLAN_2.getHost())
           .serverPlanObject(PLAN_2.getResourceObject())
-          .aggregatedGradientBucket(GRADIENT2.getHost())
-          .aggregatedGradientObject(GRADIENT2.getResourceObject())
+          .intermediateGradientBucket(GRADIENT2.getHost())
+          .intermediateGradientPrefix("us/36/18/s/0/")
+          .intermediateGradients(List.of("gradient"))
           .checkpointBucket(CURRENT_MODEL2.getHost())
           .checkpointObject(CURRENT_MODEL2.getResourceObject())
           .newCheckpointOutputBucket(NEW_MODEL2_1.getHost())
@@ -165,6 +171,10 @@ public final class ModelUpdaterCoreImplTest {
   @Mock TensorflowPlanSessionFactory tensorflowPlanSessionFactory;
   @Mock TensorflowPlanSession tensorflowPlanSession;
   @Mock PhaseSession phaseSession;
+
+  @Mock AggregationSession aggregationSession;
+
+  @Mock PhaseSessionV2 phaseSessionV2;
   private ModelUpdaterCoreImpl core;
   private byte[] gradient;
   private byte[] plan;
@@ -188,7 +198,7 @@ public final class ModelUpdaterCoreImplTest {
              + "  \"associatedData\":\"\"\n"
              + "}")
             .getBytes();
-    plan = new byte[] {0, 2};
+    plan = getClass().getResourceAsStream("/resources/plan_v1").readAllBytes();
     checkpoint = new byte[] {0, 3};
     metricsMap.put("key1", 1.0);
     gradientCaptor = ArgumentCaptor.forClass(ByteString.class);
@@ -197,12 +207,12 @@ public final class ModelUpdaterCoreImplTest {
   @Test
   public void testProcess_Succeeded() throws Exception {
     // arange
-    when(blobDao.download(PLAN_1)).thenReturn(plan);
-    when(blobDao.download(PLAN_2)).thenReturn(plan);
-    when(blobDao.download(CURRENT_MODEL1)).thenReturn(checkpoint);
-    when(blobDao.download(CURRENT_MODEL2)).thenReturn(checkpoint);
-    when(blobDao.download(GRADIENT1)).thenReturn(gradient);
-    when(blobDao.download(GRADIENT2)).thenReturn(gradient);
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_1)).thenReturn(plan);
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_2)).thenReturn(plan);
+    when(blobDao.downloadAndDecompressIfNeeded(CURRENT_MODEL1)).thenReturn(checkpoint);
+    when(blobDao.downloadAndDecompressIfNeeded(CURRENT_MODEL2)).thenReturn(checkpoint);
+    when(blobDao.downloadAndDecompressIfNeeded(GRADIENT1)).thenReturn(gradient);
+    when(blobDao.downloadAndDecompressIfNeeded(GRADIENT2)).thenReturn(gradient);
     when(tensorflowPlanSessionFactory.createPlanSession(any())).thenReturn(tensorflowPlanSession);
     when(tensorflowPlanSession.createPhaseSession(any(), any())).thenReturn(phaseSession);
     doNothing().when(phaseSession).accumulateIntermediateUpdate(any());
@@ -218,20 +228,22 @@ public final class ModelUpdaterCoreImplTest {
     core.process(MESSAGE2);
 
     // assert
-    verify(blobDao, times(1)).upload(eq(NEW_MODEL1_1), eq(new byte[] {10}));
-    verify(blobDao, times(1)).upload(eq(NEW_MODEL2_1), eq(new byte[] {10}));
-    verify(blobDao, times(1)).upload(eq(NEW_CLIENT_CHECKPOINT1_1), eq(new byte[] {9}));
-    verify(blobDao, times(1)).upload(eq(NEW_CLIENT_CHECKPOINT2_1), eq(new byte[] {9}));
+    verify(blobDao, times(1)).compressAndUpload(eq(NEW_MODEL1_1), eq(new byte[] {10}));
+    verify(blobDao, times(1)).compressAndUpload(eq(NEW_MODEL2_1), eq(new byte[] {10}));
+    verify(blobDao, times(1)).compressAndUpload(eq(NEW_CLIENT_CHECKPOINT1_1), eq(new byte[] {9}));
+    verify(blobDao, times(1)).compressAndUpload(eq(NEW_CLIENT_CHECKPOINT2_1), eq(new byte[] {9}));
     verify(blobDao, times(1))
-        .upload(eq(NEW_METRICS1_1), eq("{\"key1\":1.0}".getBytes(StandardCharsets.UTF_8)));
+        .compressAndUpload(
+            eq(NEW_METRICS1_1), eq("{\"key1\":1.0}".getBytes(StandardCharsets.UTF_8)));
     verify(blobDao, times(1))
-        .upload(eq(NEW_METRICS2_1), eq("{\"key1\":1.0}".getBytes(StandardCharsets.UTF_8)));
-    verify(blobDao, times(1)).download(eq(PLAN_1));
-    verify(blobDao, times(1)).download(eq(PLAN_2));
-    verify(blobDao, times(1)).download(eq(CURRENT_MODEL1));
-    verify(blobDao, times(1)).download(eq(CURRENT_MODEL2));
-    verify(blobDao, times(1)).download(eq(GRADIENT1));
-    verify(blobDao, times(1)).download(eq(GRADIENT2));
+        .compressAndUpload(
+            eq(NEW_METRICS2_1), eq("{\"key1\":1.0}".getBytes(StandardCharsets.UTF_8)));
+    verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(PLAN_1));
+    verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(PLAN_2));
+    verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(CURRENT_MODEL1));
+    verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(CURRENT_MODEL2));
+    verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(GRADIENT1));
+    verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(GRADIENT2));
     verify(tensorflowPlanSessionFactory, times(2)).createPlanSession(any());
     verify(tensorflowPlanSession, times(2)).createPhaseSession(any(), eq(Optional.of(appFiles)));
     verify(phaseSession, times(2)).applyAggregatedUpdates();
@@ -245,14 +257,64 @@ public final class ModelUpdaterCoreImplTest {
   }
 
   @Test
+  public void testProcessV2_Succeeded() throws Exception {
+    // arange
+    byte[] plan2 = getClass().getResourceAsStream("/resources/plan_v2").readAllBytes();
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_1)).thenReturn(plan2);
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_2)).thenReturn(plan2);
+    when(blobDao.downloadAndDecompressIfNeeded(CURRENT_MODEL1)).thenReturn(checkpoint);
+    when(blobDao.downloadAndDecompressIfNeeded(CURRENT_MODEL2)).thenReturn(checkpoint);
+    when(blobDao.downloadAndDecompressIfNeeded(GRADIENT1)).thenReturn(gradient);
+    when(blobDao.downloadAndDecompressIfNeeded(GRADIENT2)).thenReturn(gradient);
+    when(tensorflowPlanSessionFactory.createAggregationSession(any()))
+        .thenReturn(aggregationSession);
+    when(tensorflowPlanSessionFactory.createPhaseSessionV2(any())).thenReturn(phaseSessionV2);
+    when(aggregationSession.report()).thenReturn(new byte[] {10});
+    when(phaseSessionV2.getClientCheckpoint(any()))
+        .thenReturn(
+            PhaseSessionV2.IntermediateResult.create(
+                ByteString.copyFrom(new byte[] {9}), ByteString.copyFrom(new byte[] {9})));
+    when(phaseSessionV2.getResult(any(), any()))
+        .thenReturn(
+            PhaseSessionV2.Result.create(ByteString.copyFrom(new byte[] {10}), metricsMapV2));
+    when(decryptionKeyService.getDecrypter(any())).thenReturn(hybridDecrypt);
+    when(hybridDecrypt.decrypt(any(), any())).thenReturn(Base64.decode(GZIP_GRADIENT));
+
+    // act
+    core.process(MESSAGE1);
+    core.process(MESSAGE2);
+
+    // assert
+    verify(blobDao, times(1)).compressAndUpload(eq(NEW_MODEL1_1), eq(new byte[] {10}));
+    verify(blobDao, times(1)).compressAndUpload(eq(NEW_MODEL2_1), eq(new byte[] {10}));
+    verify(blobDao, times(1)).compressAndUpload(eq(NEW_CLIENT_CHECKPOINT1_1), eq(new byte[] {9}));
+    verify(blobDao, times(1)).compressAndUpload(eq(NEW_CLIENT_CHECKPOINT2_1), eq(new byte[] {9}));
+    verify(blobDao, times(1)).compressAndUpload(eq(NEW_METRICS1_1), any());
+    verify(blobDao, times(1)).compressAndUpload(eq(NEW_METRICS2_1), any());
+    verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(PLAN_1));
+    verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(PLAN_2));
+    verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(CURRENT_MODEL1));
+    verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(CURRENT_MODEL2));
+    verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(GRADIENT1));
+    verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(GRADIENT2));
+    verify(tensorflowPlanSessionFactory, times(4)).createAggregationSession(any());
+    verify(tensorflowPlanSessionFactory, times(4)).createPhaseSessionV2(any());
+    verify(aggregationSession, times(4)).mergeWith(any());
+    verify(aggregationSession, times(2)).serialize();
+    verify(aggregationSession, times(2)).report();
+    verify(phaseSessionV2, times(4)).getClientCheckpoint(any());
+    verify(phaseSessionV2, times(2)).getResult(any(), any());
+  }
+
+  @Test
   public void testProcess_FailedToUpload() throws Exception {
     // arange
-    when(blobDao.download(PLAN_1)).thenReturn(plan);
-    when(blobDao.download(PLAN_2)).thenReturn(plan);
-    when(blobDao.download(CURRENT_MODEL1)).thenReturn(checkpoint);
-    when(blobDao.download(CURRENT_MODEL2)).thenReturn(checkpoint);
-    when(blobDao.download(GRADIENT1)).thenReturn(gradient);
-    when(blobDao.download(GRADIENT2)).thenReturn(gradient);
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_1)).thenReturn(plan);
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_2)).thenReturn(plan);
+    when(blobDao.downloadAndDecompressIfNeeded(CURRENT_MODEL1)).thenReturn(checkpoint);
+    when(blobDao.downloadAndDecompressIfNeeded(CURRENT_MODEL2)).thenReturn(checkpoint);
+    when(blobDao.downloadAndDecompressIfNeeded(GRADIENT1)).thenReturn(gradient);
+    when(blobDao.downloadAndDecompressIfNeeded(GRADIENT2)).thenReturn(gradient);
     when(tensorflowPlanSessionFactory.createPlanSession(any())).thenReturn(tensorflowPlanSession);
     when(tensorflowPlanSession.createPhaseSession(any(), any())).thenReturn(phaseSession);
     doNothing().when(phaseSession).accumulateIntermediateUpdate(any());
@@ -260,7 +322,7 @@ public final class ModelUpdaterCoreImplTest {
     when(phaseSession.toCheckpoint()).thenReturn(ByteString.copyFrom(new byte[] {10}));
     when(phaseSession.getMetrics()).thenReturn(metricsMap);
     when(phaseSession.getClientCheckpoint(any())).thenReturn(ByteString.copyFrom(new byte[] {9}));
-    doThrow(new IOException()).when(blobDao).upload(eq(NEW_MODEL1_1), any());
+    doThrow(new IOException()).when(blobDao).compressAndUpload(eq(NEW_MODEL1_1), any());
     when(decryptionKeyService.getDecrypter(any())).thenReturn(hybridDecrypt);
     when(hybridDecrypt.decrypt(any(), any())).thenReturn(Base64.decode(GZIP_GRADIENT));
 
@@ -268,13 +330,14 @@ public final class ModelUpdaterCoreImplTest {
     assertThrows(RuntimeException.class, () -> core.process(MESSAGE1));
 
     // assert
-    verify(blobDao, times(1)).upload(eq(NEW_MODEL1_1), eq(new byte[] {10}));
+    verify(blobDao, times(1)).compressAndUpload(eq(NEW_MODEL1_1), eq(new byte[] {10}));
     verify(blobDao, times(0))
-        .upload(eq(NEW_METRICS1_1), eq("{\"key1\":1.0}".getBytes(StandardCharsets.UTF_8)));
-    verify(blobDao, times(0)).upload(eq(NEW_CLIENT_CHECKPOINT1_1), eq(new byte[] {9}));
-    verify(blobDao, times(1)).download(eq(PLAN_1));
-    verify(blobDao, times(1)).download(eq(CURRENT_MODEL1));
-    verify(blobDao, times(1)).download(eq(GRADIENT1));
+        .compressAndUpload(
+            eq(NEW_METRICS1_1), eq("{\"key1\":1.0}".getBytes(StandardCharsets.UTF_8)));
+    verify(blobDao, times(0)).compressAndUpload(eq(NEW_CLIENT_CHECKPOINT1_1), eq(new byte[] {9}));
+    verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(PLAN_1));
+    verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(CURRENT_MODEL1));
+    verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(GRADIENT1));
     verify(tensorflowPlanSessionFactory, times(1)).createPlanSession(any());
     verify(tensorflowPlanSession, times(1)).createPhaseSession(any(), eq(Optional.of(appFiles)));
     verify(phaseSession, times(1)).applyAggregatedUpdates();
@@ -287,11 +350,11 @@ public final class ModelUpdaterCoreImplTest {
   @Test
   public void testProcess_FailOnTensorflowException() throws Exception {
     // arange
-    when(blobDao.download(PLAN_1)).thenReturn(plan);
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_1)).thenReturn(plan);
 
-    when(blobDao.download(CURRENT_MODEL1)).thenReturn(checkpoint);
+    when(blobDao.downloadAndDecompressIfNeeded(CURRENT_MODEL1)).thenReturn(checkpoint);
 
-    when(blobDao.download(GRADIENT1)).thenReturn(gradient);
+    when(blobDao.downloadAndDecompressIfNeeded(GRADIENT1)).thenReturn(gradient);
 
     when(tensorflowPlanSessionFactory.createPlanSession(any())).thenReturn(tensorflowPlanSession);
     when(tensorflowPlanSession.createPhaseSession(any(), any())).thenReturn(phaseSession);
@@ -312,12 +375,12 @@ public final class ModelUpdaterCoreImplTest {
   @Test
   public void testProcess_evalTask_skipUploadCheckpoint() throws Exception {
     // arange
-    when(blobDao.download(PLAN_1)).thenReturn(plan);
-    when(blobDao.download(PLAN_2)).thenReturn(plan);
-    when(blobDao.download(CURRENT_MODEL1)).thenReturn(checkpoint);
-    when(blobDao.download(CURRENT_MODEL2)).thenReturn(checkpoint);
-    when(blobDao.download(GRADIENT1)).thenReturn(gradient);
-    when(blobDao.download(GRADIENT2)).thenReturn(gradient);
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_1)).thenReturn(plan);
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_2)).thenReturn(plan);
+    when(blobDao.downloadAndDecompressIfNeeded(CURRENT_MODEL1)).thenReturn(checkpoint);
+    when(blobDao.downloadAndDecompressIfNeeded(CURRENT_MODEL2)).thenReturn(checkpoint);
+    when(blobDao.downloadAndDecompressIfNeeded(GRADIENT1)).thenReturn(gradient);
+    when(blobDao.downloadAndDecompressIfNeeded(GRADIENT2)).thenReturn(gradient);
     when(tensorflowPlanSessionFactory.createPlanSession(any())).thenReturn(tensorflowPlanSession);
     when(tensorflowPlanSession.createPhaseSession(any(), any())).thenReturn(phaseSession);
     doNothing().when(phaseSession).accumulateIntermediateUpdate(any());
@@ -337,18 +400,20 @@ public final class ModelUpdaterCoreImplTest {
             .build());
 
     // assert
-    verify(blobDao, times(1)).upload(eq(NEW_MODEL1_1), eq(new byte[] {10}));
-    verify(blobDao, times(1)).upload(eq(NEW_CLIENT_CHECKPOINT1_1), eq(new byte[] {9}));
+    verify(blobDao, times(1)).compressAndUpload(eq(NEW_MODEL1_1), eq(new byte[] {10}));
+    verify(blobDao, times(1)).compressAndUpload(eq(NEW_CLIENT_CHECKPOINT1_1), eq(new byte[] {9}));
     verify(blobDao, times(1))
-        .upload(eq(NEW_METRICS1_1), eq("{\"key1\":1.0}".getBytes(StandardCharsets.UTF_8)));
+        .compressAndUpload(
+            eq(NEW_METRICS1_1), eq("{\"key1\":1.0}".getBytes(StandardCharsets.UTF_8)));
     verify(blobDao, times(1))
-        .upload(eq(NEW_METRICS2_1), eq("{\"key1\":1.0}".getBytes(StandardCharsets.UTF_8)));
-    verify(blobDao, times(1)).download(eq(PLAN_1));
-    verify(blobDao, times(1)).download(eq(PLAN_2));
-    verify(blobDao, times(1)).download(eq(CURRENT_MODEL1));
-    verify(blobDao, times(1)).download(eq(CURRENT_MODEL2));
-    verify(blobDao, times(1)).download(eq(GRADIENT1));
-    verify(blobDao, times(1)).download(eq(GRADIENT2));
+        .compressAndUpload(
+            eq(NEW_METRICS2_1), eq("{\"key1\":1.0}".getBytes(StandardCharsets.UTF_8)));
+    verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(PLAN_1));
+    verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(PLAN_2));
+    verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(CURRENT_MODEL1));
+    verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(CURRENT_MODEL2));
+    verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(GRADIENT1));
+    verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(GRADIENT2));
     verify(tensorflowPlanSessionFactory, times(2)).createPlanSession(any());
     verify(tensorflowPlanSession, times(2)).createPhaseSession(any(), eq(Optional.of(appFiles)));
     verify(phaseSession, times(2)).applyAggregatedUpdates();

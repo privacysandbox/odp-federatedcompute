@@ -69,6 +69,21 @@ variable "aggregated_gradient_bucket_versioning" {
   nullable    = false
 }
 
+variable "model_bucket_lifecycle_age_days" {
+  description = "Duration in days for objects in the model bucket before they are deleted."
+  type        = number
+}
+
+variable "client_gradient_bucket_lifecycle_age_days" {
+  description = "Duration in days for objects in the client gradient bucket before they are deleted."
+  type        = number
+}
+
+variable "aggregated_gradient_bucket_lifecycle_age_days" {
+  description = "Duration in days for objects in the aggregated gradient bucket before they are deleted."
+  type        = number
+}
+
 # https://cloud.google.com/spanner/docs/pitr
 # Must be between 1 hour and 7 days. Can be specified in days, hours, minutes, or seconds.
 # eg: 1d, 24h, 1440m, and 86400s are equivalent.
@@ -85,6 +100,11 @@ variable "spanner_instance_config" {
 
 variable "spanner_processing_units" {
   description = "Spanner's compute capacity. 1000 processing units = 1 node and must be set as a multiple of 100."
+  type        = number
+}
+
+variable "metric_spanner_processing_units" {
+  description = "Spanner's compute capacity for Metric instance. 1000 processing units = 1 node and must be set as a multiple of 100."
   type        = number
 }
 

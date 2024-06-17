@@ -20,8 +20,10 @@ java_library(
         "TaskAssignmentCore.java",
     ],
     deps = [
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:compression_utils",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:assignment_id",
         "//shuffler/proto:task_assignments_java_proto",
+        "@federatedcompute//fcp/protos/federatedcompute:federated_compute_java_proto",
     ],
 )
 
@@ -33,6 +35,7 @@ java_library(
     deps = [
         ":task_assignment_core",
         ":task_assignment_core_helper",
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:compression_utils",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:constants",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:unique_id_generator",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:assignment_dao",
@@ -44,7 +47,6 @@ java_library(
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:task_dao",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:task_entity",
         "//shuffler/proto:task_assignments_java_proto",
-        "//shuffler/proto:task_java_proto",
         "@com_google_protobuf//java/core",
         "@federatedcompute//fcp/protos/federatedcompute:federated_compute_java_proto",
         "@maven//:org_slf4j_slf4j_api",
@@ -58,6 +60,7 @@ java_library(
         "TaskAssignmentCoreHelper.java",
     ],
     deps = [
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:compression_utils",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:constants",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:proto_parser",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:random_generator",
@@ -69,6 +72,7 @@ java_library(
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:iteration_entity",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:iteration_id",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:task_entity",
+        "//shuffler/proto:common_java_proto",
         "//shuffler/proto:task_assignments_java_proto",
         "//shuffler/proto:task_java_proto",
         "@federatedcompute//fcp/protos/federatedcompute:federated_compute_java_proto",

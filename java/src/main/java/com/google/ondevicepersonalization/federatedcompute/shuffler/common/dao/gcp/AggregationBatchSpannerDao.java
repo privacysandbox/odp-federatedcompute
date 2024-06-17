@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 /** Spanner implementation of AggregationBatch DAO. */
@@ -85,7 +86,8 @@ public class AggregationBatchSpannerDao implements AggregationBatchDao {
           + "   AND CreatedByPartition = @createdByPartition \n"
           + " ORDER BY BatchId";
 
-  public AggregationBatchSpannerDao(DatabaseClient dbClient, InstantSource instantSource) {
+  public AggregationBatchSpannerDao(
+      @Qualifier("taskDatabaseClient") DatabaseClient dbClient, InstantSource instantSource) {
     this.dbClient = dbClient;
     this.instantSource = instantSource;
   }

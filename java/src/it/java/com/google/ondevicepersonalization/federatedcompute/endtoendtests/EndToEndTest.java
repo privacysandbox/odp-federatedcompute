@@ -31,6 +31,7 @@ import com.google.ondevicepersonalization.federatedcompute.proto.Task;
 import com.google.ondevicepersonalization.federatedcompute.proto.TaskInfo;
 import com.google.ondevicepersonalization.federatedcompute.proto.TaskStatus;
 import com.google.ondevicepersonalization.federatedcompute.proto.TrainingInfo;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.common.CompressionUtils;
 import java.time.InstantSource;
 import java.util.ArrayList;
 import java.util.List;
@@ -127,26 +128,43 @@ public final class EndToEndTest {
           endToEndTest.completeTask(endToEndTest.createTrainingTask());
           break;
         case CREATE_AND_COMPLETE_EVALUATION_TASK:
-          // create training and evaluation task
-          Task trainingTask = endToEndTest.createTrainingTask();
-          EvaluationInfo evaluationInfo =
-              EvaluationInfo.newBuilder()
-                  .setTrainingPopulationName(trainingTask.getPopulationName())
-                  .setTrainingTaskId(trainingTask.getTaskId())
-                  .setCheckPointSelector(
-                      CheckPointSelector.newBuilder()
-                          .setIterationSelector(
-                              EveryKIterationsCheckpointSelector.newBuilder().setSize(1)))
-                  .build();
-          // create an evaluation task under same population with training task
-          Task evaluationTask =
-              endToEndTest.createEvaluationTask(trainingTask.getPopulationName(), evaluationInfo);
-          endToEndTest.completeTasksInSamePopulation(
-              ImmutableList.of(trainingTask, evaluationTask));
-          break;
+          {
+            // create training and evaluation task
+            Task trainingTask = endToEndTest.createTrainingTask();
+            EvaluationInfo evaluationInfo =
+                EvaluationInfo.newBuilder()
+                    .setTrainingPopulationName(trainingTask.getPopulationName())
+                    .setTrainingTaskId(trainingTask.getTaskId())
+                    .setCheckPointSelector(
+                        CheckPointSelector.newBuilder()
+                            .setIterationSelector(
+                                EveryKIterationsCheckpointSelector.newBuilder().setSize(1)))
+                    .build();
+            // create an evaluation task under same population with training task
+            Task evaluationTask =
+                endToEndTest.createEvaluationTask(trainingTask.getPopulationName(), evaluationInfo);
+            endToEndTest.completeTasksInSamePopulation(
+                ImmutableList.of(trainingTask, evaluationTask));
+            break;
+          }
         case CREATE_TASK:
           endToEndTest.createTrainingTask();
           break;
+        case CREATE_EVALUATION_TASK:
+          {
+            EvaluationInfo evaluationInfo =
+                EvaluationInfo.newBuilder()
+                    .setTrainingPopulationName(endToEndArgs.getEvalTrainingPopulationName())
+                    .setTrainingTaskId(endToEndArgs.getEvalTrainingTaskId())
+                    .setCheckPointSelector(
+                        CheckPointSelector.newBuilder()
+                            .setIterationSelector(
+                                EveryKIterationsCheckpointSelector.newBuilder()
+                                    .setSize(endToEndArgs.getEvalEveryKIteration())))
+                    .build();
+            endToEndTest.createEvaluationTask(endToEndArgs.getPopulationName(), evaluationInfo);
+            break;
+          }
         case RUN_TASK:
           endToEndTest.runTask(endToEndArgs.getRunCount());
           break;
@@ -183,6 +201,13 @@ public final class EndToEndTest {
           Objects.requireNonNull(args.getServerPlan());
           Objects.requireNonNull(args.getInitCheckpoint());
         }
+        break;
+      case CREATE_EVALUATION_TASK:
+        if (!args.isUseLocalResources()) {
+          Objects.requireNonNull(args.getClientPlan());
+          Objects.requireNonNull(args.getServerPlan());
+        }
+        Objects.requireNonNull(args.getEvalTrainingPopulationName());
         break;
       case RUN_TASK:
         if (args.isEncrypt()) {
@@ -441,6 +466,6 @@ public final class EndToEndTest {
     if (encrypt) {
       downloadedGradient = device.encryptAndCompressGradient(downloadedGradient, publicKeyUrl);
     }
-    device.submitResult(downloadedGradient);
+    device.submitResult(CompressionUtils.compressWithGzip(downloadedGradient));
   }
 }

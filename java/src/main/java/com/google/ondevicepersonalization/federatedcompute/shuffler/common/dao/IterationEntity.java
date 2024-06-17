@@ -45,6 +45,9 @@ public class IterationEntity {
   private Optional<Long> assigned;
   private String info;
   private long aggregationLevel;
+  private long maxAggregationSize;
+  private String minClientVersion;
+  private String maxClientVersion;
 
   public IterationId getId() {
     return IterationId.builder()
@@ -97,6 +100,7 @@ public class IterationEntity {
     COMPLETED(2L),
     STOPPED(3L),
     APPLYING(4L),
+    POST_PROCESSED(5L),
 
     // inactive
     CANCELED(101L),

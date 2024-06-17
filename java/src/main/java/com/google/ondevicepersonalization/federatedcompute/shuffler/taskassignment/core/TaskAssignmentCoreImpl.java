@@ -16,8 +16,10 @@
 
 package com.google.ondevicepersonalization.federatedcompute.shuffler.taskassignment.core;
 
+import com.google.internal.federatedcompute.v1.ResourceCompressionFormat;
 import com.google.ondevicepersonalization.federatedcompute.proto.TaskAssignment;
 import com.google.ondevicepersonalization.federatedcompute.proto.UploadInstruction;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.common.CompressionUtils.CompressionFormat;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.UniqueIdGenerator;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AssignmentDao;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AssignmentEntity.Status;
@@ -26,8 +28,7 @@ import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.B
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.BlobManager;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.IterationEntity;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.TaskDao;
-import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.TaskEntity;
-import java.util.Map;
+import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,28 +60,29 @@ public class TaskAssignmentCoreImpl implements TaskAssignmentCore {
   }
 
   public Optional<TaskAssignment> createTaskAssignment(
-      String populationName, String clientVersion, String correlationId) {
-    Map<TaskEntity, IterationEntity> taskEntityIterationEntityMap =
-        taskDao.getOpenTasksAndIterations(populationName, clientVersion);
-    Optional<TaskEntity> selectedTask =
-        taskAssignmentCoreHelper.selectTask(taskEntityIterationEntityMap.keySet());
+      String populationName, String clientVersion, String correlationId, CompressionFormat format) {
+    List<IterationEntity> openIterations = taskDao.getOpenIterations(populationName, clientVersion);
+    Optional<IterationEntity> selectIterationEntity =
+        taskAssignmentCoreHelper.selectIterationEntity(openIterations);
 
-    if (selectedTask.isEmpty()) {
+    if (selectIterationEntity.isEmpty()) {
       return Optional.empty();
     }
 
-    IterationEntity iterationEntity = taskEntityIterationEntityMap.get(selectedTask.get());
-
     return assignmentDao
-        .createAssignment(iterationEntity, correlationId, idGenerator.generate())
+        .createAssignment(selectIterationEntity.get(), correlationId, idGenerator.generate())
         .flatMap(
             assignmentEntity ->
                 taskAssignmentCoreHelper.createTaskAssignment(
-                    selectedTask.get(), assignmentEntity));
+                    selectIterationEntity.get(), assignmentEntity, format));
   }
 
   public Optional<UploadInstruction> getUploadInstruction(
-      String populationName, long taskId, String aggregationId, String assignmentId) {
+      String populationName,
+      long taskId,
+      String aggregationId,
+      String assignmentId,
+      CompressionFormat compressionFormat) {
     return assignmentDao
         .getAssignment(
             AssignmentId.builder()
@@ -91,7 +93,9 @@ public class TaskAssignmentCoreImpl implements TaskAssignmentCore {
                 .assignmentId(assignmentId)
                 .build())
         .filter(assignment -> assignment.getStatus() == Status.LOCAL_COMPLETED)
-        .map(blobManager::generateUploadGradientDescription)
+        .map(
+            assignment1 ->
+                blobManager.generateUploadGradientDescription(assignment1, compressionFormat))
         .map(this::convertToUploadInstruction);
   }
 
@@ -144,6 +148,8 @@ public class TaskAssignmentCoreImpl implements TaskAssignmentCore {
     return UploadInstruction.newBuilder()
         .setUploadLocation(blobDescription.getUrl())
         .putAllExtraRequestHeaders(blobDescription.getHeaders())
+        // client side only supports gzip, always return gzip for now
+        .setCompressionFormat(ResourceCompressionFormat.RESOURCE_COMPRESSION_FORMAT_GZIP)
         .build();
   }
 }

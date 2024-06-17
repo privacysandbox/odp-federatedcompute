@@ -90,6 +90,12 @@ variable "spanner_processing_units" {
   default     = 1000
 }
 
+variable "metric_spanner_processing_units" {
+  description = "Spanner's compute capacity for Metric instance. 1000 processing units = 1 node and must be set as a multiple of 100."
+  type        = number
+  default     = 100
+}
+
 variable "spanner_database_deletion_protection" {
   description = "Prevents destruction of the Spanner database."
   type        = bool

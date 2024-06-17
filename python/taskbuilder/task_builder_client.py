@@ -13,179 +13,127 @@
 # limitations under the License.
 
 import logging
-from typing import Tuple
+from typing import Optional
 import absl
-import artifact_utils
 import common
-import config_validator
-import dataset_utils
+import google.auth
+from google.auth import impersonated_credentials
+from google.cloud import storage
 import http_utils
-import learning_process_utils
+import io_utils
+import requests
 from shuffler.proto import task_builder_pb2
-import task_utils
-import tensorflow_federated as tff
 
 
-class TaskBuilderClient:
-
-  def __init__(self):
-    self._model = None
-    self._task_config = None
-    self._dp_parameters = None
-    self._dataset_preprocessor = None
-    self._main_learning_process = None
-    self._optional_learning_process = None
-    self._main_task = None
-    self._optional_task = None
-    self._artifact_only = common.ARTIFACT_BUILDING_ONLY.value
-
-  def build_task_group(self, model_path: str, task_config_path: str):
-    try:
-      logging.info(f'Loading model from {model_path}...')
-      self._model = task_utils.load_functional_model(model_path=model_path)
-      logging.info(f'Loading task config from {task_config_path}...')
-      self._task_config = task_utils.load_task_config(
-          task_config_path=task_config_path
-      )
-    except Exception as e:
-      logging.exception('Failed to load resources from input: ')
-      raise e
-
-    population_name = self._task_config.population_name
-    is_training_and_eval = (
-        self._task_config.mode
-        == task_builder_pb2.TaskMode.Enum.TRAINING_AND_EVAL
+def task_builder_request_handler(
+    request: task_builder_pb2.BuildTaskRequest,
+    artifact_only: Optional[bool] = False,
+) -> task_builder_pb2.BuildTaskResponse:
+  endpoint = http_utils.get_task_builder_endpoint(
+      request_type=common.RequestType.BUILD_TASK_GROUP
+  )
+  if artifact_only:
+    endpoint = http_utils.get_task_builder_endpoint(
+        request_type=common.RequestType.BUILD_ARTIFACT_ONLY
     )
-    is_eval_only = (
-        self._task_config.mode == task_builder_pb2.TaskMode.Enum.EVAL_ONLY
-    )
-    logging.info(
-        'Successfully loaded input. Start building task group under population'
-        f' `{population_name}`...'
-    )
-    # Validate task config
-    try:
-      config_validator.validate_metadata(task_config=self._task_config)
-      logging.info(
-          'Basic config is valid. Start validating differential privacy'
-          ' setup...'
-      )
-      # DP accounting validation for training task
-      self._dp_parameters = config_validator.validate_fcp_dp(
-          task_config=self._task_config
-      )
-      logging.info('Task config is valid! Start building the task group.')
-    except Exception as e:
-      logging.exception('Task config is invalid: ')
-      raise e
-
-    # Compose learning algorithms based on `learning_process` config
-    try:
-      self._dataset_preprocessor = dataset_utils.compose_preprocessing_fn(
-          model=self._model, label_name=self._task_config.label_name
-      )
-      self._main_learning_process, self._optional_learning_process = (
-          learning_process_utils.compose_iterative_processes(
-              model=self._model,
-              learning_process=self._task_config.federated_learning.learning_process,
-              dp_parameters=self._dp_parameters,
-              training_and_eval=is_training_and_eval,
-              eval_only=is_eval_only,
-          )
-      )
-    except Exception as e:
-      logging.exception(
-          'Failed to build learning algorithm based on `learning_process`'
-          ' config: '
-      )
-      raise e
-
-    # Create tasks in TM if task configuration is valid and artifact only mode is disabled.
-    # If artifact only is enabled, only artifact URIs will be attached on empty tasks.
-    # The created tasks should be a tuple, where the second task is optional.
-    try:
-      if self._artifact_only:
-        logging.info(
-            'Artifact only mode is enabled. Skipped the task creation in TM'
-            ' server.'
-        )
-        self._main_task, self._optional_task = (
-            task_utils.create_tasks_for_artifact_only_request(
-                task_config=self._task_config
-            )
-        )
-      else:
-        tasks = task_utils.create_tasks(task_config=self._task_config)
-        logging.info(
-            'Connecting to task management server: '
-            + common.TASK_MANAGEMENT_SERVER.value
-        )
-        self._main_task, self._optional_task = http_utils.create_task_group(
-            tasks=tasks
-        )
-    except Exception as e:
-      logging.exception('Failed to create tasks by task management service: ')
-      raise e
-
-    # Build and upload artifacts to designated GCS paths
-    build_task_response = artifact_utils.build_and_upload_artifacts(
-        task=self._main_task,
-        learning_process=self._main_learning_process,
-        preprocessing_fn=self._dataset_preprocessor,
-    )
-    if build_task_response.HasField('task_id'):
-      logging.info(
-          f'Training artifacts are uploaded for task {self._main_task.task_id}.'
-      )
+  logging.log(logging.INFO, 'Send HTTP request to: ' + endpoint)
+  try:
+    headers = common.PROROBUF_HEADERS
+    if common.IMPERSONATE_SERVICE_ACCOUNT.value is None:
+      logging.log(logging.INFO, 'Retrieving id token from metadata server.')
+      access_token = http_utils.get_idtoken_from_metadata_server(endpoint)
     else:
-      logging.exception(
-          'Artifact building failed for task'
-          f' {population_name}:'
-          f' {build_task_response.error_info.error_message}. Stop building'
-          ' remaining artifacts.'
+      logging.log(
+          logging.INFO,
+          'Retrieving id token from impersonated service account '
+          + common.IMPERSONATE_SERVICE_ACCOUNT.value,
       )
-      return
-
-    # build artifacts for the associated eval process
-    if self._optional_task and self._optional_learning_process:
-      build_eval_task_response = artifact_utils.build_and_upload_artifacts(
-          task=self._optional_task,
-          learning_process=self._optional_learning_process,
-          preprocessing_fn=self._dataset_preprocessor,
+      access_token = get_id_token_from_adc(
+          common.IMPERSONATE_SERVICE_ACCOUNT.value, endpoint
       )
-      if build_eval_task_response.HasField('task_id'):
-        logging.info(
-            'Training artifacts are uploaded for task'
-            f' {build_eval_task_response.task_id}.'
-        )
-      else:
-        logging.exception(
-            'Artifact building failed for task'
-            f' {population_name}:'
-            f' {build_eval_task_response.error_info.error_message}'
-        )
+    headers['Authorization'] = f'Bearer {access_token}'
+    response = requests.post(
+        url=endpoint,
+        data=request.SerializeToString(),
+        headers=headers,
+    )
+  except Exception as e:
+    raise common.TaskBuilderException(
+        common.CONNECTION_FAILURE_MSG + endpoint
+    ) from e
+  # Propagate error from Task Builder APIs.
+  if not response.ok:
+    raise common.TaskBuilderException(
+        '{code}: {msg}'.format(code=response.status_code, msg=response.reason)
+    )
+  try:
+    build_task_response = task_builder_pb2.BuildTaskResponse()
+    build_task_response.ParseFromString(response.content)
+    return build_task_response
+  except Exception as e:
+    raise common.TaskBuilderException(common.DECODE_ERROR_MSG) from e
 
 
 def main(argv):
   model_path = common.MODEL_PATH.value
   task_config_path = common.CONFIG_PATH.value
+  e2e_population_name = common.E2E_TEST_POPULATION_NAME.value
+  artifact_only = common.ARTIFACT_BUILDING_ONLY.value
+  skip_flex_ops_check = common.SKIP_FLEX_OPS_CHECK.value
+  skip_dp_check = common.SKIP_DP_CHECK.value
   if not model_path:
     raise ValueError('`--saved_model` is required but not set.')
   if not task_config_path:
     raise ValueError('`--task_config` is required but not set.')
-  try:
-    task_builder_client = TaskBuilderClient()
-    logging.info('Start creating task.')
-    task_builder_client.build_task_group(
-        model_path=model_path, task_config_path=task_config_path
-    )
+
+  logging.info('Creating build task request from command-line options.')
+  flags = task_builder_pb2.ExperimentFlags()
+  flags.skip_flex_ops_check = skip_flex_ops_check
+  flags.skip_dp_check = skip_dp_check
+  task_builder_request = io_utils.create_build_task_request_from_resource_path(
+      model_path=model_path,
+      task_config_path=task_config_path,
+      client=storage.Client(),
+      flags=flags,
+  )
+  if e2e_population_name:
+    task_builder_request.task_config.population_name = e2e_population_name
+  task_builder_response = task_builder_request_handler(
+      request=task_builder_request,
+      artifact_only=artifact_only,
+  )
+  if task_builder_response.HasField('task_group'):
     logging.info(
-        'Success! Tasks are built, and training artifacts are uploaded to the'
-        ' cloud.'
+        'Success! Tasks are built, and artifacts are uploaded to the cloud.'
     )
-  except Exception as e:
-    logging.exception('A runtime error occur when building task: ')
-    raise e
+  else:
+    logging.exception(
+        'Failed to create task group. Error type:'
+        f' {task_builder_response.error_info.error_type}; Error message:'
+        f' {task_builder_response.error_info.error_message}'
+    )
+
+
+# FOR ADC local
+# ADC account must have roles/iam.serviceAccountTokenCreator permission on target_principal
+def get_id_token_from_adc(target_principal, target_audience):
+  credentials, project_id = google.auth.default()
+  target_scopes = ['https://www.googleapis.com/auth/cloud-platform']
+  target_credentials = impersonated_credentials.Credentials(
+      source_credentials=credentials,
+      target_principal=target_principal,
+      target_scopes=target_scopes,
+      delegates=[],
+      lifetime=5,
+  )
+
+  id_creds = impersonated_credentials.IDTokenCredentials(
+      target_credentials, target_audience=target_audience, include_email=True
+  )
+  request = google.auth.transport.requests.Request()
+  id_creds.refresh(request)
+  token = id_creds.token
+  return token
 
 
 if __name__ == '__main__':

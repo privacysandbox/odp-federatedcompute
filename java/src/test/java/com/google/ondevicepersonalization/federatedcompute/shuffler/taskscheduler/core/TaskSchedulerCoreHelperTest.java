@@ -1,3 +1,19 @@
+/*
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.google.ondevicepersonalization.federatedcompute.shuffler.taskscheduler.core;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -20,6 +36,8 @@ import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableList;
 import com.google.fcp.plan.PhaseSession;
+import com.google.fcp.plan.PhaseSessionV2;
+import com.google.fcp.plan.TensorflowPhaseSessionV2;
 import com.google.fcp.plan.TensorflowPlanSession;
 import com.google.ondevicepersonalization.federatedcompute.proto.CheckPointSelector;
 import com.google.ondevicepersonalization.federatedcompute.proto.EvaluationInfo;
@@ -28,17 +46,23 @@ import com.google.ondevicepersonalization.federatedcompute.proto.EveryKIteration
 import com.google.ondevicepersonalization.federatedcompute.proto.IterationInfo;
 import com.google.ondevicepersonalization.federatedcompute.proto.TaskInfo;
 import com.google.ondevicepersonalization.federatedcompute.proto.TrainingInfo;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.common.CompressionUtils.CompressionFormat;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.ProtoParser;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.RandomGenerator;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.BlobDao;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.BlobDescription;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.BlobManager;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.IterationEntity;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.ModelMetricsDao;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.ModelMetricsEntity;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.TaskDao;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.TaskEntity;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.tensorflow.TensorflowPlanSessionFactory;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import org.junit.Before;
 import org.junit.Test;
@@ -89,6 +113,7 @@ public class TaskSchedulerCoreHelperTest {
       IterationEntity.builder()
           .populationName("us")
           .taskId(13)
+          .iterationId(1)
           .info(TRAINING_ITERATION_INFO_STRING)
           .build();
 
@@ -96,6 +121,7 @@ public class TaskSchedulerCoreHelperTest {
       IterationEntity.builder()
           .populationName("us")
           .taskId(14)
+          .iterationId(1)
           .info(EVALUATION_ITERATION_INFO_STRING)
           .build();
 
@@ -132,21 +158,27 @@ public class TaskSchedulerCoreHelperTest {
   private static final BlobDescription[] METRICS_DESCRIPTIONS =
       new BlobDescription[] {METRICS_DESCRIPTIONS_1};
 
-  private static final byte[] PLAN = new byte[] {0, 2};
+  private static final List<CompressionFormat> COMPRESSION_FORMATS =
+      Arrays.asList(CompressionFormat.GZIP);
+
+  private byte[] PLAN;
   private static final byte[] CHECKPOINT = new byte[] {0, 0};
 
   private @Mock RandomGenerator mockRandomGenerator;
   private @Mock TaskDao mockTaskDao;
+  private @Mock ModelMetricsDao mockModelMetricsDao;
   private @Mock BlobDao mockBlobDao;
   private @Mock BlobManager mockBlobManager;
   private @Mock TensorflowPlanSessionFactory mockTensorflowPlanSessionFactory;
   private @Mock TensorflowPlanSession mockTensorflowPlanSession;
+  private @Mock PhaseSessionV2.IntermediateResult mockIntermediateResult;
+  private @Mock TensorflowPhaseSessionV2 mockTensorflowPhaseSessionV2;
   private @Mock PhaseSession mockPhaseSession;
 
   @InjectMocks TaskSchedulerCoreHelper taskSchedulerCoreHelper;
 
   @Before
-  public void setUp() {
+  public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
     when(mockBlobManager.generateUploadDevicePlanDescriptions(any()))
         .thenReturn(DEVICE_PLAN_DESCRIPTIONS);
@@ -157,6 +189,8 @@ public class TaskSchedulerCoreHelperTest {
     when(mockBlobManager.generateUploadClientCheckpointDescriptions(any()))
         .thenReturn(CLIENT_CHECKPOINT_DESCRIPTIONS);
     when(mockBlobManager.generateUploadMetricsDescriptions(any())).thenReturn(METRICS_DESCRIPTIONS);
+
+    PLAN = getClass().getResourceAsStream("/resources/plan_v1").readAllBytes();
   }
 
   @Test
@@ -264,57 +298,57 @@ public class TaskSchedulerCoreHelperTest {
   @Test
   public void isTaskReadyToStart_taskWithoutInfo_treatAsTrainingTask() {
     // prepare
-    when(mockBlobDao.exists(any())).thenReturn(true);
+    when(mockBlobDao.checkExistsAndGzipContentIfNeeded(any())).thenReturn(true);
 
     // act and assert
     assertTrue(taskSchedulerCoreHelper.isActiveTaskReadyToStart(TRAINING_TASK));
-    verify(mockBlobDao, times(3)).exists(any());
+    verify(mockBlobDao, times(3)).checkExistsAndGzipContentIfNeeded(any());
   }
 
   @Test
   public void isTaskReadyToStart_trainingTaskMissingBlobFiles_returnFalse() {
     // prepare
-    when(mockBlobDao.exists(DEVICE_PLAN_DESCRIPTIONS)).thenReturn(true);
-    when(mockBlobDao.exists(SERVER_PLAN_DESCRIPTIONS)).thenReturn(true);
-    when(mockBlobDao.exists(CHECKPOINT_DESCRIPTIONS)).thenReturn(false);
+    when(mockBlobDao.checkExistsAndGzipContentIfNeeded(DEVICE_PLAN_DESCRIPTIONS)).thenReturn(true);
+    when(mockBlobDao.checkExistsAndGzipContentIfNeeded(SERVER_PLAN_DESCRIPTIONS)).thenReturn(true);
+    when(mockBlobDao.checkExistsAndGzipContentIfNeeded(CHECKPOINT_DESCRIPTIONS)).thenReturn(false);
 
     // act and assert
     assertFalse(taskSchedulerCoreHelper.isActiveTaskReadyToStart(TRAINING_TASK));
-    verify(mockBlobDao, times(3)).exists(any());
+    verify(mockBlobDao, times(3)).checkExistsAndGzipContentIfNeeded(any());
   }
 
   @Test
   public void isTaskReadyToStart_trainingTaskWithEnoughBlobFiles_returnFalse() {
     // prepare
-    when(mockBlobDao.exists(DEVICE_PLAN_DESCRIPTIONS)).thenReturn(true);
-    when(mockBlobDao.exists(SERVER_PLAN_DESCRIPTIONS)).thenReturn(true);
-    when(mockBlobDao.exists(CHECKPOINT_DESCRIPTIONS)).thenReturn(true);
+    when(mockBlobDao.checkExistsAndGzipContentIfNeeded(DEVICE_PLAN_DESCRIPTIONS)).thenReturn(true);
+    when(mockBlobDao.checkExistsAndGzipContentIfNeeded(SERVER_PLAN_DESCRIPTIONS)).thenReturn(true);
+    when(mockBlobDao.checkExistsAndGzipContentIfNeeded(CHECKPOINT_DESCRIPTIONS)).thenReturn(true);
 
     // act and assert
     assertTrue(taskSchedulerCoreHelper.isActiveTaskReadyToStart(TRAINING_TASK));
-    verify(mockBlobDao, times(3)).exists(any());
+    verify(mockBlobDao, times(3)).checkExistsAndGzipContentIfNeeded(any());
   }
 
   @Test
   public void isTaskReadyToStart_evaluationTaskMissingBlobFiles_returnFalse() {
     // prepare
-    when(mockBlobDao.exists(DEVICE_PLAN_DESCRIPTIONS)).thenReturn(true);
-    when(mockBlobDao.exists(SERVER_PLAN_DESCRIPTIONS)).thenReturn(false);
+    when(mockBlobDao.checkExistsAndGzipContentIfNeeded(DEVICE_PLAN_DESCRIPTIONS)).thenReturn(true);
+    when(mockBlobDao.checkExistsAndGzipContentIfNeeded(SERVER_PLAN_DESCRIPTIONS)).thenReturn(false);
 
     // act and assert
     assertFalse(taskSchedulerCoreHelper.isActiveTaskReadyToStart(EVALUATION_TASK));
-    verify(mockBlobDao, times(2)).exists(any());
+    verify(mockBlobDao, times(2)).checkExistsAndGzipContentIfNeeded(any());
   }
 
   @Test
   public void isTaskReadyToStart_evaluationTaskWithEnoughBlobFiles_returnTrue() {
     // prepare
-    when(mockBlobDao.exists(DEVICE_PLAN_DESCRIPTIONS)).thenReturn(true);
-    when(mockBlobDao.exists(SERVER_PLAN_DESCRIPTIONS)).thenReturn(true);
+    when(mockBlobDao.checkExistsAndGzipContentIfNeeded(DEVICE_PLAN_DESCRIPTIONS)).thenReturn(true);
+    when(mockBlobDao.checkExistsAndGzipContentIfNeeded(SERVER_PLAN_DESCRIPTIONS)).thenReturn(true);
 
     // act and assert
     assertTrue(taskSchedulerCoreHelper.isActiveTaskReadyToStart(EVALUATION_TASK));
-    verify(mockBlobDao, times(2)).exists(any());
+    verify(mockBlobDao, times(2)).checkExistsAndGzipContentIfNeeded(any());
   }
 
   @Test
@@ -322,7 +356,9 @@ public class TaskSchedulerCoreHelperTest {
       throws IOException {
     // prepare
     prepareUploadDeviceCheckpoint(TRAINING_ITERATION);
-    doNothing().when(mockBlobDao).upload(any(), any());
+    doNothing().when(mockBlobDao).compressAndUpload(any(), any());
+    byte[] plan_v2 = getClass().getResourceAsStream("/resources/plan_v2").readAllBytes();
+    when(mockBlobDao.downloadAndDecompressIfNeeded(SERVER_PLAN_DESCRIPTION_1)).thenReturn(plan_v2);
 
     // act and assert
     taskSchedulerCoreHelper.generateAndUploadDeviceCheckpoint(TRAINING_ITERATION);
@@ -330,11 +366,31 @@ public class TaskSchedulerCoreHelperTest {
         .generateDownloadCheckpointDescription(isA(IterationEntity.class));
     verify(mockBlobManager, times(1)).generateDownloadServerPlanDescription(any());
     verify(mockBlobDao, times(1)).exists(any());
-    verify(mockBlobDao, times(2)).download(any());
+    verify(mockBlobDao, times(2)).downloadAndDecompressIfNeeded(any());
+    verify(mockBlobManager, times(1)).generateUploadClientCheckpointDescriptions(any());
+    verify(mockTensorflowPlanSessionFactory, times(1)).createPhaseSessionV2(any());
+    verify(mockTensorflowPhaseSessionV2, times(1)).getClientCheckpoint(any());
+    verify(mockBlobDao, times(2)).compressAndUpload(any(), any());
+  }
+
+  @Test
+  public void generateAndUploadDeviceCheckpoint_trainingTaskAndPlanV2AndCheckpointReady_complete()
+      throws IOException {
+    // prepare
+    prepareUploadDeviceCheckpoint(TRAINING_ITERATION);
+    doNothing().when(mockBlobDao).compressAndUpload(any(), any());
+
+    // act and assert
+    taskSchedulerCoreHelper.generateAndUploadDeviceCheckpoint(TRAINING_ITERATION);
+    verify(mockBlobManager, times(1))
+        .generateDownloadCheckpointDescription(isA(IterationEntity.class));
+    verify(mockBlobManager, times(1)).generateDownloadServerPlanDescription(any());
+    verify(mockBlobDao, times(1)).exists(any());
+    verify(mockBlobDao, times(2)).downloadAndDecompressIfNeeded(any());
     verify(mockBlobManager, times(1)).generateUploadClientCheckpointDescriptions(any());
     verify(mockTensorflowPlanSessionFactory, times(1)).createPlanSession(any());
     verify(mockPhaseSession, times(1)).getClientCheckpoint(any());
-    verify(mockBlobDao, times(2)).upload(any(), any());
+    verify(mockBlobDao, times(2)).compressAndUpload(any(), any());
   }
 
   @Test
@@ -362,7 +418,7 @@ public class TaskSchedulerCoreHelperTest {
       throws IOException {
     // prepare
     prepareUploadDeviceCheckpoint(TRAINING_ITERATION);
-    doThrow(new IOException()).when(mockBlobDao).upload(any(), any());
+    doThrow(new IOException()).when(mockBlobDao).compressAndUpload(any(), any());
 
     // act and assert
     IllegalStateException exception =
@@ -376,7 +432,7 @@ public class TaskSchedulerCoreHelperTest {
     verify(mockBlobDao, times(1)).exists(any());
     verify(mockTensorflowPlanSessionFactory, times(1)).createPlanSession(any());
     verify(mockPhaseSession, times(1)).getClientCheckpoint(any());
-    verify(mockBlobDao, times(1)).upload(any(), any());
+    verify(mockBlobDao, times(1)).compressAndUpload(any(), any());
   }
 
   @Test
@@ -454,11 +510,11 @@ public class TaskSchedulerCoreHelperTest {
         .generateDownloadCheckpointDescription(isA(IterationEntity.class));
     verify(mockBlobManager, times(1)).generateDownloadServerPlanDescription(any());
     verify(mockBlobDao, times(1)).exists(any());
-    verify(mockBlobDao, times(2)).download(any());
+    verify(mockBlobDao, times(2)).downloadAndDecompressIfNeeded(any());
     verify(mockBlobManager, times(1)).generateUploadClientCheckpointDescriptions(any());
     verify(mockTensorflowPlanSessionFactory, times(1)).createPlanSession(any());
     verify(mockPhaseSession, times(1)).getClientCheckpoint(any());
-    verify(mockBlobDao, times(2)).upload(any(), any());
+    verify(mockBlobDao, times(2)).compressAndUpload(any(), any());
   }
 
   @Test
@@ -515,6 +571,50 @@ public class TaskSchedulerCoreHelperTest {
     assertTrue(taskSchedulerCoreHelper.isApplyingDone(TRAINING_ITERATION));
   }
 
+  @Test
+  public void parseMetricsAndUpsert_metricsReady_returnTrue() {
+    // prepare
+    when(mockBlobManager.generateUploadMetricsDescriptions(TRAINING_ITERATION))
+        .thenReturn(METRICS_DESCRIPTIONS);
+    when(mockBlobDao.exists(METRICS_DESCRIPTIONS)).thenReturn(true);
+    String jsonString = "{\"loss\": 0.5, \"auc-roc\": 0.7}";
+    when(mockBlobDao.downloadAndDecompressIfNeeded(METRICS_DESCRIPTIONS[0]))
+        .thenReturn(jsonString.getBytes(StandardCharsets.UTF_8));
+    when(mockModelMetricsDao.upsertModelMetrics(any())).thenReturn(true);
+
+    // act and assert
+    assertTrue(taskSchedulerCoreHelper.parseMetricsAndUpsert(TRAINING_ITERATION));
+    verify(mockModelMetricsDao, times(1))
+        .upsertModelMetrics(
+            ImmutableList.of(
+                ModelMetricsEntity.builder()
+                    .populationName("us")
+                    .taskId(13)
+                    .iterationId(1)
+                    .metricName("loss")
+                    .metricValue(0.5)
+                    .build(),
+                ModelMetricsEntity.builder()
+                    .populationName("us")
+                    .taskId(13)
+                    .iterationId(1)
+                    .metricName("auc-roc")
+                    .metricValue(0.7)
+                    .build()));
+  }
+
+  @Test
+  public void parseMetricsAndUpsert_metricsNotExist_returnFalse() {
+    // prepare
+    when(mockBlobManager.generateUploadMetricsDescriptions(TRAINING_ITERATION))
+        .thenReturn(METRICS_DESCRIPTIONS);
+    when(mockBlobDao.exists(METRICS_DESCRIPTIONS)).thenReturn(false);
+
+    // act and assert
+    assertFalse(taskSchedulerCoreHelper.parseMetricsAndUpsert(TRAINING_ITERATION));
+    verifyNoInteractions(mockModelMetricsDao);
+  }
+
   private void prepareUploadDeviceCheckpoint(IterationEntity iterationEntity) {
     when(mockBlobDao.exists(any())).thenReturn(true);
     when(mockBlobManager.generateDownloadCheckpointDescription(iterationEntity))
@@ -524,10 +624,16 @@ public class TaskSchedulerCoreHelperTest {
     when(mockBlobManager.generateUploadClientCheckpointDescriptions(iterationEntity))
         .thenReturn(new BlobDescription[] {CHECKPOINT_DESCRIPTIONS_1, CHECKPOINT_DESCRIPTIONS_1});
 
-    when(mockBlobDao.download(SERVER_PLAN_DESCRIPTION_1)).thenReturn(PLAN);
-    when(mockBlobDao.download(CHECKPOINT_DESCRIPTIONS_1)).thenReturn(CHECKPOINT);
+    when(mockBlobDao.downloadAndDecompressIfNeeded(SERVER_PLAN_DESCRIPTION_1)).thenReturn(PLAN);
+    when(mockBlobDao.downloadAndDecompressIfNeeded(CHECKPOINT_DESCRIPTIONS_1))
+        .thenReturn(CHECKPOINT);
     when(mockTensorflowPlanSessionFactory.createPlanSession(any()))
         .thenReturn(mockTensorflowPlanSession);
+    when(mockTensorflowPlanSessionFactory.createPhaseSessionV2(any()))
+        .thenReturn(mockTensorflowPhaseSessionV2);
+    when(mockTensorflowPhaseSessionV2.getClientCheckpoint(any()))
+        .thenReturn(mockIntermediateResult);
+    when(mockIntermediateResult.clientCheckpoint()).thenReturn(ByteString.copyFrom(new byte[] {9}));
     when(mockTensorflowPlanSession.createPhaseSession(any(), eq(Optional.empty())))
         .thenReturn(mockPhaseSession);
     doNothing().when(mockPhaseSession).accumulateIntermediateUpdate(any());

@@ -1507,138 +1507,6 @@ public final class AssignmentSpannerDaoTest {
   }
 
   @Test
-  public void testQueryAssignmentIdsOfStatusAndBatch_NullBatch_LastStatusCount() {
-    // arrange
-    dbClient
-        .readWriteTransaction()
-        .run(
-            transaction -> {
-              insertTask(
-                  transaction, /* populationName= */ "aaa", /* taskId= */ 111, /* status= */ 0);
-              insertIteration(
-                  transaction,
-                  /* populationName= */ "aaa",
-                  /* taskId= */ 111,
-                  /* iterationId= */ 9,
-                  /* status= */ 0,
-                  /* reportGoal= */ 300);
-              insertAssignment(
-                  transaction,
-                  /* populationName= */ "aaa",
-                  /* taskId= */ 111,
-                  /* iterationId= */ 9,
-                  /* sessionId */ "assignment-1",
-                  /* createdTime */ toTs(NOW),
-                  /* active */ false,
-                  /* batchId */ null,
-                  /* withStatusHistory */ false);
-              insertAssignmentStatusHist(
-                  /* transaction= */ transaction,
-                  /* populationName= */ "aaa",
-                  /* taskId= */ 111,
-                  /* iterationId= */ 9,
-                  /* assignmentId= */ "assignment-1",
-                  /* statusId= */ 1,
-                  /* status= */ ASSIGNED,
-                  /* batchId= */ null,
-                  /* createdTime= */ toTs(NOW));
-
-              insertAssignmentStatusHist(
-                  /* transaction= */ transaction,
-                  /* populationName= */ "aaa",
-                  /* taskId= */ 111,
-                  /* iterationId= */ 9,
-                  /* assignmentId= */ "assignment-1",
-                  /* statusId= */ 2,
-                  /* status= */ LOCAL_COMPLETED,
-                  /* batchId= */ null,
-                  /* createdTime= */ toTs(NOW));
-
-              return null;
-            });
-    // act
-    List<String> result =
-        dao.queryAssignmentIdsOfStatus(
-            IterationId.builder()
-                .populationName("aaa")
-                .taskId(111)
-                .iterationId(9)
-                .attemptId(0)
-                .build(),
-            AssignmentEntity.Status.LOCAL_COMPLETED,
-            Optional.empty());
-
-    // assert
-    assertThat(result).isEqualTo(Arrays.asList("assignment-1"));
-  }
-
-  @Test
-  public void testQueryAssignmentIdsOfStatusAndBatch_LastStatusCount() {
-    // arrange
-    dbClient
-        .readWriteTransaction()
-        .run(
-            transaction -> {
-              insertTask(
-                  transaction, /* populationName= */ "aaa", /* taskId= */ 111, /* status= */ 0);
-              insertIteration(
-                  transaction,
-                  /* populationName= */ "aaa",
-                  /* taskId= */ 111,
-                  /* iterationId= */ 9,
-                  /* status= */ 0,
-                  /* reportGoal= */ 300);
-              insertAssignment(
-                  transaction,
-                  /* populationName= */ "aaa",
-                  /* taskId= */ 111,
-                  /* iterationId= */ 9,
-                  /* sessionId */ "assignment-1",
-                  /* createdTime */ toTs(NOW),
-                  /* active */ false,
-                  /* batchId */ "batch",
-                  /* withStatusHistory */ false);
-              insertAssignmentStatusHist(
-                  /* transaction= */ transaction,
-                  /* populationName= */ "aaa",
-                  /* taskId= */ 111,
-                  /* iterationId= */ 9,
-                  /* assignmentId= */ "assignment-1",
-                  /* statusId= */ 1,
-                  /* status= */ ASSIGNED,
-                  /* batchId= */ "batch",
-                  /* createdTime= */ toTs(NOW));
-
-              insertAssignmentStatusHist(
-                  /* transaction= */ transaction,
-                  /* populationName= */ "aaa",
-                  /* taskId= */ 111,
-                  /* iterationId= */ 9,
-                  /* assignmentId= */ "assignment-1",
-                  /* statusId= */ 2,
-                  /* status= */ LOCAL_COMPLETED,
-                  /* batchId= */ "batch",
-                  /* createdTime= */ toTs(NOW));
-
-              return null;
-            });
-    // act
-    List<String> result =
-        dao.queryAssignmentIdsOfStatus(
-            IterationId.builder()
-                .populationName("aaa")
-                .taskId(111)
-                .iterationId(9)
-                .attemptId(0)
-                .build(),
-            AssignmentEntity.Status.LOCAL_COMPLETED,
-            Optional.of("batch"));
-
-    // assert
-    assertThat(result).isEqualTo(Arrays.asList("assignment-1"));
-  }
-
-  @Test
   public void testQueryAssignmentIdsOfStatusAndBatch_NullBatchMultiple() {
     // arrange
     dbClient
@@ -1856,10 +1724,11 @@ public final class AssignmentSpannerDaoTest {
       long reportGoal) {
     String insertIteration =
         "INSERT INTO Iteration(PopulationName, TaskId, IterationId, AttemptId, Status,"
-            + " BaseIterationId, BaseOnResultId, ReportGoal, ResultId, Info, AggregationLevel)"
+            + " BaseIterationId, BaseOnResultId, ReportGoal, ResultId, Info, AggregationLevel,"
+            + " MaxAggregationSize, MinClientVersion, MaxClientVersion )"
             + " VALUES(@populationName, @taskId, @iterationId, @attemptId, @status,"
             + " @baseIterationId, @baseOnResultId, @reportGoal, @resultId, @info,"
-            + " @aggregationLevel)";
+            + " @aggregationLevel, @maxAggregationSize, @minClientVersion, @maxClientVersion)";
     transaction.executeUpdate(
         Statement.newBuilder(insertIteration)
             .bind("PopulationName")
@@ -1884,6 +1753,12 @@ public final class AssignmentSpannerDaoTest {
             .to(ITERATION_INFO)
             .bind("aggregationLevel")
             .to(1)
+            .bind("maxAggregationSize")
+            .to(reportGoal + 1)
+            .bind("minClientVersion")
+            .to("0")
+            .bind("maxClientVersion")
+            .to("9")
             .build());
   }
 
@@ -2100,6 +1975,9 @@ public final class AssignmentSpannerDaoTest {
         .baseOnResultId(iterationId - 1)
         .resultId(iterationId)
         .aggregationLevel(0)
+        .maxAggregationSize(reportGoal + 1)
+        .minClientVersion("0")
+        .maxClientVersion("9")
         .build();
   }
 }

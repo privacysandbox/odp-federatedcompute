@@ -52,6 +52,31 @@ resource "kubernetes_deployment_v1" "taskscheduler" {
             name  = "FCP_OPTS"
             value = "--environment '${var.environment}'"
           }
+          port {
+            container_port = 8082
+          }
+          readiness_probe {
+            http_get {
+              path = "/ready"
+              port = 8082
+            }
+          }
+          liveness_probe {
+            http_get {
+              path = "/healthz"
+              port = 8082
+            }
+          }
+          startup_probe {
+            http_get {
+              path = "/healthz"
+              port = 8082
+            }
+            success_threshold = 1
+            failure_threshold = 20
+            period_seconds    = 10
+            timeout_seconds   = 5
+          }
           security_context {
             allow_privilege_escalation = false
             privileged                 = false
@@ -65,9 +90,9 @@ resource "kubernetes_deployment_v1" "taskscheduler" {
           resources {
             // Limits are not used for autopilot: https://cloud.google.com/kubernetes-engine/docs/concepts/autopilot-resource-requests#resource-limits
             requests = {
-              cpu               = "1500m"
+              cpu               = var.task_scheduler_cpu
               ephemeral-storage = "1Gi"
-              memory            = "8Gi"
+              memory            = "${var.task_scheduler_cpu}Gi" # Use 1:1 CPU-to-memory
             }
           }
           volume_mount {

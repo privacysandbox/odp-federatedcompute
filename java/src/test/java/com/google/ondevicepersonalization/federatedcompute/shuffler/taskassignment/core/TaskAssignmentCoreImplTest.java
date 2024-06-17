@@ -25,12 +25,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableList;
+import com.google.internal.federatedcompute.v1.ResourceCompressionFormat;
 import com.google.ondevicepersonalization.federatedcompute.proto.EligibilityPolicyEvalSpec;
 import com.google.ondevicepersonalization.federatedcompute.proto.EligibilityTaskInfo;
 import com.google.ondevicepersonalization.federatedcompute.proto.MinimumSeparationPolicy;
 import com.google.ondevicepersonalization.federatedcompute.proto.TaskAssignment;
 import com.google.ondevicepersonalization.federatedcompute.proto.UploadInstruction;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.common.CompressionUtils.CompressionFormat;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.UniqueIdGenerator;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AssignmentDao;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AssignmentEntity;
@@ -169,48 +171,54 @@ public final class TaskAssignmentCoreImplTest {
   @Test
   public void testCreatTaskAssignment_Success() {
     // arrange
-    when(mockTaskDao.getOpenTasksAndIterations(anyString(), anyString()))
-        .thenReturn(ImmutableMap.of(DEFAULT_TASK_ENTITY, DEFAULT_ITERATION_ENTITY));
+    when(mockTaskDao.getOpenIterations(anyString(), anyString()))
+        .thenReturn(ImmutableList.of(DEFAULT_ITERATION_ENTITY));
     when(mockIdGenerator.generate()).thenReturn(DEFAULT_SESSION_ID);
     when(mockAssignmentDao.createAssignment(any(), anyString(), anyString()))
         .thenReturn(Optional.of(DEFAULT_ASSIGNMENT_ENTITY));
-    when(mockTaskAssignmentCoreHelper.selectTask(any()))
-        .thenReturn(Optional.of(DEFAULT_TASK_ENTITY));
-    when(mockTaskAssignmentCoreHelper.createTaskAssignment(any(), any()))
+    when(mockTaskAssignmentCoreHelper.selectIterationEntity(any()))
+        .thenReturn(Optional.of(DEFAULT_ITERATION_ENTITY));
+    when(mockTaskAssignmentCoreHelper.createTaskAssignment(any(), any(), any()))
         .thenReturn(Optional.of(DEFAULT_TASK_ASSIGNMENT));
 
     // act
     Optional<TaskAssignment> result =
         taskAssignment.createTaskAssignment(
-            DEFAULT_POPULATION_NAME, DEFAULT_CLIENT_VERSION, DEFAULT_CORRELATION_ID);
+            DEFAULT_POPULATION_NAME,
+            DEFAULT_CLIENT_VERSION,
+            DEFAULT_CORRELATION_ID,
+            CompressionFormat.GZIP);
 
     // assert
     assertThat(result).isEqualTo(Optional.of(DEFAULT_TASK_ASSIGNMENT));
     verify(mockTaskDao, times(1))
-        .getOpenTasksAndIterations(DEFAULT_POPULATION_NAME, DEFAULT_CLIENT_VERSION);
+        .getOpenIterations(DEFAULT_POPULATION_NAME, DEFAULT_CLIENT_VERSION);
     verify(mockAssignmentDao, times(1))
         .createAssignment(DEFAULT_ITERATION_ENTITY, DEFAULT_CORRELATION_ID, DEFAULT_SESSION_ID);
     verify(mockIdGenerator, times(1)).generate();
     verify(mockTaskAssignmentCoreHelper, times(1))
-        .createTaskAssignment(DEFAULT_TASK_ENTITY, DEFAULT_ASSIGNMENT_ENTITY);
+        .createTaskAssignment(
+            DEFAULT_ITERATION_ENTITY, DEFAULT_ASSIGNMENT_ENTITY, CompressionFormat.GZIP);
   }
 
   @Test
   public void testCreatTaskAssignment_notOpenTaskAndIteration_returnEmpty() {
     // arrange
     when(mockIdGenerator.generate()).thenReturn(DEFAULT_SESSION_ID);
-    when(mockTaskDao.getOpenTasksAndIterations(anyString(), anyString()))
-        .thenReturn(ImmutableMap.of());
+    when(mockTaskDao.getOpenIterations(anyString(), anyString())).thenReturn(ImmutableList.of());
 
     // act
     Optional<TaskAssignment> result =
         taskAssignment.createTaskAssignment(
-            DEFAULT_POPULATION_NAME, DEFAULT_CLIENT_VERSION, DEFAULT_CORRELATION_ID);
+            DEFAULT_POPULATION_NAME,
+            DEFAULT_CLIENT_VERSION,
+            DEFAULT_CORRELATION_ID,
+            CompressionFormat.GZIP);
 
     // assert
     assertThat(result).isEqualTo(Optional.empty());
     verify(mockTaskDao, times(1))
-        .getOpenTasksAndIterations(DEFAULT_POPULATION_NAME, DEFAULT_CLIENT_VERSION);
+        .getOpenIterations(DEFAULT_POPULATION_NAME, DEFAULT_CLIENT_VERSION);
     verifyNoInteractions(mockAssignmentDao);
     verifyNoInteractions(mockIdGenerator);
   }
@@ -222,7 +230,7 @@ public final class TaskAssignmentCoreImplTest {
     headers.put("x", "y");
     when(mockAssignmentDao.getAssignment(any()))
         .thenReturn(Optional.of(DEFAULT_ASSIGNMENT_ENTITY_LOCAL_COMPLETED));
-    when(mockBlobManager.generateUploadGradientDescription(any()))
+    when(mockBlobManager.generateUploadGradientDescription(any(), any()))
         .thenReturn(BlobDescription.builder().url("https://gradient").headers(headers).build());
 
     // act
@@ -231,7 +239,8 @@ public final class TaskAssignmentCoreImplTest {
             /* populationName= */ DEFAULT_POPULATION_NAME,
             /* taskId= */ DEFAULT_TASK_ID,
             /* aggregationId= */ DEFAULT_ITERATION_ID,
-            /* assignmentId= */ DEFAULT_SESSION_ID);
+            /* assignmentId= */ DEFAULT_SESSION_ID,
+            /* compressionFormat= */ CompressionFormat.GZIP);
 
     // assert
     assertThat(result)
@@ -240,10 +249,13 @@ public final class TaskAssignmentCoreImplTest {
                 UploadInstruction.newBuilder()
                     .setUploadLocation("https://gradient")
                     .putAllExtraRequestHeaders(headers)
+                    .setCompressionFormat(
+                        ResourceCompressionFormat.RESOURCE_COMPRESSION_FORMAT_GZIP)
                     .build()));
     verify(mockAssignmentDao, times(1)).getAssignment(DEFAULT_ASSIGNMENT_ID);
     verify(mockBlobManager, times(1))
-        .generateUploadGradientDescription(DEFAULT_ASSIGNMENT_ENTITY_LOCAL_COMPLETED);
+        .generateUploadGradientDescription(
+            DEFAULT_ASSIGNMENT_ENTITY_LOCAL_COMPLETED, CompressionFormat.GZIP);
   }
 
   @Test
@@ -257,12 +269,13 @@ public final class TaskAssignmentCoreImplTest {
             /* populationName= */ DEFAULT_POPULATION_NAME,
             /* taskId= */ DEFAULT_TASK_ID,
             /* aggregationId */ DEFAULT_ITERATION_ID,
-            /* assignmentId= */ DEFAULT_SESSION_ID);
+            /* assignmentId= */ DEFAULT_SESSION_ID,
+            /* compressionFormat= */ CompressionFormat.GZIP);
 
     // assert
     assertThat(result).isEqualTo(Optional.empty());
     verify(mockAssignmentDao, times(1)).getAssignment(DEFAULT_ASSIGNMENT_ID);
-    verify(mockBlobManager, times(0)).generateUploadGradientDescription(any());
+    verify(mockBlobManager, times(0)).generateUploadGradientDescription(any(), any());
   }
 
   @Test
@@ -277,12 +290,13 @@ public final class TaskAssignmentCoreImplTest {
             /* populationName= */ DEFAULT_POPULATION_NAME,
             /* taskId= */ DEFAULT_TASK_ID,
             /* aggregationId */ DEFAULT_ITERATION_ID,
-            /* assignmentId= */ DEFAULT_SESSION_ID);
+            /* assignmentId= */ DEFAULT_SESSION_ID,
+            /* compressionFormat= */ CompressionFormat.GZIP);
 
     // assert
     assertThat(result).isEqualTo(Optional.empty());
     verify(mockAssignmentDao, times(1)).getAssignment(DEFAULT_ASSIGNMENT_ID);
-    verify(mockBlobManager, times(0)).generateUploadGradientDescription(any());
+    verify(mockBlobManager, times(0)).generateUploadGradientDescription(any(), any());
   }
 
   @Test

@@ -54,6 +54,7 @@ def validate_metadata(
 
 def validate_fcp_dp(
     task_config: task_builder_pb2.TaskConfig,
+    flags: task_builder_pb2.ExperimentFlags,
 ) -> common.DpParameter:
   """Prepare DP parameters and validate DP accounting for training task.
 
@@ -101,7 +102,7 @@ def validate_fcp_dp(
         dp_delta=dp_delta,
         noise_multiplier=noise_multiplier,
     )
-    if dp_epsilon > dp_target_epsilon:
+    if not flags.skip_dp_check and dp_epsilon > dp_target_epsilon:
       raise common.TaskBuilderException(
           common.CONFIG_VALIDATOR_ERROR_PREFIX
           + common.DP_ACCOUNTING_CHECK_ERROR_MSG
@@ -150,6 +151,14 @@ def _validate_policy_setup(policy_setup: task_builder_pb2.Policies):
       key_name='num_max_training_rounds',
       number=model_release_policy.num_max_training_rounds,
       entity_name='model_release_policy',
+  )
+
+  # dataset preprocessing policies
+  dataset_policy = policy_setup.dataset_policy
+  _validate_positive_number(
+      key_name='batch_size',
+      number=dataset_policy.batch_size,
+      entity_name='dataset_policy',
   )
 
 
@@ -281,7 +290,8 @@ def _validate_dp_delta(dp_delta: float):
             key_name='dp_delta',
             value_name=dp_delta,
             entity_name='model_release_policy',
-            debug_msg='dp_delta must be a float number between 0 and 0.0001.',
+            debug_msg='dp_delta must be a float number between 0 and %E'
+            % common.DEFAULT_DP_DELTA,
         )
     )
 
@@ -302,7 +312,8 @@ def _validate_dp_target(dp_target_epsilon: float):
             value_name=dp_target_epsilon,
             entity_name='model_release_policy',
             debug_msg=(
-                'dp_target_epsilon must be a float number between 0 and 6.0.'
+                'dp_target_epsilon must be a float number between 0 and %f'
+                % common.DEFAULT_DP_EPSILON
             ),
         )
     )

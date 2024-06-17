@@ -26,7 +26,7 @@ springboot(
 java_library(
     name = "task_assignment",
     srcs = ["TaskAssignmentApplication.java"],
-    resources = ["//java/src/main/resources:taskassignment_properties"],
+    resources = ["//java/src/main/resources:taskassignment_properties", "//java/src/main/resources:logback_spring"],
     deps = [
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:constants",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:guid_unique_id_generator",
@@ -47,6 +47,7 @@ java_library(
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/taskassignment/core:task_assignment_core_impl",
         "@maven//:com_google_cloud_google_cloud_spanner",
         "@maven//:com_google_cloud_google_cloud_storage",
+        "@maven//:com_google_cloud_google_cloud_logging_logback",
         "@maven//:io_micrometer_micrometer_registry_prometheus",
         "@maven//:org_springframework_boot_spring_boot",
         "@maven//:org_springframework_boot_spring_boot_autoconfigure",

@@ -22,6 +22,12 @@ Creates a task
 bazel run //java/src/it/java/com/google/ondevicepersonalization/federatedcompute/endtoendtests:end_to_end_test -- --task_management_server <tm_server_url> --operation CREATE_TASK
 ```
 
+### CREATE_EVALUATION_TASK
+Creates a task
+```
+bazel run //java/src/it/java/com/google/ondevicepersonalization/federatedcompute/endtoendtests:end_to_end_test -- --task_management_server <tm_server_url> --operation CREATE_EVALUATION_TASK --eval_training_population_name <training_population_name> --eval_training_task_id <training_task_id>
+```
+
 ### RUN_TASK
 Runs `run_count` contributions against a given task.
 ```

@@ -52,6 +52,9 @@ java_library(
         "@maven//:org_springframework_spring_context",
         "@maven//:com_google_code_gson_gson",
         # Import fcp last since it tries to pull in an older version of protobuf.
+        "@federatedcompute//fcp/protos:plan_java_proto",
+        "@federatedcompute//fcp/java_src/main/java/com/google/fcp/aggregation",
+        "@federatedcompute//fcp/java_src/main/java/com/google/fcp/plan:phase_v2",
         "@federatedcompute//fcp/java_src/main/java/com/google/fcp/plan",
     ],
 )

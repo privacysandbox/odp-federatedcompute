@@ -26,8 +26,9 @@ springboot(
 java_library(
     name = "aggregator",
     srcs = ["AggregatorApplication.java"],
-    resources = ["//java/src/main/resources:aggregator_properties"],
+    resources = ["//java/src/main/resources:aggregator_properties", "//java/src/main/resources:logback_spring"],
     deps = [
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/aggregator/controllers:aggregator_controller",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/aggregator/core:aggregator_core_impl",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/aggregator/core/gcp:aggregator_config",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/aggregator/core/gcp:pub_sub_message_receiver",
@@ -39,6 +40,7 @@ java_library(
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao/gcp:gcs_blob_dao",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/messaging/gcp:pub_sub_subscriber_config",
         "@maven//:io_micrometer_micrometer_registry_prometheus",
+        "@maven//:com_google_cloud_google_cloud_logging_logback",
         "@maven//:org_springframework_boot_spring_boot",
         "@maven//:org_springframework_boot_spring_boot_autoconfigure",
         "@maven//:org_springframework_boot_spring_boot_loader",

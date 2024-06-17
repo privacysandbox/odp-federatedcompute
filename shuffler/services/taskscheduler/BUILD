@@ -51,6 +51,9 @@ oci_image(
     entrypoint = [
         "java",
         "-Djava.library.path=.",
+        "-Dspring.profiles.active=gcp",
+        "-XX:InitialRAMPercentage=70.0",
+        "-XX:MaxRAMPercentage=70.0",
         "-jar",
         "task_scheduler_application.jar",
     ],

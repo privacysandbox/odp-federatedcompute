@@ -30,10 +30,14 @@ public class ScheduledTask {
     this.collector = collector;
   }
 
-  // TODO(b/295018999): Determine a good rate for the task.
-  @Scheduled(fixedRate = 1000)
+  @Scheduled(fixedDelay = 200)
   public void run() throws Exception {
     collector.processCollecting();
     collector.processAggregating();
+  }
+
+  @Scheduled(fixedDelay = 60000)
+  public void runTimeouts() throws Exception {
+    collector.processTimeouts();
   }
 }

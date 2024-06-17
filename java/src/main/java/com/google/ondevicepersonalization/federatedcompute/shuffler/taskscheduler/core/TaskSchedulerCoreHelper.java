@@ -20,6 +20,9 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.fcp.plan.PhaseSession;
 import com.google.fcp.plan.PlanSession;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import com.google.internal.federated.plan.Plan;
 import com.google.ondevicepersonalization.federatedcompute.proto.CheckPointSelector;
 import com.google.ondevicepersonalization.federatedcompute.proto.EvaluationInfo;
 import com.google.ondevicepersonalization.federatedcompute.proto.IterationInfo;
@@ -30,14 +33,22 @@ import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.B
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.BlobDescription;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.BlobManager;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.IterationEntity;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.ModelMetricsDao;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.ModelMetricsEntity;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.TaskDao;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.TaskEntities;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.TaskEntity;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.tensorflow.TensorflowPlanSessionFactory;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
+import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +60,7 @@ public class TaskSchedulerCoreHelper {
 
   private static final Logger logger = LoggerFactory.getLogger(TaskSchedulerCoreHelper.class);
   @Autowired private TaskDao taskDao;
+  @Autowired private ModelMetricsDao modelMetricsDao;
   @Autowired private RandomGenerator randomGenerator;
   @Autowired private BlobManager blobManager;
   @Autowired private BlobDao blobDao;
@@ -126,16 +138,17 @@ public class TaskSchedulerCoreHelper {
       TaskInfo taskInfo = ProtoParser.toProto(task.getInfo(), TaskInfo.getDefaultInstance());
 
       if (taskInfo.hasEvaluationInfo()) {
-        return blobDao.exists(devicePlanDescriptions) && blobDao.exists(serverPlanDescriptions);
+        return blobDao.checkExistsAndGzipContentIfNeeded(devicePlanDescriptions)
+            && blobDao.checkExistsAndGzipContentIfNeeded(serverPlanDescriptions);
       }
     }
 
     IterationEntity baseIterationEntity = TaskEntities.createBaseIteration(task);
     BlobDescription[] initCheckpointDescriptions =
         blobManager.generateUploadCheckpointDescriptions(baseIterationEntity);
-    return blobDao.exists(devicePlanDescriptions)
-        && blobDao.exists(serverPlanDescriptions)
-        && blobDao.exists(initCheckpointDescriptions);
+    return blobDao.checkExistsAndGzipContentIfNeeded(devicePlanDescriptions)
+        && blobDao.checkExistsAndGzipContentIfNeeded(serverPlanDescriptions)
+        && blobDao.checkExistsAndGzipContentIfNeeded(initCheckpointDescriptions);
   }
 
   /**
@@ -152,20 +165,48 @@ public class TaskSchedulerCoreHelper {
       throw new IllegalStateException("The server checkpoint or plan do not exist.");
     }
 
-    ByteString checkpoint = ByteString.copyFrom(blobDao.download(checkpointBlob));
-    ByteString plan = ByteString.copyFrom(blobDao.download(planBlob));
+    ByteString checkpoint =
+        ByteString.copyFrom(blobDao.downloadAndDecompressIfNeeded(checkpointBlob));
+    ByteString plan = ByteString.copyFrom(blobDao.downloadAndDecompressIfNeeded(planBlob));
 
-    PhaseSession phaseSession = null;
+    if (!createAndUploadClientCheckpoint(checkpoint, plan, iteration)) {
+      throw new IllegalStateException("Failed to upload client checkpoint.");
+    }
+  }
+
+  private boolean createAndUploadClientCheckpoint(
+      ByteString checkpointBytes, ByteString planBytes, IterationEntity iteration) {
+    Plan plan;
     try {
-      phaseSession = createPhaseSession(checkpoint, plan);
-      if (!uploadClientCheckpoint(phaseSession, iteration)) {
-        throw new IllegalStateException("Failed to upload client checkpoint.");
-      }
-    } finally {
-      if (phaseSession != null) {
-        phaseSession.close();
+      plan = Plan.parseFrom(planBytes);
+    } catch (InvalidProtocolBufferException e) {
+      throw new IllegalStateException("Failed to decode plan");
+    }
+    final ByteString clientCheckpoint;
+    if (plan.getPhase(0).hasServerPhaseV2()) {
+      clientCheckpoint =
+          tensorflowPlanSessionFactory
+              .createPhaseSessionV2(planBytes)
+              .getClientCheckpoint(checkpointBytes)
+              .clientCheckpoint();
+    } else {
+      PhaseSession phaseSession = null;
+      try {
+        phaseSession = createPhaseSession(checkpointBytes, planBytes);
+        clientCheckpoint = phaseSession.getClientCheckpoint(Optional.empty());
+      } finally {
+        if (phaseSession != null) {
+          phaseSession.close();
+        }
       }
     }
+
+    boolean allSucceeded =
+        Arrays.stream(blobManager.generateUploadClientCheckpointDescriptions(iteration))
+            .map(newModelBlob -> uploadNoThrow(newModelBlob, clientCheckpoint.toByteArray()))
+            .allMatch(succeeded -> succeeded);
+
+    return allSucceeded;
   }
 
   private PhaseSession createPhaseSession(ByteString checkpoint, ByteString plan) {
@@ -176,17 +217,9 @@ public class TaskSchedulerCoreHelper {
     return phaseSession;
   }
 
-  /** Update checkpoint and return true if all uploads succeeded. */
-  private boolean uploadClientCheckpoint(PhaseSession phaseSession, IterationEntity iteration) {
-    byte[] clientModel = phaseSession.getClientCheckpoint(Optional.empty()).toByteArray();
-    return Arrays.stream(blobManager.generateUploadClientCheckpointDescriptions(iteration))
-        .map(newModelBlob -> uploadNoThrow(newModelBlob, clientModel))
-        .allMatch(succeeded -> succeeded);
-  }
-
   private boolean uploadNoThrow(BlobDescription blob, byte[] content) {
     try {
-      blobDao.upload(blob, content);
+      blobDao.compressAndUpload(blob, content);
       return true;
     } catch (IOException e) {
       logger.atError().setCause(e).log("failed to upload to %s\n", blob.getUrl());
@@ -196,8 +229,8 @@ public class TaskSchedulerCoreHelper {
   }
 
   /**
-   * Prepares a new iteration entity and, if necessary for evaluation tasks, generates and uploads a
-   * device checkpoint.
+   * Prepares a new iteration entity and, if necessary for evaluation tasks, generates and uploads
+   * device checkpoints.
    *
    * @param task The task associated with the iteration.
    * @param baseIterationId The base iteration ID for the new iteration.
@@ -258,5 +291,35 @@ public class TaskSchedulerCoreHelper {
     return blobDao.exists(newCheckpointBlob)
         && blobDao.exists(newClientCheckpointBlob)
         && blobDao.exists(metricsBlob);
+  }
+
+  public boolean parseMetricsAndUpsert(IterationEntity iteration) {
+    BlobDescription metricsDescription =
+        blobManager.generateUploadMetricsDescriptions(iteration)[0];
+    if (!blobDao.exists(new BlobDescription[] {metricsDescription})) {
+      logger.atInfo().log("Metrics blob does not exist for iteration {}", iteration.getId());
+      return false;
+    }
+
+    String metricsStr =
+        new String(
+            blobDao.downloadAndDecompressIfNeeded(metricsDescription), StandardCharsets.UTF_8);
+    Gson gson = new Gson();
+    Type type = new TypeToken<Map<String, Double>>() {}.getType();
+    Map<String, Double> metricsMap = gson.fromJson(metricsStr, type);
+    List<ModelMetricsEntity> modelMetricsList =
+        metricsMap.entrySet().stream()
+            .map(
+                entry ->
+                    ModelMetricsEntity.builder()
+                        .populationName(iteration.getPopulationName())
+                        .taskId(iteration.getTaskId())
+                        .iterationId(iteration.getIterationId())
+                        .metricName(entry.getKey())
+                        .metricValue(entry.getValue())
+                        .build())
+            .collect(Collectors.toList());
+
+    return modelMetricsDao.upsertModelMetrics(modelMetricsList);
   }
 }

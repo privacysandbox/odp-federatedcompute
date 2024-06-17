@@ -35,6 +35,9 @@ public class TaskEntities {
         .resultId(0)
         .info(createBaseIterationInfoString(task))
         .aggregationLevel(0)
+        .maxAggregationSize(task.getMaxAggregationSize())
+        .minClientVersion(task.getMinClientVersion())
+        .maxClientVersion(task.getMaxClientVersion())
         .build();
   }
 

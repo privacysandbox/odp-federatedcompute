@@ -18,6 +18,7 @@ java_library(
     name = "task_assignment_controller",
     srcs = ["TaskAssignmentController.java"],
     deps = [
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:compression_utils",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:assignment_entity",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/logging:response_proto",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/taskassignment/core:task_assignment_core",

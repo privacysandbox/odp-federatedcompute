@@ -28,8 +28,11 @@ module "cluster" {
   static_ip_name               = var.static_ip_name
   task_assignment_max_replicas = var.task_assignment_max_replicas
   task_assignment_min_replicas = var.task_assignment_min_replicas
+  task_assignment_cpu          = var.task_assignment_cpu
   collector_min_replicas       = var.collector_min_replicas
   collector_max_replicas       = var.collector_max_replicas
+  collector_cpu                = var.collector_cpu
   task_scheduler_min_replicas  = var.task_scheduler_min_replicas
   task_scheduler_max_replicas  = var.task_scheduler_max_replicas
+  task_scheduler_cpu           = var.task_scheduler_cpu
 }

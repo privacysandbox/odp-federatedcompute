@@ -43,6 +43,7 @@ java_library(
         "@maven//:com_google_cloud_google_cloud_spanner",
         "@maven//:com_google_guava_guava",
         "@maven//:org_slf4j_slf4j_api",
+        "@maven//:org_springframework_spring_beans",
         "@maven//:org_springframework_spring_context",
     ],
 )
@@ -63,6 +64,7 @@ java_library(
         "@maven//:com_google_cloud_google_cloud_spanner",
         "@maven//:com_google_guava_guava",
         "@maven//:org_slf4j_slf4j_api",
+        "@maven//:org_springframework_spring_beans",
         "@maven//:org_springframework_spring_context",
     ],
 )
@@ -80,6 +82,7 @@ java_library(
         "@maven//:com_google_cloud_google_cloud_spanner",
         "@maven//:com_google_guava_guava",
         "@maven//:org_slf4j_slf4j_api",
+        "@maven//:org_springframework_spring_beans",
         "@maven//:org_springframework_spring_context",
     ],
 )
@@ -94,6 +97,7 @@ java_library(
         "@maven//:com_google_cloud_google_cloud_spanner",
         "@maven//:com_google_guava_guava",
         "@maven//:org_slf4j_slf4j_api",
+        "@maven//:org_springframework_spring_beans",
         "@maven//:org_springframework_spring_context",
     ],
 )
@@ -103,6 +107,7 @@ java_library(
     srcs = ["GCSBlobManager.java"],
     deps = [
         ":gcs_config",
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:compression_utils",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:constants",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:assignment_entity",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:assignment_id",
@@ -134,9 +139,12 @@ java_library(
         "GCSBlobDao.java",
     ],
     deps = [
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:compression_utils",
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:constants",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:blob_dao",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:blob_description",
         "@maven//:com_google_api_gax",
+        "@maven//:com_google_cloud_google_cloud_core",
         "@maven//:com_google_cloud_google_cloud_storage",
         "@maven//:com_google_guava_guava",
         "@maven//:org_slf4j_slf4j_api",
@@ -155,6 +163,22 @@ java_library(
         "@maven//:com_beust_jcommander",
         "@maven//:com_google_cloud_google_cloud_spanner",
         "@maven//:com_google_cloud_google_cloud_storage",
+        "@maven//:org_springframework_spring_beans",
+        "@maven//:org_springframework_spring_context",
+    ],
+)
+
+java_library(
+    name = "model_metrics_spanner_dao",
+    srcs = ["ModelMetricsSpannerDao.java"],
+    deps = [
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:model_metrics_dao",
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:model_metrics_entity",
+        "@maven//:com_google_cloud_google_cloud_core",
+        "@maven//:com_google_cloud_google_cloud_spanner",
+        "@maven//:com_google_guava_guava",
+        "@maven//:org_slf4j_slf4j_api",
+        "@maven//:org_springframework_spring_beans",
         "@maven//:org_springframework_spring_context",
     ],
 )

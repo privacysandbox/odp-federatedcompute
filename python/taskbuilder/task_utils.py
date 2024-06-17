@@ -12,15 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import tempfile
 from typing import Optional, Tuple
 import common
-from google.cloud import storage
-from google.protobuf import text_format
+from shuffler.proto import common_pb2
 from shuffler.proto import task_builder_pb2
 from shuffler.proto import task_pb2
-import tensorflow_federated as tff
 
 
 def create_tasks(
@@ -75,73 +71,6 @@ def create_tasks_for_artifact_only_request(
     return _attach_uris_to_task(uris=training_artifact_uris), None
 
 
-def load_functional_model(
-    model_path: str, client: Optional[storage.Client] = None
-) -> Optional[tff.learning.models.FunctionalModel]:
-  """Load a TFF functional model as `tff.learning.models.FunctionalModel` from a GCS `model_path`."""
-  functional_model = None
-  try:
-    if not client:
-      client = storage.Client(project=common.GCP_PROJECT_ID.value)
-    blob_id = _parse_gcs_uri(uri=model_path, allow_empty_blob=True)
-    bucket_name = blob_id.bucket
-    model_dir = blob_id.name
-    bucket = client.bucket(bucket_name)
-    with tempfile.TemporaryDirectory() as temp_path:
-      blobs = bucket.list_blobs(prefix=model_dir)
-      for blob in blobs:
-        if blob.name.endswith('/'):
-          continue
-        file_path = os.path.join(temp_path, blob.name)
-        local_dir = os.path.dirname(file_path)
-        # create intermediate directories to preserve original structures
-        os.makedirs(local_dir, exist_ok=True)
-        with open(file_path, 'wb+') as f:
-          blob.download_to_file(f)
-      functional_model = tff.learning.models.load_functional_model(
-          os.path.join(temp_path, model_dir)
-      )
-  except Exception as e:
-    raise common.TaskBuilderException(
-        common.LOADING_MODEL_ERROR_MESSAGE.format(path=model_path)
-    ) from e
-  return functional_model
-
-
-def load_task_config(
-    task_config_path: str, client: Optional[storage.Client] = None
-) -> Optional[task_builder_pb2.TaskConfig]:
-  """Load task configurations as `task_builder_pb2.TaskConfig` from a pbtxt file on GCS."""
-  task_config = None
-  try:
-    if not client:
-      client = storage.Client(project=common.GCP_PROJECT_ID.value)
-    blob_id = _parse_gcs_uri(uri=task_config_path)
-    bucket_name = blob_id.bucket
-    object_name = blob_id.name
-    bucket = client.bucket(bucket_name)
-    blob = bucket.blob(object_name)
-    task_config_str = blob.download_as_text()
-    task_config = task_builder_pb2.TaskConfig()
-    text_format.Parse(task_config_str, task_config)
-  except Exception as e:
-    raise common.TaskBuilderException(
-        common.LOADING_CONFIG_ERROR_MESSAGE.format(path=task_config_path)
-    ) from e
-  return task_config
-
-
-def _parse_gcs_uri(uri: str, allow_empty_blob: bool = False) -> common.BlobId:
-  """Parse a GCS URI to a `BlobId` that represents a GCS blob or directory."""
-  uri_without_prefix = uri[len(common.GCS_PREFIX) :]
-  temp = uri_without_prefix.split('/', 1)
-  # support bucket-only scenario for model path
-  if allow_empty_blob and len(temp) == 1:
-    return common.BlobId(bucket=temp[0])
-  bucket_name, object_name = temp[0], temp[1]
-  return common.BlobId(bucket=bucket_name, name=object_name)
-
-
 def _create_training_task(
     task_config: task_builder_pb2.TaskConfig,
 ) -> task_pb2.Task:
@@ -161,10 +90,10 @@ def _create_training_task(
   # build training task based on configs
   eligibility_info = task_pb2.EligibilityTaskInfo()
   eligibility_info.eligibility_policies.append(
-      task_pb2.EligibilityPolicyEvalSpec(min_sep_policy=min_separation_policy)
+      common_pb2.EligibilityPolicyEvalSpec(min_sep_policy=min_separation_policy)
   )
   eligibility_info.eligibility_policies.append(
-      task_pb2.EligibilityPolicyEvalSpec(
+      common_pb2.EligibilityPolicyEvalSpec(
           data_availability_policy=data_availability_policy
       )
   )

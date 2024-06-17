@@ -43,7 +43,11 @@ public class LoggingInterceptor implements HandlerInterceptor {
   @Override
   public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
       throws Exception {
-    logger.info("Received request: {} {}.", request.getMethod(), request.getRequestURI());
+    if (request.getRequestURI().equals("/healthz") || request.getRequestURI().equals("/ready")) {
+      logger.debug("Received request: {} {}.", request.getMethod(), request.getRequestURI());
+    } else {
+      logger.info("Received request: {} {}.", request.getMethod(), request.getRequestURI());
+    }
     return true;
   }
 
@@ -52,11 +56,19 @@ public class LoggingInterceptor implements HandlerInterceptor {
       HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex)
       throws Exception {
     var status = response.getStatus();
-    logger.info(
-        "Response for {}, {} {}.",
-        request.getRequestURI(),
-        status,
-        HttpStatus.valueOf(status).getReasonPhrase());
+    if (request.getRequestURI().equals("/healthz") || request.getRequestURI().equals("/ready")) {
+      logger.debug(
+          "Response for {}, {} {}.",
+          request.getRequestURI(),
+          status,
+          HttpStatus.valueOf(status).getReasonPhrase());
+    } else {
+      logger.info(
+          "Response for {}, {} {}.",
+          request.getRequestURI(),
+          status,
+          HttpStatus.valueOf(status).getReasonPhrase());
+    }
 
     if (ex != null) {
       logger.error(ex.getMessage());

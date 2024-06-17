@@ -59,6 +59,7 @@ resource "kubernetes_deployment_v1" "taskassignment" {
             value = "--environment '${var.environment}'"
           }
           port {
+            name           = "http"
             container_port = var.task_assignment_port
           }
           readiness_probe {
@@ -96,9 +97,9 @@ resource "kubernetes_deployment_v1" "taskassignment" {
           resources {
             // Limits are not used for autopilot: https://cloud.google.com/kubernetes-engine/docs/concepts/autopilot-resource-requests#resource-limits
             requests = {
-              cpu               = "4.0"
+              cpu               = var.task_assignment_cpu
               ephemeral-storage = "1Gi"
-              memory            = "8Gi"
+              memory            = "${var.task_assignment_cpu}Gi" # Use 1:1 CPU-to-memory
             }
           }
         }

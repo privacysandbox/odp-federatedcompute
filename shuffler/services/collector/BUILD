@@ -28,6 +28,9 @@ oci_image(
     base = "@java_base",
     entrypoint = [
         "java",
+        "-Dspring.profiles.active=gcp",
+        "-XX:InitialRAMPercentage=70.0",
+        "-XX:MaxRAMPercentage=70.0",
         "-jar",
         "collector_application.jar",
     ],

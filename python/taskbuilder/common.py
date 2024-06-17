@@ -11,28 +11,31 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 from dataclasses import dataclass
 from enum import Enum
+import functools
 from typing import Optional
 from absl import flags
+from shuffler.proto import task_builder_pb2
 import tensorflow as tf
+import tensorflow_federated as tff
 
 """Constants for Task Management APIs."""
 TASK_MANAGEMENT_V1 = '/taskmanagement/v1/population/'
+TASK_BUILDER_V1 = '/taskbuilder/v1'
 CREATE_TASK_ACTION = ':create-task'
 CANCEL_TASK_ACTION = ':cancel'
+BUILD_TASK_GROUP_ACTION = ':build-task-group'
+BUILD_ARTIFACT_ONLY_ACTION = ':build-artifacts'
 PROROBUF_HEADERS = {'Content-Type': 'application/x-protobuf'}
+VM_METADATA_HEADERS = {'Metadata-Flavor': 'Google'}
 
-"""Constants for dataset processing"""
-BATCH_SIZE = flags.DEFINE_integer(
-    name='batch_size', default=3, help='The number of examples in one batch.'
-)
-MAX_TRAING_BATCHES_PER_CLIENT = flags.DEFINE_integer(
-    name='max_training_batches_per_client',
-    default=100,
-    help='The maximum number of batches used for training in each round.',
-)
+COMPUTE_METADATA_SERVER = 'http://metadata.google.internal/computeMetadata/v1'
+GCP_PROJECT_ID_KEY = 'GOOGLE_CLOUD_PROJECT'
+DEFAULT_PARAM_PREFIX = 'fc'
+ENV_KEY = 'ENV'
+TASK_MANAGEMENT_SERVER_URL_KEY = 'TASK_MANAGEMENT_SERVER_URL'
+GCP_PROJECT_ID_METADATA_KEY = 'project/project-id'
 
 """Constants for building and uploading training artifacts."""
 MODEL_PATH = flags.DEFINE_string(
@@ -45,30 +48,18 @@ CONFIG_PATH = flags.DEFINE_string(
     help='GCS URI to the task config resource in pbtxt.',
     default=None,
 )
-EXAMPLE_COLLECTION_URI = flags.DEFINE_string(
-    name='example_collection_uri',
-    default='app://test_collection_train',
-    help='Example url to retrieve training example inputs',
+TASK_BUILDER_SERVER = flags.DEFINE_string(
+    name='task_builder_server',
+    default='http://localhost:5000/',
+    help='Task builder server endpoint url.',
 )
-GCP_PROJECT_ID = flags.DEFINE_string(
-    name='google_cloud_project',
+IMPERSONATE_SERVICE_ACCOUNT = flags.DEFINE_string(
+    name='impersonate_service_account',
     default=None,
-    help='Google cloud project for artifact uploading/downloading.',
-)
-TASK_MANAGEMENT_SERVER = flags.DEFINE_string(
-    name='task_management_server',
-    default='http://localhost:8082/',
-    help='Task management server endpoint url.',
-)
-GCP_TARGET_SCOPE = flags.DEFINE_string(
-    name='gcp_target_scope',
-    default='https://www.googleapis.com/auth/cloud-platform',
-    help='GCP target scope for API authentication.',
-)
-GCP_SERVICE_ACCOUNT = flags.DEFINE_string(
-    name='gcp_service_account',
-    default=None,
-    help='GCP service account for API authentication.',
+    help=(
+        'Service account to impersonate for accessing the task builder server.'
+        ' If not provided it will use the metadata identity endpoint'
+    ),
 )
 ARTIFACT_BUILDING_ONLY = flags.DEFINE_boolean(
     name='build_artifact_only',
@@ -78,7 +69,29 @@ ARTIFACT_BUILDING_ONLY = flags.DEFINE_boolean(
         ' task config.'
     ),
 )
+SKIP_FLEX_OPS_CHECK = flags.DEFINE_boolean(
+    name='skip_flex_ops_check',
+    default=False,
+    help=(
+        'Build task without checking flex ops availability in android TFLite'
+        ' library.'
+    ),
+)
+SKIP_DP_CHECK = flags.DEFINE_boolean(
+    name='skip_dp_check',
+    default=False,
+    help=(
+        'Build task without checking targeting differential privacy epsilon. '
+        'This flag is temporarily enabled in the beta task builder server.'
+    ),
+)
+E2E_TEST_POPULATION_NAME = flags.DEFINE_string(
+    name='population_name',
+    default=None,
+    help='Population name for task builder e2e test.',
+)
 GCS_PREFIX = 'gs://'
+TEST_BLOB_PATH = 'gs://mock-bucket/mock_blob'
 
 
 """Constants for error messages."""
@@ -109,25 +122,85 @@ LOADING_CONFIG_ERROR_MESSAGE = 'Cannot load task config from {path}.'
 """Constants for config validation and DP accounting."""
 TRAFFIC_WEIGHT_SCALE = 10000
 TRAINING_TRAFFIC_WEIGHT = 100
-DEFAULT_DP_EPSILON = 6.0
-DEFAULT_TOTAL_POPULATION = 10000
+DEFAULT_DP_EPSILON = 10
+DEFAULT_TOTAL_POPULATION = 3000000
 DEFAULT_DP_DELTA = 1 / DEFAULT_TOTAL_POPULATION
 # Just a placeholder, `dp_utils` will calibrate a noise, if not set by adopters.
 DEFAULT_DP_NOISE = 0.0
+DEFAULT_BATCH_SIZE = 3
+DEFAULT_MAX_BATCH_PER_CLIENT = -1
+DEFAULT_EXAMPLE_SELECTOR = 'app://test_collection_train'
 
 METRICS_ALLOWLIST = {
-    'precision': tf.keras.metrics.Precision,
-    'mean_squared_error': tf.keras.metrics.MeanSquaredError,
-    'root_mean_squared_error': tf.keras.metrics.RootMeanSquaredError,
-    'mean_absolute_error': tf.keras.metrics.MeanAbsoluteError,
-    'mean_absolute_percentage_error': (
-        tf.keras.metrics.MeanAbsolutePercentageError
+    'auc-roc': functools.partial(tf.keras.metrics.AUC, name='auc-roc'),
+    'auc-pr': functools.partial(
+        tf.keras.metrics.AUC, name='auc-pr', curve='PR'
     ),
-    'mean_squared_logarithmic_error': (
-        tf.keras.metrics.MeanSquaredLogarithmicError
+    'accuracy': functools.partial(tf.keras.metrics.Accuracy, name='accuracy'),
+    'binary_accuracy': functools.partial(
+        tf.keras.metrics.BinaryAccuracy, name='binary_accuracy'
     ),
-    'recall': tf.keras.metrics.Recall,
+    'binary_crossentropy': functools.partial(
+        tf.keras.metrics.BinaryCrossentropy,
+        name='binary_crossentropy',
+        from_logits=False,
+    ),
+    'binary_crossentropy_from_logits': functools.partial(
+        tf.keras.metrics.BinaryCrossentropy,
+        name='binary_crossentropy_from_logits',
+        from_logits=True,
+    ),
+    'categorical_accuracy': functools.partial(
+        tf.keras.metrics.CategoricalAccuracy, name='categorical_accuracy'
+    ),
+    'categorical_crossentropy': functools.partial(
+        tf.keras.metrics.CategoricalCrossentropy,
+        name='categorical_crossentropy',
+        from_logits=False,
+    ),
+    'categorical_crossentropy_from_logits': functools.partial(
+        tf.keras.metrics.CategoricalCrossentropy,
+        name='categorical_crossentropy_from_logits',
+        from_logits=True,
+    ),
+    'mean': functools.partial(tf.keras.metrics.Mean, name='mean'),
+    'mean_absolute_error': functools.partial(
+        tf.keras.metrics.MeanAbsoluteError, name='mean_absolute_error'
+    ),
+    'mean_absolute_percentage_error': functools.partial(
+        tf.keras.metrics.MeanAbsolutePercentageError,
+        name='mean_absolute_percentage_error',
+    ),
+    'mean_squared_error': functools.partial(
+        tf.keras.metrics.MeanSquaredError, name='mean_squared_error'
+    ),
+    'mean_squared_logarithmic_error': functools.partial(
+        tf.keras.metrics.MeanSquaredLogarithmicError,
+        name='mean_squared_logarithmic_error',
+    ),
+    'precision': functools.partial(
+        tf.keras.metrics.Precision, name='precision'
+    ),
+    'recall': functools.partial(tf.keras.metrics.Recall, name='recall'),
+    'root_mean_squared_error': functools.partial(
+        tf.keras.metrics.RootMeanSquaredError, name='root_mean_squared_error'
+    ),
+    'sparse_categorical_accuracy': functools.partial(
+        tf.keras.metrics.SparseCategoricalAccuracy,
+        name='sparse_categorical_accuracy',
+    ),
+    'sparse_categorical_crossentropy': functools.partial(
+        tf.keras.metrics.SparseCategoricalCrossentropy,
+        name='sparse_categorical_crossentropy',
+        from_logits=False,
+    ),
+    'sparse_categorical_crossentropy_from_logits': functools.partial(
+        tf.keras.metrics.SparseCategoricalCrossentropy,
+        name='sparse_categorical_crossentropy_from_logits',
+        from_logits=True,
+    ),
 }
+
 
 """Constants for creating tasks."""
 DEFAULT_MIN_CLIENT_VERSION = '0'
@@ -138,6 +211,8 @@ DEFAULT_OVER_SELECTION_RATE = 0.3
 class RequestType(Enum):
   CREATE_TASK = 1
   CANCEL_TASK = 2
+  BUILD_TASK_GROUP = 3
+  BUILD_ARTIFACT_ONLY = 4
 
 
 @dataclass
@@ -150,6 +225,13 @@ class BlobId:
 class DpParameter:
   noise_multiplier: float
   dp_clip_norm: float
+
+
+@dataclass
+class BuildTaskRequest:
+  model: tff.learning.models.FunctionalModel
+  task_config: task_builder_pb2.TaskConfig
+  flags: task_builder_pb2.ExperimentFlags
 
 
 class TaskBuilderException(Exception):

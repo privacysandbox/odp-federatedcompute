@@ -22,6 +22,7 @@ import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -29,11 +30,24 @@ import org.springframework.context.annotation.Configuration;
 public class DaoConfigurations {
 
   @Bean
-  DatabaseClient provideDatabaseClient(
+  @Qualifier("taskDatabaseClient")
+  DatabaseClient provideTaskDatabaseClient(
       String projectId, String spannerInstance, String taskDatabaseName) {
     SpannerOptions options = SpannerOptions.newBuilder().setProjectId(projectId).build();
     Spanner spanner = options.getService();
     DatabaseId db = DatabaseId.of(options.getProjectId(), spannerInstance, taskDatabaseName);
+    DatabaseClient dbClient = spanner.getDatabaseClient(db);
+    return dbClient;
+  }
+
+  @Bean
+  @Qualifier("metricsDatabaseClient")
+  DatabaseClient provideMetricsDatabaseClient(
+      String projectId, String metricsSpannerInstance, String metricsDatabaseName) {
+    SpannerOptions options = SpannerOptions.newBuilder().setProjectId(projectId).build();
+    Spanner spanner = options.getService();
+    DatabaseId db =
+        DatabaseId.of(options.getProjectId(), metricsSpannerInstance, metricsDatabaseName);
     DatabaseClient dbClient = spanner.getDatabaseClient(db);
     return dbClient;
   }

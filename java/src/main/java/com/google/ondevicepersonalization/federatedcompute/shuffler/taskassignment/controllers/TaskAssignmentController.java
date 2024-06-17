@@ -23,6 +23,7 @@ import com.google.ondevicepersonalization.federatedcompute.proto.CreateTaskAssig
 import com.google.ondevicepersonalization.federatedcompute.proto.CreateTaskAssignmentResponse;
 import com.google.ondevicepersonalization.federatedcompute.proto.ReportResultRequest;
 import com.google.ondevicepersonalization.federatedcompute.proto.ReportResultResponse;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.common.CompressionUtils.CompressionFormat;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.logging.ResponseProto;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.taskassignment.core.TaskAssignmentCore;
 import com.google.protobuf.Duration;
@@ -65,8 +66,11 @@ public class TaskAssignmentController {
       @PathVariable String populationName, @RequestBody CreateTaskAssignmentRequest request) {
 
     final Timer.Sample sample = Timer.start();
+    // All clients versions support uploading gzip gradient, and gzip is the only
+    // compression format supported by server, hard code it to gzip for now
     return taskAssignment
-        .createTaskAssignment(populationName, request.getClientVersion().getVersionCode(), "")
+        .createTaskAssignment(
+            populationName, request.getClientVersion().getVersionCode(), "", CompressionFormat.GZIP)
         .map(
             ta -> {
               sample.stop(
@@ -122,8 +126,11 @@ public class TaskAssignmentController {
       case COMPLETED:
         taskAssignment.reportLocalCompleted(populationName, taskId, aggregationId, assignmentId);
         response =
+            // All clients versions support uploading gzip gradient, and gzip is the only
+            // compression format supported by server, hard code it to gzip for now
             taskAssignment
-                .getUploadInstruction(populationName, taskId, aggregationId, assignmentId)
+                .getUploadInstruction(
+                    populationName, taskId, aggregationId, assignmentId, CompressionFormat.GZIP)
                 .map(
                     uploadInstruction ->
                         ReportResultResponse.newBuilder()

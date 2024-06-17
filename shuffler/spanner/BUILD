@@ -15,6 +15,11 @@
 package(default_visibility = ["//visibility:public"])
 
 filegroup(
-    name = "sdl_bundle",
+    name = "task_database_sdl",
     srcs = ["task_database.sdl"],
+)
+
+filegroup(
+    name = "metrics_datbase_sdl",
+    srcs = ["metrics_database.sdl"],
 )

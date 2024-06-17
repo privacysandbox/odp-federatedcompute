@@ -87,6 +87,12 @@ variable "task_assignment_min_replicas" {
   default     = 4
 }
 
+variable "task_assignment_cpu" {
+  description = "The CPU to allocate to each task assignment pod"
+  type        = number
+  default     = 4.0
+}
+
 variable "collector_max_replicas" {
   description = "The maximum number of collector replicas that the autoscaler can scale up to."
   type        = number
@@ -99,6 +105,12 @@ variable "collector_min_replicas" {
   default     = 2
 }
 
+variable "collector_cpu" {
+  description = "The CPU to allocate to each collector pod"
+  type        = number
+  default     = 8.0
+}
+
 variable "task_scheduler_max_replicas" {
   description = "The maximum number of task scheduler replicas that the autoscaler can scale up to."
   type        = number
@@ -109,4 +121,10 @@ variable "task_scheduler_min_replicas" {
   description = "The minimum number of task scheduler replicas that the autoscaler can scale down to."
   type        = number
   default     = 2
+}
+
+variable "task_scheduler_cpu" {
+  description = "The CPU to allocate to each task scheduler pod"
+  type        = number
+  default     = 8.0
 }

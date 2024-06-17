@@ -20,6 +20,7 @@ java_test(
     srcs = ["TaskAssignmentControllerTest.java"],
     test_class = "com.google.ondevicepersonalization.federatedcompute.shuffler.taskassignment.controllers.TaskAssignmentControllerTest",
     deps = [
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:compression_utils",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/taskassignment/controllers:task_assignment_controller",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/taskassignment/core:task_assignment_core",
         "//shuffler/proto:task_assignments_java_proto",

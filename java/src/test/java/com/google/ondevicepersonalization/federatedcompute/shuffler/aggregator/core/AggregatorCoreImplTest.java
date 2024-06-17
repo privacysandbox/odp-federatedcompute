@@ -28,6 +28,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.crypto.tink.HybridDecrypt;
 import com.google.crypto.tink.subtle.Base64;
+import com.google.fcp.aggregation.AggregationSession;
 import com.google.fcp.plan.PhaseSession;
 import com.google.fcp.plan.TensorflowPlanSession;
 import com.google.fcp.tensorflow.AppFiles;
@@ -95,11 +96,7 @@ public final class AggregatorCoreImplTest {
           .url("gs://test-1-1/us/35/17/s/0/checkpoint")
           .build();
   private static final BlobDescription PLAN_1 =
-      BlobDescription.builder()
-          .host("test-1-1")
-          .resourceObject("us/35/17/s/0/server_plan")
-          .url("gs://test-1-1/us/35/17/s/0/server_plan")
-          .build();
+      BlobDescription.builder().host("test-1-1").resourceObject("us/35/17/s/0/server_plan").build();
   private static final BlobDescription DIR2_1 =
       BlobDescription.builder()
           .host("test-2-1")
@@ -113,11 +110,7 @@ public final class AggregatorCoreImplTest {
           .url("gs://test-1-1/us/36/18/s/0/checkpoint")
           .build();
   private static final BlobDescription PLAN_2 =
-      BlobDescription.builder()
-          .host("test-1-1")
-          .resourceObject("us/36/18/s/0/server_plan")
-          .url("gs://test-1-1/us/36/18/s/0/server_plan")
-          .build();
+      BlobDescription.builder().host("test-1-1").resourceObject("us/36/18/s/0/server_plan").build();
 
   private static final AggregatorMessage MESSAGE1 =
       AggregatorMessage.builder()
@@ -154,6 +147,7 @@ public final class AggregatorCoreImplTest {
   @Mock BlobDao blobDao;
   @Mock TensorflowPlanSessionFactory tensorflowPlanSessionFactory;
   @Mock TensorflowPlanSession tensorflowPlanSession;
+  @Mock AggregationSession aggregationSession;
   @Mock PhaseSession phaseSession;
 
   @Mock DecryptionKeyService decryptionKeyService;
@@ -195,7 +189,7 @@ public final class AggregatorCoreImplTest {
                 "EqHpPLNug0sxrO+C/khNBauZxBFaBDAnm9YsriaW5FIUduNy6JRpSuwVTRu41tMjxA8uuRL5nbyqvKgd7qAKC2PpcmjnrQ4WpO/++a0Z")
             .associatedData("")
             .build();
-    plan = new byte[] {1, 2};
+    plan = getClass().getResourceAsStream("/resources/plan_v1").readAllBytes();
     uploadResultCaptor = ArgumentCaptor.forClass(byte[].class);
     messageCaptor = ArgumentCaptor.forClass(ModelUpdaterMessage.class);
     gradientCaptor = ArgumentCaptor.forClass(ByteString.class);
@@ -204,9 +198,9 @@ public final class AggregatorCoreImplTest {
   @Test
   public void testProcess_Succeeded() throws Exception {
     // arange
-    when(blobDao.download(any())).thenReturn(gradient);
-    when(blobDao.download(PLAN_1)).thenReturn(plan);
-    when(blobDao.download(PLAN_2)).thenReturn(plan);
+    when(blobDao.downloadAndDecompressIfNeeded(any())).thenReturn(gradient);
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_1)).thenReturn(plan);
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_2)).thenReturn(plan);
     when(tensorflowPlanSessionFactory.createPlanSession(any())).thenReturn(tensorflowPlanSession);
     when(tensorflowPlanSession.createPhaseSession(any(), any())).thenReturn(phaseSession);
     doNothing().when(phaseSession).accumulateClientUpdate(any());
@@ -220,9 +214,9 @@ public final class AggregatorCoreImplTest {
     core.process(MESSAGE2);
 
     // assert
-    verify(blobDao, times(6)).download(any());
+    verify(blobDao, times(6)).downloadAndDecompressIfNeeded(any());
     verify(publicKeyEncryptionService, times(2)).encryptPayload(any(), any());
-    verify(blobDao, times(2)).upload(any(), uploadResultCaptor.capture());
+    verify(blobDao, times(2)).compressAndUpload(any(), uploadResultCaptor.capture());
     List<byte[]> capturedResults = uploadResultCaptor.getAllValues();
     Gson gson = new Gson();
     assertArrayEquals(capturedResults.get(0), gson.toJson(payload).getBytes());
@@ -238,11 +232,46 @@ public final class AggregatorCoreImplTest {
   }
 
   @Test
+  public void testProcess_SucceededV2() throws Exception {
+    // arange
+    byte[] plan2 = getClass().getResourceAsStream("/resources/plan_v2").readAllBytes();
+    when(blobDao.downloadAndDecompressIfNeeded(any())).thenReturn(gradient);
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_1)).thenReturn(plan2);
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_2)).thenReturn(plan2);
+    when(tensorflowPlanSessionFactory.createAggregationSession(any()))
+        .thenReturn(aggregationSession);
+    doNothing().when(aggregationSession).accumulate(any());
+    when(aggregationSession.serialize()).thenReturn(new byte[] {10});
+    when(decryptionKeyService.getDecrypter(any())).thenReturn(hybridDecrypt);
+    when(hybridDecrypt.decrypt(any(), any())).thenReturn(Base64.decode(GZIP_GRADIENT));
+    when(publicKeyEncryptionService.encryptPayload(any(), any())).thenReturn(payload);
+
+    // act
+    core.process(MESSAGE1);
+    core.process(MESSAGE2);
+
+    // assert
+    verify(blobDao, times(6)).downloadAndDecompressIfNeeded(any());
+    verify(publicKeyEncryptionService, times(2)).encryptPayload(any(), any());
+    verify(blobDao, times(2)).compressAndUpload(any(), uploadResultCaptor.capture());
+    List<byte[]> capturedResults = uploadResultCaptor.getAllValues();
+    Gson gson = new Gson();
+    assertArrayEquals(capturedResults.get(0), gson.toJson(payload).getBytes());
+    assertArrayEquals(capturedResults.get(1), gson.toJson(payload).getBytes());
+    verify(decryptionKeyService, times(4)).getDecrypter("596cd2c2-5aee-4d29-858f-a26a7d62de1b");
+    verify(hybridDecrypt, times(4)).decrypt(any(), any());
+    verify(tensorflowPlanSessionFactory, times(4)).createAggregationSession(any());
+    verify(aggregationSession, times(2)).accumulate(any());
+    verify(aggregationSession, times(2)).mergeWith(any());
+    verify(aggregationSession, times(4)).serialize();
+  }
+
+  @Test
   public void testProcess_SucceededIntermediateUpdates() throws Exception {
     // arange
-    when(blobDao.download(any())).thenReturn(gradient);
-    when(blobDao.download(PLAN_1)).thenReturn(plan);
-    when(blobDao.download(PLAN_2)).thenReturn(plan);
+    when(blobDao.downloadAndDecompressIfNeeded(any())).thenReturn(gradient);
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_1)).thenReturn(plan);
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_2)).thenReturn(plan);
     when(tensorflowPlanSessionFactory.createPlanSession(any())).thenReturn(tensorflowPlanSession);
     when(tensorflowPlanSession.createPhaseSession(any(), any())).thenReturn(phaseSession);
     doNothing().when(phaseSession).accumulateIntermediateUpdate(any());
@@ -256,9 +285,9 @@ public final class AggregatorCoreImplTest {
     core.process(MESSAGE2.toBuilder().accumulateIntermediateUpdates(true).build());
 
     // assert
-    verify(blobDao, times(6)).download(any());
+    verify(blobDao, times(6)).downloadAndDecompressIfNeeded(any());
     verify(publicKeyEncryptionService, times(2)).encryptPayload(any(), any());
-    verify(blobDao, times(2)).upload(any(), uploadResultCaptor.capture());
+    verify(blobDao, times(2)).compressAndUpload(any(), uploadResultCaptor.capture());
     List<byte[]> capturedResults = uploadResultCaptor.getAllValues();
     Gson gson = new Gson();
     assertArrayEquals(capturedResults.get(0), gson.toJson(payload).getBytes());
@@ -277,10 +306,10 @@ public final class AggregatorCoreImplTest {
   @Test
   public void testProcess_ExceptionWhenUploadResult() throws Exception {
     // arange
-    when(blobDao.download(any())).thenReturn(gradient);
-    when(blobDao.download(PLAN_1)).thenReturn(plan);
-    when(blobDao.download(PLAN_2)).thenReturn(plan);
-    doThrow(new IOException()).when(blobDao).upload(any(), any());
+    when(blobDao.downloadAndDecompressIfNeeded(any())).thenReturn(gradient);
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_1)).thenReturn(plan);
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_2)).thenReturn(plan);
+    doThrow(new IOException()).when(blobDao).compressAndUpload(any(), any());
     when(tensorflowPlanSessionFactory.createPlanSession(any())).thenReturn(tensorflowPlanSession);
     when(tensorflowPlanSession.createPhaseSession(any(), any())).thenReturn(phaseSession);
     doNothing().when(phaseSession).accumulateClientUpdate(any());
@@ -294,8 +323,8 @@ public final class AggregatorCoreImplTest {
     assertThrows(RuntimeException.class, () -> core.process(MESSAGE2));
 
     // assert
-    verify(blobDao, times(6)).download(any());
-    verify(blobDao, times(2)).upload(any(), uploadResultCaptor.capture());
+    verify(blobDao, times(6)).downloadAndDecompressIfNeeded(any());
+    verify(blobDao, times(2)).compressAndUpload(any(), uploadResultCaptor.capture());
     List<byte[]> capturedResults = uploadResultCaptor.getAllValues();
     Gson gson = new Gson();
     assertArrayEquals(capturedResults.get(0), gson.toJson(payload).getBytes());
@@ -311,8 +340,8 @@ public final class AggregatorCoreImplTest {
   @Test
   public void testProcess_NotFailOnOtherIllegalException() throws Exception {
     // arange
-    when(blobDao.download(any())).thenReturn(gradient);
-    when(blobDao.download(PLAN_1)).thenReturn(plan);
+    when(blobDao.downloadAndDecompressIfNeeded(any())).thenReturn(gradient);
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_1)).thenReturn(plan);
     when(tensorflowPlanSessionFactory.createPlanSession(any())).thenReturn(tensorflowPlanSession);
     when(tensorflowPlanSession.createPhaseSession(any(), any())).thenReturn(phaseSession);
     doThrow(new IllegalStateException("error.")).when(phaseSession).accumulateClientUpdate(any());

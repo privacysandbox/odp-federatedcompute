@@ -17,6 +17,10 @@
 package com.google.ondevicepersonalization.federatedcompute.shuffler.common.config.gcp;
 
 import com.google.common.base.Strings;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.common.CompressionUtils.CompressionFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -72,6 +76,28 @@ public class GcpParameterConfig {
     }
     logger.info("Registering taskDatabaseName parameter as: " + taskDatabaseName);
     return taskDatabaseName;
+  }
+
+  @Bean
+  @Qualifier("metricsSpannerInstance")
+  public String metricsSpannerInstance() {
+    String spannerInstance = googleCloudArgs.getMetricsSpannerInstance();
+    if (Strings.isNullOrEmpty(spannerInstance)) {
+      spannerInstance = gcpParameterClient.getParameter("METRICS_SPANNER_INSTANCE").orElse(null);
+    }
+    logger.info("Registering metricsSpannerInstance parameter as: " + spannerInstance);
+    return spannerInstance;
+  }
+
+  @Bean
+  @Qualifier("metricsDatabaseName")
+  public String metricsDatabaseName() {
+    String metricsDatabaseName = googleCloudArgs.getMetricsDatabaseName();
+    if (Strings.isNullOrEmpty(metricsDatabaseName)) {
+      metricsDatabaseName = gcpParameterClient.getParameter("METRICS_DATABASE_NAME").orElse(null);
+    }
+    logger.info("Registering metricsDatabaseName parameter as: " + metricsDatabaseName);
+    return metricsDatabaseName;
   }
 
   @Bean
@@ -318,6 +344,19 @@ public class GcpParameterConfig {
   }
 
   @Bean
+  @Qualifier("isAuthenticationEnabled")
+  public Boolean allowRootedDevices() {
+    Boolean allowRootedDevices = securityArgs.getAllowRootedDevices();
+    if (allowRootedDevices == null) {
+      allowRootedDevices =
+          Boolean.parseBoolean(
+              gcpParameterClient.getParameter("ALLOW_ROOTED_DEVICES").orElse(null));
+    }
+    logger.info("Registering allowRootedDevices parameter as: " + allowRootedDevices);
+    return allowRootedDevices;
+  }
+
+  @Bean
   @Qualifier("downloadPlanTokenDurationInSecond")
   public Long downloadPlanTokenDurationInSecond() {
     Long downloadPlanTokenDuration = googleCloudArgs.getDownloadPlanTokenDurationInSecond();
@@ -434,5 +473,17 @@ public class GcpParameterConfig {
     }
     logger.info("Registering collectorBatchSize parameter as: " + collectorBatchSize);
     return collectorBatchSize;
+  }
+
+  @Bean
+  @Qualifier("compressionFormats")
+  public List<CompressionFormat> compressionFormats() {
+    List<CompressionFormat> compressionFormats = googleCloudArgs.getCompressionFormats();
+    if (compressionFormats.size() == 0) {
+      compressionFormats = new ArrayList<>(Arrays.asList(CompressionFormat.GZIP));
+    }
+
+    logger.info("Registering compressionFormats parameter as: " + compressionFormats);
+    return compressionFormats;
   }
 }

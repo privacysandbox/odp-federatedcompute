@@ -45,9 +45,7 @@ def build_metric_constructors_list(
     # Names have to be specified manually because some of the keras metrics
     # generates globally unique names (e.g. precision, precision_1). This will
     # make some of the downstream checks in TFF side fail.
-    return functools.partial(
-        common.METRICS_ALLOWLIST[metric_name], name=metric_name
-    )
+    return common.METRICS_ALLOWLIST[metric_name]
 
   allowed_metric_names = [
       metric_name
@@ -87,13 +85,6 @@ def create_metrics_fns(
     for constructor in metric_constructors:
       metric = constructor()
       metrics[metric.name] = metric
-    metrics['auc-roc'] = tf.keras.metrics.AUC(name='auc-roc')
-    metrics['auc-pr'] = tf.keras.metrics.AUC(name='auc-pr', curve='PR')
-    metrics['binary-accuracy'] = tf.keras.metrics.BinaryAccuracy(threshold=0.5)
-    metrics['binary-cross-entropy'] = tf.keras.metrics.BinaryCrossentropy(
-        from_logits=False
-    )
-    metrics['recall'] = tf.keras.metrics.Recall()
     return metrics
 
   initialize_fn, update_fn, finalize_fn = (

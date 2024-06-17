@@ -88,7 +88,7 @@ resource "google_compute_firewall" "firewall" {
     protocol = "tcp"
     ports    = ["8082"]
   }
-  source_ranges = ["0.0.0.0/0"]
+  source_ranges = ["130.211.0.0/22", "35.191.0.0/16"]
 }
 
 resource "google_compute_region_instance_group_manager" "instance_group" {
@@ -102,7 +102,11 @@ resource "google_compute_region_instance_group_manager" "instance_group" {
     name              = "${var.environment}-${var.name}"
   }
 
-  // TODO(b/331826774): Configure support for health checks/probes.
+  auto_healing_policies {
+    health_check      = google_compute_health_check.default.id
+    initial_delay_sec = var.cooldown_period
+  }
+
   update_policy {
     max_surge_fixed = length(data.google_compute_zones.available.names)
     minimal_action  = "REPLACE"
@@ -110,6 +114,18 @@ resource "google_compute_region_instance_group_manager" "instance_group" {
   }
 
   region = var.region
+}
+
+resource "google_compute_health_check" "default" {
+  name                = "${var.environment}-${var.name}-http-health-check"
+  timeout_sec         = 10
+  check_interval_sec  = 30
+  healthy_threshold   = 1
+  unhealthy_threshold = 3
+  http_health_check {
+    request_path = "/healthz"
+    port         = "8082"
+  }
 }
 
 resource "google_compute_region_autoscaler" "autoscaler" {

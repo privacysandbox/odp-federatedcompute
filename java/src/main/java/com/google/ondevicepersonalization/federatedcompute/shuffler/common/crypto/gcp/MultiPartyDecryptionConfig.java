@@ -146,6 +146,8 @@ public class MultiPartyDecryptionConfig {
         coordinatorAEncryptionKeyFetchingService,
         coordinatorBEncryptionKeyFetchingService,
         coordinatorAKmsClient,
-        coordinatorBKmsClient);
+        coordinatorBKmsClient,
+        /* decrypterCacheEntryTtlSec */ 604800,
+        /* exceptionCacheEntryTtlSec */ 600);
   }
 }

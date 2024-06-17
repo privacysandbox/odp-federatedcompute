@@ -100,7 +100,8 @@ public class KeyAttestationManagerTest {
   public void setUp() {
     MockitoAnnotations.initMocks(this);
     when(mockResponse.getStatusLine()).thenReturn(mockStatus);
-    kaMgr = new KeyAttestationManager(Optional.of(URI), Optional.of(API_KEY), mockClient, true);
+    kaMgr =
+        new KeyAttestationManager(Optional.of(URI), Optional.of(API_KEY), mockClient, true, false);
   }
 
   @Test

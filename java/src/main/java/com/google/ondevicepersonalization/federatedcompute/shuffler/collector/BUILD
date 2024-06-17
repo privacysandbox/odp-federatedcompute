@@ -26,8 +26,9 @@ springboot(
 java_library(
     name = "collector",
     srcs = ["CollectorApplication.java"],
-    resources = ["//java/src/main/resources:collector_properties"],
+    resources = ["//java/src/main/resources:collector_properties", "//java/src/main/resources:logback_spring"],
     deps = [
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/collector/controllers:collector_controller",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/collector/core:collector_core_impl",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/collector/scheduler:scheduled_task",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:constants",
@@ -41,6 +42,7 @@ java_library(
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao/gcp:task_spanner_dao",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/lock/jdbc/gcp:spanner_lock_configuration",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/messaging/gcp:pub_sub_message_sender",
+        "@maven//:com_google_cloud_google_cloud_logging_logback",
         "@maven//:com_google_cloud_google_cloud_spanner",
         "@maven//:com_google_cloud_google_cloud_storage",
         "@maven//:com_google_guava_guava",

@@ -23,6 +23,7 @@ import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.HttpMethod;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.common.CompressionUtils.CompressionFormat;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AssignmentEntity;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AssignmentId;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.BlobDescription;
@@ -32,7 +33,7 @@ import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.I
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.Partitioner;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.TaskEntity;
 import java.net.URL;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.springframework.stereotype.Component;
@@ -45,24 +46,34 @@ public class GCSBlobManager implements BlobManager {
   private static final String CHECKPOINT_FILE = "checkpoint";
   private static final String METRICS_FILE = "metrics";
   private static final String CLIENT_CHECKPOINT_FILE = "client_checkpoint";
-  private static final String UPLOAD_CONTENT_TYPE_NAME = "Content-Type";
+  private static final String UPLOAD_CONTENT_TYPE_NAME = "content-type";
   private static final String UPLOAD_CONTENT_TYPE_VALUE = "application/octet-stream";
+  private static final String UPLOAD_CONTENT_ENCODING_NAME = "content-encoding";
+  private static final String UPLOAD_CONTENT_ENCODING_GZIP_VALUE = "gzip";
+  private static final Map<String, String> EMPTY_HEADER = Collections.emptyMap();
+  private static final Map<String, String> GRADIENT_HEADERS =
+      Map.of(UPLOAD_CONTENT_TYPE_NAME, UPLOAD_CONTENT_TYPE_VALUE);
+  private static final Map<String, String> GRADIENT_GZIP_HEADERS =
+      Map.of(
+          UPLOAD_CONTENT_TYPE_NAME,
+          UPLOAD_CONTENT_TYPE_VALUE,
+          UPLOAD_CONTENT_ENCODING_NAME,
+          UPLOAD_CONTENT_ENCODING_GZIP_VALUE);
+
   private Storage storage;
   private GCSConfig config;
   private Partitioner partitioner;
-  private final Map<String, String> resultGradientHeaders;
-  private final Map<String, String> emptyHeader;
 
   public GCSBlobManager(Storage storage, GCSConfig config, Partitioner partitioner) {
     this.storage = storage;
     this.config = config;
     this.partitioner = partitioner;
-    resultGradientHeaders = new HashMap<>();
-    emptyHeader = new HashMap<>();
-    resultGradientHeaders.put(UPLOAD_CONTENT_TYPE_NAME, UPLOAD_CONTENT_TYPE_VALUE);
   }
 
-  public BlobDescription generateUploadGradientDescription(AssignmentEntity assignment) {
+  public BlobDescription generateUploadGradientDescription(
+      AssignmentEntity assignment, CompressionFormat format) {
+    Map<String, String> headers =
+        format == CompressionFormat.GZIP ? GRADIENT_GZIP_HEADERS : GRADIENT_HEADERS;
     String bucketName =
         String.format(
             config.getGradientBucketTemplate(),
@@ -79,8 +90,8 @@ public class GCSBlobManager implements BlobManager {
         .resourceObject(objectName)
         .url(
             generateV4PutObjectSignedUrl(
-                bucketName, objectName, config.getUploadGradientTokenDurationInSecond()))
-        .headers(resultGradientHeaders)
+                bucketName, objectName, config.getUploadGradientTokenDurationInSecond(), headers))
+        .headers(headers)
         .build();
   }
 
@@ -97,7 +108,7 @@ public class GCSBlobManager implements BlobManager {
               .host(bucketName)
               .resourceObject(objectName)
               .url(createGcsPath(bucketName, objectName))
-              .headers(emptyHeader)
+              .headers(EMPTY_HEADER)
               .build();
     }
     return descriptions;
@@ -130,7 +141,7 @@ public class GCSBlobManager implements BlobManager {
         .host(bucketName)
         .resourceObject(objectName)
         .url(createGcsPath(bucketName, objectName))
-        .headers(emptyHeader)
+        .headers(EMPTY_HEADER)
         .build();
   }
 
@@ -150,7 +161,7 @@ public class GCSBlobManager implements BlobManager {
               .host(bucketName)
               .resourceObject(objectName)
               .url(createGcsPath(bucketName, objectName))
-              .headers(emptyHeader)
+              .headers(EMPTY_HEADER)
               .build();
     }
 
@@ -173,7 +184,7 @@ public class GCSBlobManager implements BlobManager {
               .host(bucketName)
               .resourceObject(objectName)
               .url(createGcsPath(bucketName, objectName))
-              .headers(emptyHeader)
+              .headers(EMPTY_HEADER)
               .build();
     }
 
@@ -196,7 +207,7 @@ public class GCSBlobManager implements BlobManager {
               .host(bucketName)
               .resourceObject(objectName)
               .url(createGcsPath(bucketName, objectName))
-              .headers(emptyHeader)
+              .headers(EMPTY_HEADER)
               .build();
     }
 
@@ -234,7 +245,7 @@ public class GCSBlobManager implements BlobManager {
         .url(
             generateV4GetObjectSignedUrl(
                 bucketName, objectName, config.getDownloadCheckpointTokenDurationInSecond()))
-        .headers(emptyHeader)
+        .headers(EMPTY_HEADER)
         .build();
   }
 
@@ -260,7 +271,7 @@ public class GCSBlobManager implements BlobManager {
         .host(bucketName)
         .resourceObject(objectName)
         .url(createGcsPath(bucketName, objectName))
-        .headers(emptyHeader)
+        .headers(EMPTY_HEADER)
         .build();
   }
 
@@ -280,7 +291,7 @@ public class GCSBlobManager implements BlobManager {
         .url(
             generateV4GetObjectSignedUrl(
                 bucketName, objectName, config.getDownloadPlanTokenDurationInSecond()))
-        .headers(emptyHeader)
+        .headers(EMPTY_HEADER)
         .build();
   }
 
@@ -296,7 +307,7 @@ public class GCSBlobManager implements BlobManager {
               .host(bucketName)
               .resourceObject(objectName)
               .url(createGcsPath(bucketName, objectName))
-              .headers(emptyHeader)
+              .headers(EMPTY_HEADER)
               .build();
     }
 
@@ -317,7 +328,7 @@ public class GCSBlobManager implements BlobManager {
         .host(bucketName)
         .resourceObject(objectName)
         .url(createGcsPath(bucketName, objectName))
-        .headers(emptyHeader)
+        .headers(EMPTY_HEADER)
         .build();
   }
 
@@ -334,7 +345,7 @@ public class GCSBlobManager implements BlobManager {
               .host(bucketName)
               .resourceObject(objectName)
               .url(createGcsPath(bucketName, objectName))
-              .headers(emptyHeader)
+              .headers(EMPTY_HEADER)
               .build();
     }
 
@@ -359,7 +370,7 @@ public class GCSBlobManager implements BlobManager {
   }
 
   private String generateV4PutObjectSignedUrl(
-      String bucketName, String objectName, long durationInSecond) {
+      String bucketName, String objectName, long durationInSecond, Map<String, String> headers) {
 
     // Define Resource
     BlobInfo blobInfo = BlobInfo.newBuilder(BlobId.of(bucketName, objectName)).build();
@@ -370,7 +381,7 @@ public class GCSBlobManager implements BlobManager {
             durationInSecond,
             TimeUnit.SECONDS,
             Storage.SignUrlOption.httpMethod(HttpMethod.PUT),
-            Storage.SignUrlOption.withExtHeaders(resultGradientHeaders),
+            Storage.SignUrlOption.withExtHeaders(headers),
             Storage.SignUrlOption.withV4Signature());
     return url.toString();
   }

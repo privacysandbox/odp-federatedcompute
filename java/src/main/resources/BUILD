@@ -43,3 +43,9 @@ filegroup(
     name = "taskscheduler_properties",
     srcs = ["taskscheduler.properties"],
 )
+
+filegroup(
+    name = "logback_spring",
+    srcs = ["logback-spring.xml"],
+)
+

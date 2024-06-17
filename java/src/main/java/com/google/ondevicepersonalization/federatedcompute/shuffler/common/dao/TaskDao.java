@@ -17,7 +17,6 @@
 package com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 /** A Task Data Access class. */
@@ -38,12 +37,8 @@ public interface TaskDao {
   /** Get the last iteration of the given task. */
   public Optional<IterationEntity> getLastIterationOfTask(String populationName, long taskId);
 
-  /** Get the open iteration of given client version. */
-  public Optional<IterationEntity> getOpenIteration(String populationName, String clientVersion);
-
-  /** Get the open iterations and tasks of given client version. */
-  public Map<TaskEntity, IterationEntity> getOpenTasksAndIterations(
-      String populationName, String clientVersion);
+  /** Get the open iterations and tasks of given population name and client version. */
+  public List<IterationEntity> getOpenIterations(String populationName, String clientVersion);
 
   /** Create new iteration. */
   public IterationEntity createIteration(IterationEntity iteration);

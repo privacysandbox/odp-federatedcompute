@@ -13,8 +13,22 @@
 # limitations under the License.
 
 load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
+load("@rules_python//python:proto.bzl", "py_proto_library")
+load("@pybind11_bazel//:build_defs.bzl", "pybind_extension")
 
 package(default_visibility = ["//visibility:public"])
+
+py_binary(
+    name = "task_builder",
+    srcs = ["task_builder_wsgi.py"],
+    main = "task_builder_wsgi.py",
+    deps = [
+        ":common",
+        ":io_utils",
+        ":task_builder_core",
+        "@pypi_flask//:pkg",
+    ],
+)
 
 py_binary(
     name = "task_builder_client",
@@ -22,18 +36,32 @@ py_binary(
     main = "task_builder_client.py",
     deps = [
         ":common",
-        ":config_validator",
-        ":task_utils",
-        ":dp_utils",
-        ":dataset_utils",
         ":http_utils",
-        ":artifact_utils",
-        ":learning_process_utils",
+        ":io_utils",
+        ":task_builder_core",
+        ":task_utils",
         "//shuffler/proto:task_builder_py_pb2",
         "@pypi_absl_py//:pkg",
+        "@pypi_google_api_core//:pkg",
         "@pypi_google_cloud_storage//:pkg",
-        "@pypi_tensorflow_federated//:pkg",
-    ]
+    ],
+)
+
+py_library(
+    name = "task_builder_core",
+    srcs = ["task_builder_core.py"],
+    deps = [
+        ":artifact_utils",
+        ":common",
+        ":config_validator",
+        ":dataset_utils",
+        ":dp_utils",
+        ":http_utils",
+        ":learning_process_utils",
+        ":task_utils",
+        "//shuffler/proto:task_builder_py_pb2",
+        "//shuffler/proto:task_py_pb2",
+    ],
 )
 
 py_library(
@@ -42,12 +70,10 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":common",
-        ":http_utils",
-        ":test_utils",
-        "//shuffler/proto:task_py_pb2",
+        "//shuffler/proto:common_py_pb2",
         "//shuffler/proto:task_builder_py_pb2",
-        "@pypi_google_cloud_storage//:pkg",
-    ]
+        "//shuffler/proto:task_py_pb2",
+    ],
 )
 
 py_library(
@@ -55,9 +81,11 @@ py_library(
     srcs = ["common.py"],
     srcs_version = "PY3",
     deps = [
+        "//shuffler/proto:task_builder_py_pb2",
         "@pypi_absl_py//:pkg",
         "@pypi_tensorflow//:pkg",
-    ]
+        "@pypi_tensorflow_federated//:pkg",
+    ],
 )
 
 py_library(
@@ -82,7 +110,28 @@ py_library(
         ":common",
         ":dp_utils",
         "//shuffler/proto:task_builder_py_pb2",
-    ]
+    ],
+)
+
+filegroup(
+    name = "support_ops_csv",
+    srcs = ["support_ops.csv"],
+)
+
+py_library(
+    name = "support_ops_utils",
+    srcs = ["support_ops_utils.py"],
+    data = [
+        "tflite_flex_ops.so",
+        ":support_ops_csv",
+    ],
+    imports = ["."],
+    srcs_version = "PY3",
+    deps = [
+        ":common",
+        "@federatedcompute//fcp/protos:plan_py_pb2",
+        "@pypi_tensorflow//:pkg",
+    ],
 )
 
 py_library(
@@ -91,8 +140,9 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":common",
+        ":io_utils",
+        ":support_ops_utils",
         ":tensorflow_checkpoints",
-        "//shuffler/proto:task_builder_py_pb2",
         "@federatedcompute//fcp/artifact_building:data_spec",
         "@federatedcompute//fcp/artifact_building:federated_compute_plan_builder",
         "@federatedcompute//fcp/artifact_building:plan_utils",
@@ -110,6 +160,9 @@ py_library(
     deps = [
         ":common",
         "//shuffler/proto:task_py_pb2",
+        "@pypi_google_api_core//:pkg",
+        "@pypi_google_cloud_secret_manager//:pkg",
+        "@pypi_google_crc32c//:pkg",
     ],
 )
 
@@ -130,6 +183,8 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":common",
+        "@federatedcompute//fcp/artifact_building:data_spec",
+        "@federatedcompute//fcp/protos:plan_py_pb2",
         "@pypi_tensorflow//:pkg",
     ],
 )
@@ -141,7 +196,7 @@ py_library(
     deps = [
         ":common",
         "@differential_privacy//dp_accounting:accounting",
-    ]
+    ],
 )
 
 py_library(
@@ -154,7 +209,27 @@ py_library(
         "//shuffler/proto:task_builder_py_pb2",
         "@pypi_tensorflow//:pkg",
         "@pypi_tensorflow_federated//:pkg",
-    ]
+    ],
+)
+
+py_proto_library(
+    name = "federated_compute_py_pb2",
+    deps = ["@federatedcompute//fcp/protos/federatedcompute:federated_compute_proto"],
+)
+
+py_library(
+    name = "io_utils",
+    srcs = ["io_utils.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":common",
+        ":federated_compute_py_pb2",
+        ":http_utils",
+        "//shuffler/proto:task_builder_py_pb2",
+        "//shuffler/proto:task_py_pb2",
+        "@pypi_google_cloud_storage//:pkg",
+        "@pypi_tensorflow_federated//:pkg",
+    ],
 )
 
 py_library(
@@ -171,7 +246,10 @@ py_library(
     srcs = ["test_utils.py"],
     srcs_version = "PY3",
     deps = [
+        ":common",
         ":example_model",
+        "//shuffler/proto:task_builder_py_pb2",
+        "//shuffler/proto:task_py_pb2",
         "@pypi_tensorflow//:pkg",
         "@pypi_tensorflow_federated//:pkg",
     ],
@@ -187,9 +265,11 @@ py_test(
         ":learning_process_utils",
         ":tensorflow_checkpoints",
         ":test_utils",
-        "//shuffler/proto:task_py_pb2",
         "//shuffler/proto:task_builder_py_pb2",
+        "//shuffler/proto:task_py_pb2",
+        "@federatedcompute//fcp/artifact_building:data_spec",
         "@federatedcompute//fcp/artifact_building:federated_compute_plan_builder",
+        "@federatedcompute//fcp/protos:plan_py_pb2",
         "@pypi_absl_py//:pkg",
     ],
 )
@@ -202,6 +282,8 @@ py_test(
         ":http_utils",
         "//shuffler/proto:task_py_pb2",
         "@pypi_absl_py//:pkg",
+        "@pypi_google_api_core//:pkg",
+        "@pypi_google_crc32c//:pkg",
         "@pypi_responses//:pkg",
     ],
 )
@@ -212,8 +294,9 @@ py_test(
     deps = [
         ":common",
         ":config_validator",
+        ":test_utils",
         "@pypi_absl_py//:pkg",
-    ]
+    ],
 )
 
 py_test(
@@ -223,10 +306,23 @@ py_test(
         ":common",
         ":task_utils",
         ":test_utils",
+        "//shuffler/proto:task_builder_py_pb2",
+        "//shuffler/proto:task_py_pb2",
+        "@pypi_google_cloud_storage//:pkg",
+    ],
+)
+
+py_test(
+    name = "task_builder_core_test",
+    srcs = ["task_builder_core_test.py"],
+    deps = [
+        ":common",
+        ":task_builder_core",
+        ":test_utils",
         "//shuffler/proto:task_py_pb2",
         "//shuffler/proto:task_builder_py_pb2",
-        "@pypi_google_cloud_storage//:pkg",
-    ]
+        "@pypi_responses//:pkg",
+    ],
 )
 
 py_test(
@@ -246,7 +342,7 @@ py_test(
     deps = [
         ":dp_utils",
         "@pypi_absl_py//:pkg",
-    ]
+    ],
 )
 
 py_test(
@@ -258,7 +354,18 @@ py_test(
         ":test_utils",
         "//shuffler/proto:task_builder_py_pb2",
         "@pypi_absl_py//:pkg",
-    ]
+    ],
+)
+
+py_test(
+    name = "io_utils_test",
+    srcs = ["io_utils_test.py"],
+    deps = [
+        ":common",
+        ":io_utils",
+        "@pypi_absl_py//:pkg",
+        "@pypi_google_cloud_storage//:pkg",
+    ],
 )
 
 py_test(
@@ -266,8 +373,20 @@ py_test(
     srcs = ["dataset_utils_test.py"],
     deps = [
         ":dataset_utils",
+        ":test_utils",
         "@pypi_absl_py//:pkg",
         "@pypi_tensorflow//:pkg",
         "@pypi_tensorflow_federated//:pkg",
+    ],
+)
+
+# Create the Pybind11 extension (shared library)
+pybind_extension(
+    name = "tflite_flex_ops",
+    srcs = ["tflite_flex_ops.cc"], # File containing the Pybind11 bindings
+    deps = [
+        "@org_tensorflow//tensorflow/lite/tools:list_flex_ops",
+        "@federatedcompute//fcp/tensorflow:external_dataset_op_lib",
+        "@com_google_absl//absl/container:flat_hash_map",
     ],
 )

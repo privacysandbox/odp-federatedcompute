@@ -16,7 +16,10 @@
 
 package com.google.ondevicepersonalization.federatedcompute.shuffler.common.tensorflow;
 
+import com.google.fcp.aggregation.AggregationSession;
+import com.google.fcp.plan.PhaseSessionV2;
 import com.google.fcp.plan.PlanSession;
+import com.google.fcp.plan.TensorflowPhaseSessionV2;
 import com.google.fcp.plan.TensorflowPlanSession;
 import com.google.protobuf.ByteString;
 import org.springframework.stereotype.Component;
@@ -25,5 +28,13 @@ import org.springframework.stereotype.Component;
 public class TensorflowPlanSessionFactory {
   public PlanSession createPlanSession(ByteString plan) {
     return new TensorflowPlanSession(plan);
+  }
+
+  public PhaseSessionV2 createPhaseSessionV2(ByteString plan) {
+    return new TensorflowPhaseSessionV2(plan);
+  }
+
+  public AggregationSession createAggregationSession(byte[] plan) {
+    return AggregationSession.createFromByteArray(plan);
   }
 }

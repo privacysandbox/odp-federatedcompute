@@ -33,7 +33,7 @@ resource "google_storage_bucket" "model_bucket" {
       type = "Delete"
     }
     condition {
-      age = 360 # days
+      age = var.model_bucket_lifecycle_age_days
     }
   }
 
@@ -64,7 +64,7 @@ resource "google_storage_bucket" "client_gradient_bucket" {
       type = "Delete"
     }
     condition {
-      age = 60 # days
+      age = var.client_gradient_bucket_lifecycle_age_days
     }
   }
 
@@ -95,7 +95,7 @@ resource "google_storage_bucket" "aggregated_gradient_bucket" {
       type = "Delete"
     }
     condition {
-      age = 60 # days
+      age = var.aggregated_gradient_bucket_lifecycle_age_days
     }
   }
 
@@ -146,4 +146,20 @@ resource "google_spanner_database" "fcp_lock_spanner_database" {
     )
     EOT
   ]
+}
+
+resource "google_spanner_instance" "fcp_metrics_spanner_instance" {
+  name             = "fcp-metric-${var.environment}"
+  display_name     = "fcp-metric-${var.environment}"
+  project          = var.project_id
+  config           = var.spanner_instance_config
+  processing_units = var.metric_spanner_processing_units
+}
+
+resource "google_spanner_database" "fcp_metrics_spanner_database" {
+  instance                 = google_spanner_instance.fcp_metrics_spanner_instance.name
+  name                     = "fcp-metric-db-${var.environment}"
+  project                  = var.project_id
+  version_retention_period = var.spanner_database_retention_period
+  deletion_protection      = var.spanner_database_deletion_protection
 }

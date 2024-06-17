@@ -12,15 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package(default_visibility = ["//visibility:public"])
-
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@rules_python//python:proto.bzl", "py_proto_library")
+
+package(default_visibility = ["//visibility:public"])
+
+proto_library(
+    name = "common_proto",
+    srcs = ["common.proto"],
+)
+
+java_proto_library(
+    name = "common_java_proto",
+    deps = [":common_proto"],
+)
+
+py_proto_library(
+    name = "common_py_pb2",
+    deps = [":common_proto"],
+)
 
 proto_library(
     name = "task_proto",
     srcs = ["task.proto"],
     deps = [
+        ":common_proto",
         "@com_google_protobuf//:timestamp_proto",
     ],
 )
@@ -53,6 +69,7 @@ proto_library(
     name = "task_builder_proto",
     srcs = ["task_builder.proto"],
     deps = [
+        ":common_proto",
         ":task_proto",
         "@federatedcompute//fcp/protos/federatedcompute:federated_compute_proto",
     ],

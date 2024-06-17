@@ -52,6 +52,8 @@ public class TaskEntitiesTest {
                     .totalIteration(999)
                     .minAggregationSize(100)
                     .maxAggregationSize(1000)
+                    .minClientVersion("0")
+                    .maxClientVersion("9")
                     .status(TaskEntity.Status.CREATED)
                     .info(DEFAULT_TASK_INFO_STRING)
                     .build()))
@@ -67,6 +69,9 @@ public class TaskEntitiesTest {
                 .status(IterationEntity.Status.COLLECTING)
                 .info(DEFAULT_ITERATION_INFO_STRING)
                 .aggregationLevel(0)
+                .maxAggregationSize(1000)
+                .minClientVersion("0")
+                .maxClientVersion("9")
                 .build());
   }
 }

@@ -36,7 +36,7 @@ import org.mockito.MockitoAnnotations;
 public class PublicKeyFetchingServiceTest {
 
   private PublicKeyFetchingService publicKeyFetchingService;
-  private static String URI = "https://publickeyservice.com";
+  private static String URI = "https://publickeyservice.com/public-keys";
   private static String RESPONSE =
       "{\n"
           + "  \"keys\": [{\n"
