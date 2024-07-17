@@ -21,6 +21,7 @@ import static java.lang.String.format;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.ErrorCode;
+import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.Statement;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AuthorizationTokenDao;
@@ -61,8 +62,8 @@ public class AuthorizationTokenSpannerDao implements AuthorizationTokenDao {
             .bind("now")
             .to(now)
             .build();
-    try {
-      if (dbClient.singleUseReadOnlyTransaction().executeQuery(statement).next()) {
+    try (ResultSet rs = dbClient.singleUseReadOnlyTransaction().executeQuery(statement)) {
+      if (rs.next()) {
         return TokenStatus.AUTHORIZED;
       } else {
         return TokenStatus.UNAUTHORIZED;

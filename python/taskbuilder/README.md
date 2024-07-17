@@ -23,19 +23,22 @@ The task builder service provides two APIs for different use cases:
 - Request and response align with data format of `:build-task-group`.
 - [`ArtifactBuilding`](../../shuffler/proto/task_builder.proto#L189) has to be set in [`TaskConfig`](../../shuffler/proto/task_builder.proto#L237) of the request, which point to GCS paths where created artifacts should to uploaded to.
 
+### Start a local Task Builder Service for Test
+`bazel run //python/taskbuilder:task_builder`
+
 ## Task Builder Client
 For early testing, we provide a [simple client](task_builder_client.py) that interacts with task builder services.
 
 ### Workflow 1: create tasks and artifacts together
 Run the Python client: `bazel run //python/taskbuilder:task_builder_client -- --saved_model=gs://<resource_uri> --task_config=gs://<resource_uri> --task_builder_server=https://<task_builder_server>`
-- `--saved_model`: a GCS path to a TensorFlow [`SavedModel`](https://www.tensorflow.org/guide/saved_model)
-- `--task_config`: a GCS path to a [`TaskConfig`](../../shuffler/proto/task_builder.proto#L237) in text protobuf.
+- `--saved_model`: a GCS path to a TensorFlow [`SavedModel`](https://www.tensorflow.org/guide/saved_model). You can find a sample [here](sample/input/mnist_model)
+- `--task_config`: a GCS path to a [`TaskConfig`](../../shuffler/proto/task_builder.proto#L237) in text protobuf. You can find a sample [here](sample/input/mnist_cnn_task_config.pbtxt)
 - `--task_builder_server`: the task builder server endpoint. Local host (`http://localhost:5000`) will be used as default if not provided.
 - `--population_name`: an updated population name for the task. If provided, the original [`population_name` in `TaskConfig`](../../shuffler/proto/task_builder.proto#L239) will be overriden. This is helpful if you want to reuse the same `--task_config` but with a different population name for testing purpose.
 - `--impersonate_service_account`: a service account to impersonate which has permission to access the task builder server endpoint.
 
 ### Workflow 2: create artifacts only
 Run the Python client: `bazel run //python/taskbuilder:task_builder_client -- --saved_model=gs://<resource_uri> --task_config=gs://<resource_uri> --task_builder_server=https://<task_builder_server> --build_artifact_only=true`
-- `--build_artifact_only`: the option to skip task creation and build artifacts only.
+- `--build_artifact_only`: the option to skip task creation and build artifacts only. You can find a sample [here](sample/input/mnist_cnn_task_config_build_artifact_only.pbtxt)
 - `--skip_flex_ops_check`: the option to skip flex ops check in Android TensorflowLite library.
-- All other options are same as above.
+- All other options are same as above. The generated task will uploaded to the GCS path you specified [here](sample/input/mnist_cnn_task_config_build_artifact_only.pbtxt#L32). You can find some output samples [here](sample/output)

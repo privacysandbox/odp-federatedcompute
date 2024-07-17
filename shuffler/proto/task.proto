@@ -101,13 +101,10 @@ message EvaluationInfo {
   // The mechanism of checkpoint selection of a evaluation task
   CheckPointSelector check_point_selector = 1;
 
-  // The corresponding training task population name. It looks up training task
-  // under this population. If empty, it looks up the training task from current
-  // evaluation population
+  // The corresponding training task population name
   string training_population_name = 2;
 
-  // The corresponding training task id.
-  // If not set, it looks up latest training task in same population
+  // The corresponding training task id
   int64 training_task_id = 3;
 }
 

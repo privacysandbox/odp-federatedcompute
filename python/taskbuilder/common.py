@@ -85,6 +85,14 @@ SKIP_DP_CHECK = flags.DEFINE_boolean(
         'This flag is temporarily enabled in the beta task builder server.'
     ),
 )
+SKIP_DP_AGGREGATOR = flags.DEFINE_boolean(
+    name='skip_dp_aggregator',
+    default=False,
+    help=(
+        'Build task without applying dp aggregator to the fl learning process. '
+        'This flag is temporarily enabled in the beta task builder server.'
+    ),
+)
 E2E_TEST_POPULATION_NAME = flags.DEFINE_string(
     name='population_name',
     default=None,

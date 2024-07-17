@@ -19,9 +19,13 @@ package(
 filegroup(
     name = "resources",
     srcs = [
-        "checkpoint",
-        "client_only_plan",
-        "gradient",
-        "server_plan",
+        "checkpoint_v1",
+        "client_only_plan_v1",
+        "gradient_v1",
+        "server_plan_v1",
+        "checkpoint_v2",
+        "client_only_plan_v2",
+        "gradient_v2",
+        "server_plan_v2",
     ],
 )

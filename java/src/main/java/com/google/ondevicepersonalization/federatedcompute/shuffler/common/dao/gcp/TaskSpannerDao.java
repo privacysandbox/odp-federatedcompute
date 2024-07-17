@@ -354,7 +354,7 @@ public class TaskSpannerDao implements TaskDao {
         // cache and
         // reject again to reduce running this query.
         if (cache.getIfPresent(iterationEntity.getId().toString()) == null) {
-          logger.info("Cache miss for iteration. Querying.");
+          logger.debug("Cache miss for iteration. Querying.");
           ResultSet countResult =
               transaction.executeQuery(
                   Statement.newBuilder(

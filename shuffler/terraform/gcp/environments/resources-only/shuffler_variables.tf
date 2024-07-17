@@ -214,3 +214,27 @@ variable "collector_batch_size" {
   default     = 50
 }
 
+variable "model_bucket_lifecycle_age_days" {
+  description = "Duration in days for objects in the model bucket before they are deleted."
+  type        = number
+  default     = 360
+}
+
+variable "client_gradient_bucket_lifecycle_age_days" {
+  description = "Duration in days for objects in the client gradient bucket before they are deleted."
+  type        = number
+  default     = 60
+}
+
+variable "aggregated_gradient_bucket_lifecycle_age_days" {
+  description = "Duration in days for objects in the aggregated gradient bucket before they are deleted."
+  type        = number
+  default     = 60
+}
+
+variable "allow_rooted_devices" {
+  description = "Whether to allow rooted devices. This setting will have no effect when authentication is disabled. It is recommended to be set false for production environments."
+  type        = bool
+  default     = false
+}
+

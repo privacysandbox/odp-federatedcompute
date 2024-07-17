@@ -50,7 +50,8 @@ resource "kubernetes_deployment_v1" "taskassignment" {
         }
       }
       spec {
-        service_account_name = module.gke-workload-identity.k8s_service_account_name
+        service_account_name             = module.gke-workload-identity.k8s_service_account_name
+        termination_grace_period_seconds = 210
         container {
           image = var.task_assignment_image
           name  = "${var.environment}-taskassignment"
@@ -94,6 +95,13 @@ resource "kubernetes_deployment_v1" "taskassignment" {
               drop = ["NET_RAW"]
             }
           }
+          lifecycle {
+            pre_stop {
+              exec {
+                command = ["sleep", "60"]
+              }
+            }
+          }
           resources {
             // Limits are not used for autopilot: https://cloud.google.com/kubernetes-engine/docs/concepts/autopilot-resource-requests#resource-limits
             requests = {
@@ -132,6 +140,9 @@ resource "kubernetes_manifest" "taskassignment-backend" {
     "spec" = {
       "healthCheck" = {
         requestPath = "/healthz"
+      }
+      "connectionDraining" = {
+        drainingTimeoutSec = 60
       }
     }
   }

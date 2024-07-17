@@ -32,13 +32,7 @@ if [[ -z "${GOOGLE_CLOUD_PROJECT}" ]]; then
   exit 1
 fi
 
-# Build all java images and store in local repository with bazel run
-bazel run //shuffler/services/taskscheduler:tarball
-bazel run //shuffler/services/taskmanagement:tarball
-bazel run //shuffler/services/taskassignment:tarball
-bazel run //shuffler/services/modelupdater:tarball
-bazel run //shuffler/services/collector:tarball
-bazel run //shuffler/services/aggregator:tarball
+./scripts/docker/docker_run.sh "./scripts/docker/load_images.sh"
 
 export COMPOSE_FILE="scripts/docker/docker-compose.yml"
 

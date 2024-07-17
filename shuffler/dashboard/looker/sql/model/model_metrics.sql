@@ -14,4 +14,17 @@
 
 # Used by "Model Metrics" chart
 
-select * from ModelMetrics
+-- Looker cloud spanner connector has response size limit of 10 MB. See:
+-- https://support.google.com/looker-studio/answer/9008245?hl=en#zippy=%2Cin-this-article.
+-- The query selects metrics of active populations in the last 30 days.
+-- It is an example to avoid result exceeding the limit.
+-- Please update the query condition in your use case.
+
+SELECT *
+FROM ModelMetrics m1
+WHERE EXISTS (
+    SELECT 1
+    FROM ModelMetrics m2
+    WHERE m1.PopulationName = m2.PopulationName
+      AND m2.CreatedTime >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
+) order by CreatedTime DESC, PopulationName;

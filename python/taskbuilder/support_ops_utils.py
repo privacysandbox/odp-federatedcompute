@@ -22,7 +22,7 @@ import pkg_resources
 import tflite_flex_ops
 
 
-def validate_flex_ops(plan: plan_pb2.Plan):
+def validate_flex_ops(plan: plan_pb2.Plan) -> str:
   logging.log(logging.INFO, "Validating flex ops in client tflite graph...")
   supported_ops = load_supported_ops()
   unsupported_ops = {}
@@ -32,9 +32,14 @@ def validate_flex_ops(plan: plan_pb2.Plan):
       temp_file.write(plan.client_tflite_graph_bytes)
 
     ops_kernel_map = tflite_flex_ops.AddFlexOpsFromModel(model_temp_file)
+    max_version = "0"
     for op_name, op_kernel in ops_kernel_map.items():
       if op_name not in supported_ops:
         unsupported_ops[op_name] = op_kernel
+      else:
+        version = supported_ops[op_name]
+        if version > max_version:
+          max_version = version
   finally:
     os.remove(model_temp_file)
   if len(unsupported_ops) > 0:
@@ -43,6 +48,11 @@ def validate_flex_ops(plan: plan_pb2.Plan):
         + "Please contact Google to register these ops: "
         + str(unsupported_ops)
     )
+  logging.log(
+      logging.INFO,
+      "The task can only run on Android build " + max_version + " or above",
+  )
+  return max_version
 
 
 def load_supported_ops():

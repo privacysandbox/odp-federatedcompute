@@ -38,8 +38,6 @@ py_binary(
         ":common",
         ":http_utils",
         ":io_utils",
-        ":task_builder_core",
-        ":task_utils",
         "//shuffler/proto:task_builder_py_pb2",
         "@pypi_absl_py//:pkg",
         "@pypi_google_api_core//:pkg",
@@ -140,6 +138,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":common",
+	":graph_compactor",
         ":io_utils",
         ":support_ops_utils",
         ":tensorflow_checkpoints",
@@ -388,5 +387,16 @@ pybind_extension(
         "@org_tensorflow//tensorflow/lite/tools:list_flex_ops",
         "@federatedcompute//fcp/tensorflow:external_dataset_op_lib",
         "@com_google_absl//absl/container:flat_hash_map",
+    ],
+)
+
+py_library(
+    name = "graph_compactor",
+    srcs = ["graph_compactor.py"],
+    srcs_version = "PY3",
+    deps = [
+	"@pypi_absl_py//:pkg",
+        "@pypi_tensorflow//:pkg",
+        "@pypi_google_cloud_storage//:pkg",
     ],
 )

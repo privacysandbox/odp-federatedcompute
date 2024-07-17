@@ -96,6 +96,12 @@ class TaskBuilderCoreTest(absltest.TestCase):
     self.assertEqual(
         common.TEST_BLOB_PATH, training_task.init_checkpoint_url[0]
     )
+    # Update task min_client_version when build artifacts.
+    self.assertEqual(training_task.min_client_version, '341912000')
+    self.assertEqual(eval_task.min_client_version, '341812000')
+    # Clear different min_client_verison to compare task
+    training_task.min_client_version = ''
+    eval_task.min_client_version = ''
     self.assertEqual(
         training_task.SerializeToString(), eval_task.SerializeToString()
     )

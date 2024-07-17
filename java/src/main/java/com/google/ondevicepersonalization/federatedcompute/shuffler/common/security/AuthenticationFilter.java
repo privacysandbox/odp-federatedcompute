@@ -78,6 +78,7 @@ public class AuthenticationFilter extends OncePerRequestFilter {
     if (isAuthorizationKeyInAllowList(authorizationKey)) {
       logger.debug("Passed authorization key allow list");
       filterChain.doFilter(request, response);
+      MDC.clear();
       return;
     }
 
@@ -96,8 +97,8 @@ public class AuthenticationFilter extends OncePerRequestFilter {
             .write(getRetryResponse(RejectionReason.Enum.UNAUTHORIZED, 60, 300).toByteArray());
       } finally {
         MDC.clear();
-        return;
       }
+      return;
     }
 
     try {

@@ -81,6 +81,7 @@ def main(argv):
   artifact_only = common.ARTIFACT_BUILDING_ONLY.value
   skip_flex_ops_check = common.SKIP_FLEX_OPS_CHECK.value
   skip_dp_check = common.SKIP_DP_CHECK.value
+  skip_dp_aggregator = common.SKIP_DP_AGGREGATOR.value
   if not model_path:
     raise ValueError('`--saved_model` is required but not set.')
   if not task_config_path:
@@ -90,6 +91,7 @@ def main(argv):
   flags = task_builder_pb2.ExperimentFlags()
   flags.skip_flex_ops_check = skip_flex_ops_check
   flags.skip_dp_check = skip_dp_check
+  flags.skip_dp_aggregator = skip_dp_aggregator
   task_builder_request = io_utils.create_build_task_request_from_resource_path(
       model_path=model_path,
       task_config_path=task_config_path,

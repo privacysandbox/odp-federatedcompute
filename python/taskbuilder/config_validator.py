@@ -88,12 +88,13 @@ def validate_fcp_dp(
   num_training_rounds = model_release_policy.num_max_training_rounds
 
   # calibrate noise if not provided
+  dp_epsilon=dp_target_epsilon
   if not noise_multiplier:
     noise_multiplier = dp_utils.epislon_to_noise(
         report_goal=training_report_goal,
         num_training_rounds=num_training_rounds,
         dp_delta=dp_delta,
-        dp_epsilon=dp_target_epsilon,
+        dp_epsilon=dp_epsilon,
     )
   else:
     dp_epsilon = dp_utils.noise_to_epsilon(
@@ -109,6 +110,7 @@ def validate_fcp_dp(
       )
 
   # DP configs for building learning process
+  logging.info(f'DP hyper parameters adjusted: num_training_rounds: {num_training_rounds} dp_delta: {dp_delta} dp_epsilon: {dp_epsilon} noise_multiplier: {noise_multiplier} clip_norm: {dp_clip_norm}')
   return common.DpParameter(
       noise_multiplier=noise_multiplier,
       dp_clip_norm=dp_clip_norm,

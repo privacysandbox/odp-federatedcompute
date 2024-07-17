@@ -76,6 +76,7 @@ def build_task_group_request_handler(
             dp_parameters=dp_parameters,
             training_and_eval=is_training_and_eval,
             eval_only=is_eval_only,
+            flags=flags
         )
     )
   except Exception as e:
@@ -85,21 +86,65 @@ def build_task_group_request_handler(
         f' config: {str(e)}',
     )
 
+  if artifact_only:
+    main_task, optional_task = (
+        task_utils.create_tasks_for_artifact_only_request(
+            task_config=task_config
+        )
+    )
+  else:
+    main_task, optional_task = task_utils.create_tasks(task_config=task_config)
+
+  # Build artifacts for training and evaluation task if exists.
+  try:
+    main_data_spec, optional_data_spec = dataset_utils.get_data_specs(
+        task_config=task_config, preprocessing_fn=dataset_preprocessor
+    )
+    main_task_plan, main_task_client_plan, main_task_checkpoint = (
+        artifact_utils.build_artifacts(
+            task=main_task,
+            learning_process=evaluation_iterative_process
+            if is_eval_only
+            else training_iterative_process,
+            dataspec=main_data_spec,
+            use_daf=use_daf,
+            flags=flags,
+        )
+    )
+    logging.info(f'Build artifacts for task {main_task.task_id}.')
+  except common.TaskBuilderException as e:
+    return _pack_task_builder_error(
+        task_builder_pb2.ErrorType.Enum.ARTIFACT_BUILDING_ERROR,
+        f'Artifact building failed for task {main_task.task_id}: {str(e)}. Stop'
+        ' building remaining artifacts.',
+    )
+
+  if is_training_and_eval:
+    try:
+      (
+          optional_task_plan,
+          optional_task_client_plan,
+          optional_task_checkpoint,
+      ) = artifact_utils.build_artifacts(
+          task=optional_task,
+          learning_process=evaluation_iterative_process,
+          dataspec=optional_data_spec,
+          use_daf=use_daf,
+          flags=flags,
+      )
+      logging.info(f'Build artifacts for task {optional_task.task_id}.')
+    except common.TaskBuilderException as e:
+      return _pack_task_builder_error(
+          task_builder_pb2.ErrorType.Enum.ARTIFACT_BUILDING_ERROR,
+          f'Artifact building failed for task {optional_task.task_id}:'
+          f' {str(e)}. Stop building remaining artifacts.',
+      )
+
   # Create tasks in TM if task configuration is valid and artifact only mode is disabled.
   # If artifact only is enabled, only artifact URIs will be attached on empty tasks.
   # The created tasks should be a tuple, where the second task is optional.
   try:
-    if artifact_only:
-      logging.info(
-          'Artifact only mode is enabled. Skipped the task creation in TM'
-          ' server.'
-      )
-      main_task, optional_task = (
-          task_utils.create_tasks_for_artifact_only_request(
-              task_config=task_config
-          )
-      )
-    else:
+    if not artifact_only:
       task_management_server = io_utils.get_task_management_server(
           project_id=project_id
       )
@@ -108,12 +153,11 @@ def build_task_group_request_handler(
             task_builder_pb2.ErrorType.Enum.TASK_MANAGEMENT_ERROR,
             'Cannot find task management server.',
         )
-      tasks = task_utils.create_tasks(task_config=task_config)
       logging.info(
           f'Connecting to task management server: {task_management_server}'
       )
       main_task, optional_task = http_utils.create_task_group(
-          tm_server=task_management_server, tasks=tasks
+          tm_server=task_management_server, tasks=(main_task, optional_task)
       )
   except common.TaskBuilderException as e:
     return _pack_task_builder_error(
@@ -121,47 +165,39 @@ def build_task_group_request_handler(
         f'Failed to create tasks by task management service: {str(e)}',
     )
 
-  # Build and upload artifacts to designated GCS paths
+  # build artifacts for the associated eval process, if exists
   try:
-    main_data_spec, optional_data_spec = dataset_utils.get_data_specs(
-        task_config=task_config, preprocessing_fn=dataset_preprocessor
-    )
-    artifact_utils.build_and_upload_artifacts(
+    artifact_utils.upload_artifacts(
         task=main_task,
-        learning_process=evaluation_iterative_process
-        if is_eval_only
-        else training_iterative_process,
-        dataspec=main_data_spec,
+        plan=main_task_plan,
+        client_plan=main_task_client_plan,
         client=gcs_client,
-        use_daf=use_daf,
-        flags=flags,
+        checkpoint_bytes=main_task_checkpoint,
     )
+    logging.info(f'Artifacts are uploaded for task {main_task.task_id}.')
   except common.TaskBuilderException as e:
     return _pack_task_builder_error(
         task_builder_pb2.ErrorType.Enum.ARTIFACT_BUILDING_ERROR,
-        f'Artifact building failed for task {main_task.task_id}: {str(e)}. Stop'
-        ' building remaining artifacts.',
+        f'Artifact failed to upload for task {main_task.task_id}:'
+        f' {str(e)}. Stop building remaining artifacts.',
     )
-  logging.info(f'Artifacts are uploaded for task {main_task.task_id}.')
 
-  # build artifacts for the associated eval process, if exists
   if is_training_and_eval:
     try:
-      artifact_utils.build_and_upload_artifacts(
+      artifact_utils.upload_artifacts(
           task=optional_task,
-          learning_process=evaluation_iterative_process,
-          dataspec=optional_data_spec,
+          plan=optional_task_plan,
+          client_plan=optional_task_client_plan,
           client=gcs_client,
-          use_daf=use_daf,
-          flags=flags,
+          checkpoint_bytes=optional_task_checkpoint,
       )
+      logging.info(f'Artifacts are uploaded for task {optional_task.task_id}.')
     except common.TaskBuilderException as e:
       return _pack_task_builder_error(
           task_builder_pb2.ErrorType.Enum.ARTIFACT_BUILDING_ERROR,
-          f'Artifact building failed for task {optional_task.task_id}:'
+          f'Artifact failed to upload for task {main_task.task_id}:'
           f' {str(e)}. Stop building remaining artifacts.',
       )
-    logging.info(f'Artifacts are uploaded for task {optional_task.task_id}.')
 
   return _pack_task_builder_success(
       main_task=main_task,

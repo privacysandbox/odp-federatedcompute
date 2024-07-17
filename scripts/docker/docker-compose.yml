@@ -91,6 +91,18 @@ services:
       FCP_OPTS: "--project_id '${GOOGLE_CLOUD_PROJECT}' --environment 'local'"
     volumes:
     - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/keys/adc.json:ro
+  taskbuilder:
+    image: task_builder_image:latest
+    expose:
+      - '5000'
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/keys/adc.json
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT}
+      ENV: "local"
+      TASK_MANAGEMENT_SERVER_URL: http://localhost:8082
+    volumes:
+      - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/keys/adc.json:ro
+    network_mode: host
   nginx:
     image: nginx:latest
     container_name: nginx_proxy

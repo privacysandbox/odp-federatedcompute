@@ -24,6 +24,8 @@ import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.concurrent.TimeUnit;
+
 @Configuration
 @EnableAutoConfiguration
 public class AndroidKeyAttestationConfig {
@@ -36,13 +38,17 @@ public class AndroidKeyAttestationConfig {
             .setConnectTimeout(3000)
             .setSocketTimeout(3000)
             .setConnectionRequestTimeout(3000)
+            .setExpectContinueEnabled(true)
             .build();
     PoolingHttpClientConnectionManager connManager = new PoolingHttpClientConnectionManager();
     connManager.setMaxTotal(100);
     connManager.setDefaultMaxPerRoute(100);
+    connManager.setValidateAfterInactivity(2000);
     return HttpClientBuilder.create()
         .setDefaultRequestConfig(requestConfig)
         .setConnectionManager(connManager)
+        .evictExpiredConnections()
+        .evictIdleConnections(30, TimeUnit.SECONDS)
         .build();
   }
 }

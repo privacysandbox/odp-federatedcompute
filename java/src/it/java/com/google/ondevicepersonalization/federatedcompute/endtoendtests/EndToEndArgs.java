@@ -67,6 +67,15 @@ public class EndToEndArgs {
               + " located in the java resources folder.")
   private boolean useLocalResources = true;
 
+  @Parameter(
+      names = "--use_v2",
+      arity = 0,
+      description =
+          "Boolean flag specifying to use v2 local plans and checkpoints instead. Local resources"
+              + " are located in the java resources folder. This flag will only be applied when"
+              + " use_local_resources is true.")
+  private boolean useV2 = false;
+
   @Parameter(names = "--population_name", description = "Population name to use for the task")
   private String populationName;
 
@@ -90,7 +99,7 @@ public class EndToEndArgs {
   @Parameter(
       names = "--min_client_version",
       description = "Minimum client version to use for the task")
-  private String minClientVersion = "0";
+  private String minClientVersion = "341912000";
 
   @Parameter(
       names = "--max_client_version",

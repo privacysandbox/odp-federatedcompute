@@ -5,7 +5,6 @@
 341812000,ConcatOffset
 341812000,ExternalDataset
 341812000,IteratorGetNextAsOptional
-341812000,L2Loss
 341812000,MakeIterator
 341812000,MapDataset
 341812000,OptionalGetValue
@@ -22,3 +21,4 @@
 341812000,StringToHashBucketFast
 341812000,TakeDataset
 341812000,_TensorToHashBucketFast
+341912000,L2Loss

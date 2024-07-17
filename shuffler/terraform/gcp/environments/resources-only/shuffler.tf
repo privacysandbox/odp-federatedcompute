@@ -55,4 +55,8 @@ module "shuffler" {
   aggregator_subscriber_max_outstanding_element_count    = var.aggregator_subscriber_max_outstanding_element_count
   collector_batch_size                                   = var.collector_batch_size
   model_updater_subscriber_max_outstanding_element_count = var.model_updater_subscriber_max_outstanding_element_count
+  aggregated_gradient_bucket_lifecycle_age_days          = var.aggregated_gradient_bucket_lifecycle_age_days
+  allow_rooted_devices                                   = var.allow_rooted_devices
+  client_gradient_bucket_lifecycle_age_days              = var.client_gradient_bucket_lifecycle_age_days
+  model_bucket_lifecycle_age_days                        = var.model_bucket_lifecycle_age_days
 }

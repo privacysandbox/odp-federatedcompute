@@ -24,8 +24,9 @@ def compose_iterative_processes(
     model: tff.learning.models.FunctionalModel,
     learning_process: task_builder_pb2.LearningProcess,
     dp_parameters: common.DpParameter,
-    training_and_eval: Optional[bool] = False,
-    eval_only: Optional[bool] = False,
+    training_and_eval: bool,
+    eval_only: bool,
+    flags: task_builder_pb2.ExperimentFlags,
 ) -> Tuple[
     Optional[tff.templates.IterativeProcess],
     Optional[tff.templates.IterativeProcess],
@@ -113,7 +114,7 @@ def compose_iterative_processes(
 
   # Inject DP parameters to the learning process.
   # Only Fixed Gaussian is supported.
-  fixed_guassian_dp_aggregator = (
+  fixed_guassian_dp_aggregator = None if flags.skip_dp_aggregator else (
       tff.aggregators.DifferentiallyPrivateFactory.gaussian_fixed(
           noise_multiplier=dp_parameters.noise_multiplier,
           clip=dp_parameters.dp_clip_norm,

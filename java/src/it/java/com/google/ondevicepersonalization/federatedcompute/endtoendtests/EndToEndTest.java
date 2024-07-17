@@ -69,6 +69,8 @@ public final class EndToEndTest {
   private Device device;
   private long iterationWaitingInterval;
 
+  private String localResourceSuffix;
+
   /**
    * Constructs a new EndToEndTest object, initializing it with parameters from the provided
    * EndToEndArgs.
@@ -99,6 +101,12 @@ public final class EndToEndTest {
 
     this.iterationWaitingInterval = endToEndArgs.getIterationWaitingInterval();
     this.encrypt = endToEndArgs.isEncrypt();
+
+    this.localResourceSuffix = "v1";
+    if (endToEndArgs.isUseV2() && this.useLocalResources) {
+      System.out.println("Using local v2 resources for task.");
+      this.localResourceSuffix = "v2";
+    }
 
     partner = new Partner(tmServer);
     device = new Device(server);
@@ -291,12 +299,18 @@ public final class EndToEndTest {
     System.out.println("Uploading metadata for the task...");
     if (useLocalResources) {
       partner.uploadClientPlan(
-          this.getClass().getResourceAsStream(RESOURCE_PREFIX + "client_only_plan").readAllBytes());
+          this.getClass()
+              .getResourceAsStream(RESOURCE_PREFIX + "client_only_plan_" + localResourceSuffix)
+              .readAllBytes());
       partner.uploadServerPlan(
-          this.getClass().getResourceAsStream(RESOURCE_PREFIX + "server_plan").readAllBytes());
+          this.getClass()
+              .getResourceAsStream(RESOURCE_PREFIX + "server_plan_" + localResourceSuffix)
+              .readAllBytes());
       if (uploadInitCheckpoint) {
         partner.uploadCheckpoint(
-            this.getClass().getResourceAsStream(RESOURCE_PREFIX + "checkpoint").readAllBytes());
+            this.getClass()
+                .getResourceAsStream(RESOURCE_PREFIX + "checkpoint_" + localResourceSuffix)
+                .readAllBytes());
       }
     } else {
       partner.uploadClientPlan(clientPlan);
@@ -459,7 +473,9 @@ public final class EndToEndTest {
     byte[] downloadedGradient;
     if (useLocalResources) {
       downloadedGradient =
-          this.getClass().getResourceAsStream(RESOURCE_PREFIX + "gradient").readAllBytes();
+          this.getClass()
+              .getResourceAsStream(RESOURCE_PREFIX + "gradient_" + localResourceSuffix)
+              .readAllBytes();
     } else {
       downloadedGradient = partner.download(gradient);
     }

@@ -41,6 +41,8 @@ class LearningProcessUtilsTest(absltest.TestCase):
             learning_process=TEST_FL_SETUP,
             dp_parameters=dp_parameters,
             training_and_eval=True,
+            eval_only=False,
+            flags=task_builder_pb2.ExperimentFlags()
         )
     )
     self.assertIsNotNone(training_process)
@@ -62,6 +64,9 @@ class LearningProcessUtilsTest(absltest.TestCase):
             model=test_utils.get_functional_model_without_metrics(),
             learning_process=TEST_FL_SETUP,
             dp_parameters=dp_parameters,
+            training_and_eval=False,
+            eval_only=False,
+            flags=task_builder_pb2.ExperimentFlags()
         )
     )
     self.assertIsNotNone(training_process)
@@ -80,7 +85,9 @@ class LearningProcessUtilsTest(absltest.TestCase):
         model=test_utils.get_functional_model_without_metrics(),
         learning_process=TEST_FL_SETUP,
         dp_parameters=dp_parameters,
+        training_and_eval=False,
         eval_only=True,
+        flags=task_builder_pb2.ExperimentFlags()
     )
     self.assertIsNotNone(eval_process)
     self.assertIsNotNone(eval_process.initialize)

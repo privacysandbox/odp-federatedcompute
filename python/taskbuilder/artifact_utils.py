@@ -22,6 +22,7 @@ from fcp.artifact_building import federated_compute_plan_builder
 from fcp.artifact_building import plan_utils
 from fcp.protos import plan_pb2
 from google.cloud import storage
+import graph_compactor
 import io_utils
 from shuffler.proto import task_builder_pb2
 from shuffler.proto import task_pb2
@@ -35,6 +36,7 @@ def build_artifacts(
     learning_process: tff.templates.IterativeProcess,
     dataspec: data_spec.DataSpec,
     flags: task_builder_pb2.ExperimentFlags,
+    task: task_pb2.Task,
     use_daf: Optional[bool] = False,
 ):
   """Returns artifacts built from a properly composed learning process and a preprocessing function.
@@ -62,7 +64,9 @@ def build_artifacts(
   )
   logging.log(logging.INFO, 'Plan was built successfully.')
   client_plan = _build_client_plan(
-      plan=plan, skip_flex_ops_check=flags.skip_flex_ops_check
+      plan=plan,
+      task=task,
+      skip_flex_ops_check=flags.skip_flex_ops_check,
   )
   logging.log(logging.INFO, 'ClientOnlyPlan was built successfully.')
   checkpoint_bytes = _build_initial_server_checkpoint(
@@ -72,13 +76,12 @@ def build_artifacts(
   return plan, client_plan, checkpoint_bytes
 
 
-def build_and_upload_artifacts(
+def upload_artifacts(
     task: task_pb2.Task,
-    learning_process: tff.templates.IterativeProcess,
-    dataspec: data_spec.DataSpec,
+    plan: plan_pb2.Plan,
+    client_plan: plan_pb2.ClientOnlyPlan,
     client: storage.Client,
-    flags: task_builder_pb2.ExperimentFlags,
-    use_daf: Optional[bool] = False,
+    checkpoint_bytes: bytes,
 ):
   # check if URIs are valid, otherwise do not start building artifacts.
   logging.log(logging.INFO, 'Validating format of returned URIs...')
@@ -96,12 +99,6 @@ def build_and_upload_artifacts(
   ]
   logging.log(logging.INFO, 'URIs are validated.')
 
-  plan, client_plan, checkpoint_bytes = build_artifacts(
-      learning_process=learning_process,
-      dataspec=dataspec,
-      use_daf=use_daf,
-      flags=flags,
-  )
   for checkpoint_blob in checkpoint_blobs:
     io_utils.upload_content_to_gcs(
         client=client, blob=checkpoint_blob, data=checkpoint_bytes
@@ -122,6 +119,7 @@ def _build_plan(
     learning_process_comp: tff.Computation,
     dataspec: data_spec.DataSpec,
     use_daf: Optional[bool] = False,
+    compact_graph: Optional[bool] = True
 ) -> plan_pb2.Plan:
   logging.log(logging.INFO, 'Start building plan...')
   try:
@@ -143,6 +141,15 @@ def _build_plan(
         dataspec=dataspec,
         grappler_config=tf.compat.v1.ConfigProto() if use_daf else None,
     )
+
+    if compact_graph:
+        logging.log(logging.INFO, 'Compacting client graph...')
+        keep_names = _find_all_plan_client_names(plan)
+        client_graph = tf.compat.v1.GraphDef()
+        plan.client_graph_bytes.Unpack(client_graph)
+        graph_compactor.compact_graph(client_graph, keep_names, options=None)
+        plan.client_graph_bytes.Pack(client_graph)
+
     logging.log(logging.INFO, 'Adding TFLite graph to the plan...')
     return plan_utils.generate_and_add_flat_buffer_to_plan(plan)
   except Exception as e:
@@ -152,15 +159,44 @@ def _build_plan(
     )
 
 
+def _remove_nones(a_list):
+  """Filters out all `None` and `''` entries from a list."""
+  return [x for x in a_list if x]
+
+
+def _get_names_for_tensorflow_spec(
+    tensorflow_spec: plan_pb2.TensorflowSpec,
+) -> list[str]:
+  """Returns all of the ops/tensors defined in a TensorflowSpec message."""
+  assert isinstance(tensorflow_spec, plan_pb2.TensorflowSpec)
+  values = []
+  values.append(tensorflow_spec.dataset_token_tensor_name)
+  values.extend(spec.name for spec in tensorflow_spec.input_tensor_specs)
+  values.extend(spec.name for spec in tensorflow_spec.output_tensor_specs)
+  values.extend(node_name for node_name in tensorflow_spec.target_node_names)
+  return _remove_nones(values)
+
+
+def _find_all_plan_client_names(plan: plan_pb2.Plan) -> list[str]:
+  """Returns all of the ops/tensors defined in client side of a Plan message."""
+  values = []
+  for phase in plan.phase:
+    values.extend(
+        _get_names_for_tensorflow_spec(phase.client_phase.tensorflow_spec)
+    )
+  return sorted(values)
+
 def _build_client_plan(
     plan: plan_pb2.Plan,
+    task: task_pb2.Task,
     skip_flex_ops_check: Optional[bool] = False,
 ) -> plan_pb2.ClientOnlyPlan:
   logging.log(logging.INFO, 'Start building ClientOnlyPlan...')
   try:
     """The ClientOnlyPlan corresponding to the Plan proto."""
     if not skip_flex_ops_check:
-      support_ops_utils.validate_flex_ops(plan)
+      min_version = support_ops_utils.validate_flex_ops(plan)
+      task.min_client_version = min_version
 
     client_only_plan = plan_pb2.ClientOnlyPlan(
         phase=plan.phase[0].client_phase,

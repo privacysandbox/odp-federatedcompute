@@ -280,8 +280,7 @@ class ConfigValidatorTest(absltest.TestCase):
 
   def test_validate_fcp_dp(self):
     dp_parameters = config_validator.validate_fcp_dp(
-        task_config=self._test_data,
-        flags=task_builder_pb2.ExperimentFlags()
+        task_config=self._test_data, flags=task_builder_pb2.ExperimentFlags()
     )
     self.assertEqual(0.1, dp_parameters.dp_clip_norm)
     self.assertEqual(6.0, dp_parameters.noise_multiplier)
@@ -289,8 +288,7 @@ class ConfigValidatorTest(absltest.TestCase):
   def test_validate_fcp_dp_calibration(self):
     self._test_data.differential_privacy.noise_multiplier = 0.0
     dp_parameters = config_validator.validate_fcp_dp(
-        task_config=self._test_data,
-        flags=task_builder_pb2.ExperimentFlags()
+        task_config=self._test_data, flags=task_builder_pb2.ExperimentFlags()
     )
     self.assertEqual(0.1, dp_parameters.dp_clip_norm)
     self.assertGreater(dp_parameters.noise_multiplier, 0.0)

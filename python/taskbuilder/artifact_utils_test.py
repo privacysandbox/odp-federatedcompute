@@ -54,6 +54,9 @@ class ArtifactUtilsTest(absltest.TestCase):
         model=self._model,
         learning_process=TEST_FL_SETUP,
         dp_parameters=TEST_DP_PARAMETERS,
+        training_and_eval=False,
+        eval_only=False,
+        flags=task_builder_pb2.ExperimentFlags()
     )
     self._learning_process = training_process
     test_example_selector = plan_pb2.ExampleSelector(
@@ -83,12 +86,14 @@ class ArtifactUtilsTest(absltest.TestCase):
             common.PLAN_BUILDING_ERROR_MESSAGE + 'Traceback '
         ),
     ):
-      artifact_utils.build_and_upload_artifacts(
+      plan, client_plan, checkpoint = artifact_utils.build_artifacts(
           task=self._task,
           learning_process=self._learning_process,
           dataspec=self._data_spec,
-          client=self._mock_client,
           flags=task_builder_pb2.ExperimentFlags(),
+      )
+      artifact_utils.upload_artifacts(
+          self._task, plan, client_plan, self._mock_client, checkpoint
       )
 
   def test_build_artifacts_failed_checkpoint(self):
@@ -99,22 +104,26 @@ class ArtifactUtilsTest(absltest.TestCase):
         common.TaskBuilderException,
         common.CHECKPOINT_BUILDING_ERROR_MESSAGE,
     ):
-      artifact_utils.build_and_upload_artifacts(
+      plan, client_plan, checkpoint = artifact_utils.build_artifacts(
           task=self._task,
           learning_process=self._learning_process,
           dataspec=self._data_spec,
-          client=self._mock_client,
           flags=task_builder_pb2.ExperimentFlags(),
+      )
+      artifact_utils.upload_artifacts(
+          self._task, plan, client_plan, self._mock_client, checkpoint
       )
 
   def test_build_artifacts_success(self):
     try:
-      artifact_utils.build_and_upload_artifacts(
+      plan, client_plan, checkpoint = artifact_utils.build_artifacts(
           task=self._task,
           learning_process=self._learning_process,
           dataspec=self._data_spec,
-          client=self._mock_client,
           flags=task_builder_pb2.ExperimentFlags(),
+      )
+      artifact_utils.upload_artifacts(
+          self._task, plan, client_plan, self._mock_client, checkpoint
       )
     except:
       self.fail('Unexpected exception is raised when success is expected.')
@@ -124,22 +133,27 @@ class ArtifactUtilsTest(absltest.TestCase):
         model=self._model,
         learning_process=TEST_FL_SETUP,
         dp_parameters=TEST_DP_PARAMETERS,
+        training_and_eval=False,
         eval_only=True,
+        flags=task_builder_pb2.ExperimentFlags()
     )
 
     try:
-      artifact_utils.build_and_upload_artifacts(
+      plan, client_plan, checkpoint = artifact_utils.build_artifacts(
           task=self._task,
           learning_process=eval_process,
           dataspec=self._data_spec,
-          client=self._mock_client,
           flags=task_builder_pb2.ExperimentFlags(),
+      )
+      artifact_utils.upload_artifacts(
+          self._task, plan, client_plan, self._mock_client, checkpoint
       )
     except:
       self.fail('Unexpected exception is raised when success is expected.')
 
   def test_build_plan_with_daf(self):
     plan, _, _ = artifact_utils.build_artifacts(
+        task=self._task,
         learning_process=self._learning_process,
         dataspec=self._data_spec,
         use_daf=True,

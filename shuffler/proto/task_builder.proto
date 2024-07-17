@@ -71,10 +71,11 @@ message TaskGroup {
 }
 
 // Experiment flags.
-// Next Id: 3
+// Next Id: 4
 message ExperimentFlags {
   bool skip_flex_ops_check = 1;
   bool skip_dp_check = 2;
+  bool skip_dp_aggregator = 3;
 }
 
 // Build task request.
