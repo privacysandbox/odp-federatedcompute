@@ -16,6 +16,8 @@
 
 package com.google.ondevicepersonalization.federatedcompute.shuffler.aggregator.core;
 
+import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.fcp.aggregation.AggregationSession;
 import com.google.fcp.plan.PhaseSession;
@@ -24,12 +26,15 @@ import com.google.fcp.tensorflow.AppFiles;
 import com.google.gson.Gson;
 import com.google.internal.federated.plan.Plan;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.aggregator.core.message.AggregatorMessage;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.aggregator.core.message.AggregatorNotification;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.CompressionUtils;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.Constants;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.common.Exceptions;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.crypto.Payload;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.crypto.PublicKeyEncryptionService;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.BlobDao;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.BlobDescription;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.common.messaging.HttpMessageSender;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.tensorflow.TensorflowPlanSessionFactory;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -60,6 +65,7 @@ public class AggregatorCoreImpl implements AggregatorCore {
   private DecryptionKeyService decryptionKeyService;
   private PublicKeyEncryptionService publicKeyEncryptionService;
   private AppFiles appFiles;
+  private HttpMessageSender httpMessageSender;
 
   public AggregatorCoreImpl(
       BlobDao blobDao,
@@ -67,13 +73,15 @@ public class AggregatorCoreImpl implements AggregatorCore {
       TensorflowPlanSessionFactory tensorflowPlanSessionFactory,
       DecryptionKeyService decryptionKeyService,
       PublicKeyEncryptionService publicKeyEncryptionService,
-      AppFiles appFiles) {
+      AppFiles appFiles,
+      HttpMessageSender httpMessageSender) {
     this.blobDao = blobDao;
     this.instantSource = instantSource;
     this.tensorflowPlanSessionFactory = tensorflowPlanSessionFactory;
     this.decryptionKeyService = decryptionKeyService;
     this.publicKeyEncryptionService = publicKeyEncryptionService;
     this.appFiles = appFiles;
+    this.httpMessageSender = httpMessageSender;
   }
 
   public void process(AggregatorMessage message) {
@@ -91,15 +99,47 @@ public class AggregatorCoreImpl implements AggregatorCore {
       MDC.put(Constants.REQUEST_ID, message.getRequestId());
       processMessageImpl(message);
     } catch (Exception e) {
-      // TODO(b/329667567): Handle aggregation failures. For now, nack() for all failures. This will
-      // cause messages to be retried and sent to the DLQ when they can no longer be processed.
+      // Retryable errors will throw an exception triggering no acknowledgement for the message.
       logger.atError().setCause(e).log("Failed processing iteration aggregation.");
+
+      // If a notification endpoint is provided,
+      // non-retryable errors will send a notification and acknowledge the message.
+      if (!Exceptions.isRetryableException(e)
+          && !Strings.isNullOrEmpty(message.getNotificationEndpoint())) {
+        handleNonRetryableException(e, message);
+        return;
+      }
       throw e;
     } finally {
       Duration duration = Duration.between(startTime, instantSource.instant());
       logger.info("processing completed in {} second.", duration.getSeconds());
       MDC.remove(Constants.REQUEST_ID);
     }
+  }
+
+  private void handleNonRetryableException(Exception e, AggregatorMessage message) {
+    logger.info("Processing non-retryable exception {}", Throwables.getRootCause(e));
+    AggregatorNotification.ErrorReason errorReason =
+        AggregatorNotification.ErrorReason.UNKNOWN_ERROR;
+    if (Exceptions.isAggregationException(e) || Exceptions.isTensorflowException(e)) {
+      errorReason = AggregatorNotification.ErrorReason.AGGREGATION_ERROR;
+    } else if (Exceptions.isNonRetryableKeyFetchException(e)) {
+      errorReason = AggregatorNotification.ErrorReason.DECRYPTION_ERROR;
+    }
+    AggregatorNotification notification =
+        AggregatorNotification.builder()
+            .messages(
+                List.of(
+                    AggregatorNotification.Message.builder()
+                        .attributes(
+                            AggregatorNotification.Attributes.builder()
+                                .requestId(message.getRequestId())
+                                .status(AggregatorNotification.Status.ERROR)
+                                .errorReason(errorReason)
+                                .build())
+                        .build()))
+            .build();
+    httpMessageSender.sendMessage(notification, message.getNotificationEndpoint());
   }
 
   private void processMessageImpl(AggregatorMessage message) {
@@ -135,6 +175,25 @@ public class AggregatorCoreImpl implements AggregatorCore {
     } catch (IOException e) {
       logger.atError().setCause(e).log("failed to compressAndUpload aggregated result.");
       throw new RuntimeException("Failed to compressAndUpload aggregated result", e);
+    }
+
+    try {
+      AggregatorNotification notification =
+          AggregatorNotification.builder()
+              .messages(
+                  List.of(
+                      AggregatorNotification.Message.builder()
+                          .attributes(
+                              AggregatorNotification.Attributes.builder()
+                                  .requestId(message.getRequestId())
+                                  .status(AggregatorNotification.Status.OK)
+                                  .build())
+                          .build()))
+              .build();
+      httpMessageSender.sendMessage(notification, message.getNotificationEndpoint());
+    } catch (Exception e) {
+      logger.atError().setCause(e).log("Failed to send message to provided notification endpoint.");
+      throw new RuntimeException("Failed to send message to provided notification endpoint.", e);
     }
   }
 

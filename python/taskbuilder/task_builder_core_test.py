@@ -66,6 +66,7 @@ class TaskBuilderCoreTest(absltest.TestCase):
         )
     )
     self.assertTrue(build_task_response.HasField('task_group'))
+    self.assertTrue(build_task_response.HasField('task_report'))
     training_task = build_task_response.task_group.training_task
     eval_task = build_task_response.task_group.eval_task
     self.assertEqual(
@@ -84,6 +85,7 @@ class TaskBuilderCoreTest(absltest.TestCase):
         artifact_only=True,
     )
     self.assertTrue(build_task_response.HasField('task_group'))
+    self.assertTrue(build_task_response.HasField('task_report'))
     training_task = build_task_response.task_group.training_task
     eval_task = build_task_response.task_group.eval_task
     self.assertLen(training_task.server_phase_url, 1)
@@ -106,6 +108,19 @@ class TaskBuilderCoreTest(absltest.TestCase):
         training_task.SerializeToString(), eval_task.SerializeToString()
     )
     self.assertFalse(build_task_response.HasField('error_info'))
+
+  def test_task_builder_core_config_validation_failed(self):
+    self._task_config.policies.min_separation_policy.minimum_separation = -1
+    build_task_response = task_builder_core.build_task_group_request_handler(
+        build_task_request=common.BuildTaskRequest(
+            model=self._model,
+            task_config=self._task_config,
+            flags=task_builder_pb2.ExperimentFlags(),
+        ),
+        artifact_only=True,
+    )
+    self.assertTrue(build_task_response.HasField('error_info'))
+    self.assertTrue(build_task_response.HasField('task_report'))
 
   def tearDown(self):
     self._patcher.stop()

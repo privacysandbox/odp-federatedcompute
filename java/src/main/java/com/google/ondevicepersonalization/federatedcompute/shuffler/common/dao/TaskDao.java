@@ -34,6 +34,9 @@ public interface TaskDao {
   /** Get tasks with CREATED status. */
   public List<TaskEntity> getCreatedTasks();
 
+  /** Get iteration by id. */
+  public Optional<IterationEntity> getIterationById(IterationId iterationId);
+
   /** Get the last iteration of the given task. */
   public Optional<IterationEntity> getLastIterationOfTask(String populationName, long taskId);
 

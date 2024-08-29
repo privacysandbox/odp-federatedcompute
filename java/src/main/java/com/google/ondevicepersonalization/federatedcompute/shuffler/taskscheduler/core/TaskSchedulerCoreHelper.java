@@ -155,14 +155,17 @@ public class TaskSchedulerCoreHelper {
    * Generates a device checkpoint, and uploads them to a remote location.
    *
    * @param iteration The iteration associated with the checkpoint.
-   * @throws IllegalStateException if any of the following conditions occur: * The server checkpoint
-   *     or plan files do not exist. * Failed to upload the client checkpoint.
+   * @throws IllegalArgumentException if any of the following conditions occur: * The server
+   *     checkpoint or plan files do not exist for the provided iteration.
+   * @throws IllegalStateException if any of the following conditions occur: * Failed to upload the
+   *     client checkpoint.
    */
   public void generateAndUploadDeviceCheckpoint(IterationEntity iteration) {
     BlobDescription checkpointBlob = blobManager.generateDownloadCheckpointDescription(iteration);
     BlobDescription planBlob = blobManager.generateDownloadServerPlanDescription(iteration);
     if (!blobDao.exists(new BlobDescription[] {checkpointBlob, planBlob})) {
-      throw new IllegalStateException("The server checkpoint or plan do not exist.");
+      throw new IllegalArgumentException(
+          "The server checkpoint or plan do not exist for provided iteration.");
     }
 
     ByteString checkpoint =

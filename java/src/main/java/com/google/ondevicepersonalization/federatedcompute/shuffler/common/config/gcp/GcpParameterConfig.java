@@ -486,4 +486,34 @@ public class GcpParameterConfig {
     logger.info("Registering compressionFormats parameter as: " + compressionFormats);
     return compressionFormats;
   }
+
+  @Bean
+  @Qualifier("aggregatorNotificationPubsubSubscription")
+  public String aggregatorNotificationPubsubSubscription() {
+    String aggregatorNotificationPubsubSubscription =
+        googleCloudArgs.getAggregatorNotificationPubsubSubscription();
+    if (Strings.isNullOrEmpty(aggregatorNotificationPubsubSubscription)) {
+      aggregatorNotificationPubsubSubscription =
+          gcpParameterClient.getParameter("AGGREGATOR_NOTIF_PUBSUB_SUBSCRIPTION").orElse(null);
+    }
+    logger.info(
+        "Registering aggregatorNotificationPubsubSubscription parameter as: "
+            + aggregatorNotificationPubsubSubscription);
+    return aggregatorNotificationPubsubSubscription;
+  }
+
+  @Bean
+  @Qualifier("aggregatorNotificationPubsubTopic")
+  public String aggregatorNotificationPubsubTopic() {
+    String aggregatorNotificationPubsubTopic =
+        googleCloudArgs.getAggregatorNotificationPubsubTopic();
+    if (Strings.isNullOrEmpty(aggregatorNotificationPubsubTopic)) {
+      aggregatorNotificationPubsubTopic =
+          gcpParameterClient.getParameter("AGGREGATOR_NOTIF_PUBSUB_TOPIC").orElse(null);
+    }
+    logger.info(
+        "Registering aggregatorNotificationPubsubTopic parameter as: "
+            + aggregatorNotificationPubsubTopic);
+    return aggregatorNotificationPubsubTopic;
+  }
 }

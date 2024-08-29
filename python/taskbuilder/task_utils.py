@@ -150,6 +150,7 @@ def _create_eval_task(
   eval_info = task_pb2.EvaluationInfo(
       check_point_selector=checkpoint_selector,
       training_population_name=source_training_population,
+      training_task_id=evalution_config.source_training_task_id,
   )
   return task_pb2.Task(
       population_name=population_name,

@@ -23,3 +23,13 @@ java_library(
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:lombok_java",
     ],
 )
+
+java_library(
+    name = "aggregator_notification",
+    srcs = [
+        "AggregatorNotification.java",
+    ],
+    deps = [
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:lombok_java",
+    ],
+)

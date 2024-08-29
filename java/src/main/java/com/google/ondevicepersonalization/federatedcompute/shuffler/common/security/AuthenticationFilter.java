@@ -104,7 +104,7 @@ public class AuthenticationFilter extends OncePerRequestFilter {
     try {
       // check the authentication record is a valid or not
       if (keyAttestationManager.isAttestationRecordVerified(authenticationKey)) {
-        logger.info("Verifying attestation record with length " + authorizationKey.length());
+        logger.debug("Verifying attestation record with length " + authorizationKey.length());
         authorizationTokenDao.insert(authorizationKey);
         filterChain.doFilter(request, response);
       } else {
@@ -157,6 +157,7 @@ public class AuthenticationFilter extends OncePerRequestFilter {
 
   private CreateTaskAssignmentResponse getRetryResponse(
       RejectionReason.Enum rejectionReason, int minRetrySecond, int maxRetrySecond) {
+    // TODO: b/324105252 Decide good delay seconds on authentication exception.
     return CreateTaskAssignmentResponse.newBuilder()
         .setRejectionInfo(
             RejectionInfo.newBuilder()

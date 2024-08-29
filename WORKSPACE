@@ -227,9 +227,9 @@ http_archive(
 
 http_archive(
     name = "rules_python",
-    sha256 = "d71d2c67e0bce986e1c5a7731b4693226867c45bfe0b7c5e0067228a536fc580",
-    strip_prefix = "rules_python-0.29.0",
-    url = "https://github.com/bazelbuild/rules_python/releases/download/0.29.0/rules_python-0.29.0.tar.gz",
+    sha256 = "be04b635c7be4604be1ef20542e9870af3c49778ce841ee2d92fcb42f9d9516a",
+    strip_prefix = "rules_python-0.35.0",
+    url = "https://github.com/bazelbuild/rules_python/releases/download/0.35.0/rules_python-0.35.0.tar.gz",
 )
 
 load("@rules_python//python:repositories.bzl", "py_repositories", "python_register_toolchains")
@@ -286,8 +286,14 @@ pip_parse(
     annotations = {
         "tensorflow": package_annotation(
             additive_build_content = TF_ADDITIVE_BUILD_CONTENT,
-        ),
+        )
     },
+    extra_pip_args = [
+        # Disable build isolation to avoid un-pinned build dependencies to be installed
+        # https://pip.pypa.io/en/stable/reference/build-system/pyproject-toml/#build-time-dependencies
+        # Pre-installed build deps: https://github.com/bazelbuild/rules_python/blob/2a5ba18d60b25e10b99d0fa87b1da51f40d9f0d3/python/private/pypi/deps.bzl
+        "--no-build-isolation",
+    ],
     python_interpreter_target = interpreter,
     requirements_lock = "//:requirements_lock_3_10.txt",
 )
@@ -313,7 +319,7 @@ tf_workspace2()
 
 load("@org_tensorflow//tensorflow:workspace1.bzl", "tf_workspace1")
 
-tf_workspace1()
+tf_workspace1(False)
 
 load("@org_tensorflow//tensorflow:workspace0.bzl", "tf_workspace0")
 

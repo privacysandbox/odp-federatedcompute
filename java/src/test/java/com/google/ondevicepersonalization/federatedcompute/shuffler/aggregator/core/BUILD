@@ -35,6 +35,7 @@ java_test(
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:blob_description",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:iteration_entity",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:iteration_id",
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/messaging:http_message_sender",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/messaging:message_sender",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/modelupdater/core/message:model_updater_message",
         "@maven//:com_google_guava_guava",

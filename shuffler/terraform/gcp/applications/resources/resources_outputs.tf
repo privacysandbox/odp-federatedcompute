@@ -61,6 +61,16 @@ output "aggregator_subscription_name" {
   description = "Name of the aggregator pubsub subscription."
 }
 
+output "aggregator_notifications_topic_name" {
+  value       = module.pubsub.aggregator_notifications_topic_name
+  description = "Name of the aggregator notifications pubsub topic."
+}
+
+output "aggregator_notifications_subscription_name" {
+  value       = module.pubsub.aggregator_notifications_subscription_name
+  description = "Name of the aggregator notifications pubsub subscription."
+}
+
 output "model_updater_topic_name" {
   value       = module.pubsub.model_updater_topic_name
   description = "Name of the model_updater pubsub topic."

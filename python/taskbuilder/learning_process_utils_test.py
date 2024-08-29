@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from dataclasses import asdict
 from absl.testing import absltest
 import common
 import learning_process_utils
@@ -26,6 +27,12 @@ TEST_FL_SETUP.metrics.extend([
     task_builder_pb2.Metric(name=name, parameter=param)
     for name, param in METRICS
 ])
+DEFAULT_APPLIED_ALGORITHMS = task_builder_pb2.TaskReport.AppliedAlgorithms(
+    learning_algo=task_builder_pb2.LearningAlgo.Enum.FED_AVG,
+    dp_aggregator=task_builder_pb2.DpAggregator.Enum.FIXED_GAUSSIAN,
+    client_optimizer=task_builder_pb2.Optimizer.Enum.SGD,
+    server_optimizer=task_builder_pb2.Optimizer.Enum.SGD,
+)
 
 
 class LearningProcessUtilsTest(absltest.TestCase):
@@ -34,15 +41,21 @@ class LearningProcessUtilsTest(absltest.TestCase):
     dp_parameters = common.DpParameter(
         noise_multiplier=1.0,
         dp_clip_norm=0.1,
+        dp_delta=6.0,
+        dp_epsilon=0.1,
+        num_training_rounds=10,
     )
-    training_process, eval_process = (
+    training_process, eval_process, task_report = (
         learning_process_utils.compose_iterative_processes(
             model=test_utils.get_functional_model_without_metrics(),
             learning_process=TEST_FL_SETUP,
             dp_parameters=dp_parameters,
             training_and_eval=True,
             eval_only=False,
-            flags=task_builder_pb2.ExperimentFlags()
+            flags=task_builder_pb2.ExperimentFlags(),
+            task_report=task_builder_pb2.TaskReport(
+                dp_hyperparameters=asdict(dp_parameters)
+            ),
         )
     )
     self.assertIsNotNone(training_process)
@@ -54,19 +67,28 @@ class LearningProcessUtilsTest(absltest.TestCase):
     self.assertIsNotNone(eval_process.initialize)
     self.assertIsNotNone(eval_process.next)
 
+    self.assertIsNotNone(task_report)
+    self.assertEqual(task_report.applied_algorithms, DEFAULT_APPLIED_ALGORITHMS)
+
   def test_compose_iterative_process_training_only(self):
     dp_parameters = common.DpParameter(
         noise_multiplier=1.0,
         dp_clip_norm=0.1,
+        dp_delta=6.0,
+        dp_epsilon=0.1,
+        num_training_rounds=10,
     )
-    training_process, empty = (
+    training_process, empty, task_report = (
         learning_process_utils.compose_iterative_processes(
             model=test_utils.get_functional_model_without_metrics(),
             learning_process=TEST_FL_SETUP,
             dp_parameters=dp_parameters,
             training_and_eval=False,
             eval_only=False,
-            flags=task_builder_pb2.ExperimentFlags()
+            flags=task_builder_pb2.ExperimentFlags(),
+            task_report=task_builder_pb2.TaskReport(
+                dp_hyperparameters=asdict(dp_parameters)
+            ),
         )
     )
     self.assertIsNotNone(training_process)
@@ -75,25 +97,38 @@ class LearningProcessUtilsTest(absltest.TestCase):
     self.assertIsNotNone(training_process.get_model_weights)
 
     self.assertIsNone(empty)
+    self.assertIsNotNone(task_report)
+    self.assertEqual(task_report.applied_algorithms, DEFAULT_APPLIED_ALGORITHMS)
 
   def test_compose_iterative_process_eval_only(self):
     dp_parameters = common.DpParameter(
         noise_multiplier=1.0,
         dp_clip_norm=0.1,
+        dp_delta=6.0,
+        dp_epsilon=0.1,
+        num_training_rounds=10,
     )
-    empty, eval_process = learning_process_utils.compose_iterative_processes(
-        model=test_utils.get_functional_model_without_metrics(),
-        learning_process=TEST_FL_SETUP,
-        dp_parameters=dp_parameters,
-        training_and_eval=False,
-        eval_only=True,
-        flags=task_builder_pb2.ExperimentFlags()
+    empty, eval_process, task_report = (
+        learning_process_utils.compose_iterative_processes(
+            model=test_utils.get_functional_model_without_metrics(),
+            learning_process=TEST_FL_SETUP,
+            dp_parameters=dp_parameters,
+            training_and_eval=False,
+            eval_only=True,
+            flags=task_builder_pb2.ExperimentFlags(),
+            task_report=task_builder_pb2.TaskReport(
+                dp_hyperparameters=asdict(dp_parameters)
+            ),
+        )
     )
     self.assertIsNotNone(eval_process)
     self.assertIsNotNone(eval_process.initialize)
     self.assertIsNotNone(eval_process.next)
 
     self.assertIsNone(empty)
+
+    self.assertIsNotNone(task_report)
+    self.assertEqual(task_report.applied_algorithms, DEFAULT_APPLIED_ALGORITHMS)
 
 
 if __name__ == '__main__':

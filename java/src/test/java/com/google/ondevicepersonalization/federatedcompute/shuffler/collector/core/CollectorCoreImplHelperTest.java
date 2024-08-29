@@ -137,7 +137,7 @@ public class CollectorCoreImplHelperTest {
     // act
     AggregatorMessage aggregatorMessage =
         collectorCoreImplHelper.createAggregatorMessage(
-            TRAINING_ITERATION, List.of("1", "2"), Optional.of("batch"), false);
+            TRAINING_ITERATION, List.of("1", "2"), Optional.of("batch"), false, "endpoint");
 
     // assert
     assertThat(aggregatorMessage)
@@ -151,8 +151,9 @@ public class CollectorCoreImplHelperTest {
                 .aggregatedGradientOutputBucket(AGGREGATION_GRADIENT.getHost())
                 .aggregatedGradientOutputObject(
                     AGGREGATION_GRADIENT.getResourceObject() + "batch/gradient")
-                .requestId(TRAINING_ITERATION.getId().toString())
+                .requestId(TRAINING_ITERATION.getId().toString() + "_batch")
                 .accumulateIntermediateUpdates(false)
+                .notificationEndpoint("endpoint")
                 .build());
   }
 
@@ -161,7 +162,7 @@ public class CollectorCoreImplHelperTest {
     // act
     AggregatorMessage aggregatorMessage =
         collectorCoreImplHelper.createAggregatorMessage(
-            TRAINING_ITERATION, List.of("1", "2"), Optional.empty(), true);
+            TRAINING_ITERATION, List.of("1", "2"), Optional.empty(), true, "endpoint");
 
     // assert
     assertThat(aggregatorMessage)
@@ -177,6 +178,7 @@ public class CollectorCoreImplHelperTest {
                     AGGREGATION_GRADIENT.getResourceObject() + "gradient")
                 .accumulateIntermediateUpdates(true)
                 .requestId(TRAINING_ITERATION.getId().toString())
+                .notificationEndpoint("endpoint")
                 .build());
   }
 

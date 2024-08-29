@@ -101,7 +101,6 @@ E2E_TEST_POPULATION_NAME = flags.DEFINE_string(
 GCS_PREFIX = 'gs://'
 TEST_BLOB_PATH = 'gs://mock-bucket/mock_blob'
 
-
 """Constants for error messages."""
 CONNECTION_FAILURE_MSG = 'Fail to connect: '
 DECODE_ERROR_MSG = 'Server returned unreadable response.'
@@ -111,7 +110,7 @@ INVALID_URI_ERROR_MESSAGE = (
 BUCKET_NOT_FOUND_ERROR_MESSAGE = (
     'Cannot build artifacts because bucket {bucket_name} does not exist.'
 )
-ARTIFACT_UPLOADING_ERROR_MESSAGE = 'Cannot upload aritfact to: '
+ARTIFACT_UPLOADING_ERROR_MESSAGE = 'Cannot upload artifact to: '
 PLAN_BUILDING_ERROR_MESSAGE = 'Cannot build the plan: '
 CLIENT_PLAN_BUILDING_ERROR_MESSAGE = 'Cannot build the ClientOnlyPlan: '
 CHECKPOINT_BUILDING_ERROR_MESSAGE = 'Cannot build the initial checkpoint: '
@@ -209,7 +208,6 @@ METRICS_ALLOWLIST = {
     ),
 }
 
-
 """Constants for creating tasks."""
 DEFAULT_MIN_CLIENT_VERSION = '0'
 DEFAULT_MAX_CLIENT_VERSION = '999999999'
@@ -233,6 +231,9 @@ class BlobId:
 class DpParameter:
   noise_multiplier: float
   dp_clip_norm: float
+  dp_delta: float
+  dp_epsilon: float
+  num_training_rounds: int
 
 
 @dataclass

@@ -30,9 +30,9 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     jq
 
 # Install bazel.
-RUN wget -q https://github.com/bazelbuild/bazel/releases/download/6.4.0/bazel-6.4.0-installer-darwin-arm64.sh && \
-    chmod +x bazel-6.4.0-installer-darwin-arm64.sh && \
-    ./bazel-6.4.0-installer-darwin-arm64.sh && \
+RUN wget -q https://github.com/bazelbuild/bazel/releases/download/6.4.0/bazel-6.4.0-installer-linux-x86_64.sh && \
+    chmod +x bazel-6.4.0-installer-linux-x86_64.sh && \
+    ./bazel-6.4.0-installer-linux-x86_64.sh && \
     cd "/usr/local/lib/bazel/bin" && \
     wget -q https://releases.bazel.build/6.4.0/release/bazel-6.4.0-linux-x86_64 && \
     chmod +x bazel-6.4.0-linux-x86_64
@@ -42,13 +42,3 @@ ENV PATH="/usr/local/bin:$PATH"
 RUN wget -q https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.0/clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz && \
     tar -xf clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
 ENV PATH="/clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/bin:$PATH"
-
-# Install gcloud.
-# Equivalent of `curl https://dl.google.com/dl/cloudsdk/release/install_google_cloud_sdk.bash | bash`
-COPY scripts/docker/install_google_cloud_sdk.bash /tmp/install_google_cloud_sdk.bash
-RUN /tmp/install_google_cloud_sdk.bash &> /dev/null
-ENV PATH $PATH:/root/google-cloud-sdk/bin
-
-
-
-

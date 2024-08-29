@@ -19,6 +19,7 @@ import common
 import google.auth
 from google.auth import impersonated_credentials
 from google.cloud import storage
+from google.protobuf import text_format
 import http_utils
 import io_utils
 import requests
@@ -108,7 +109,10 @@ def main(argv):
     logging.info(
         'Success! Tasks are built, and artifacts are uploaded to the cloud.'
     )
+    logging.info(text_format.MessageToString(task_builder_response.task_report))
+    logging.info(text_format.MessageToString(task_builder_response.task_group))
   else:
+    logging.info(text_format.MessageToString(task_builder_response.task_report))
     logging.exception(
         'Failed to create task group. Error type:'
         f' {task_builder_response.error_info.error_type}; Error message:'

@@ -25,7 +25,7 @@ TEST_INVALID_URI_ERROR_MSG = (
     ' /path/not/found'
 )
 TEST_GCS_UPLOADING_ERROR_MSG = (
-    'Cannot upload aritfact to: gs://mock-bucket/mock_blob'
+    'Cannot upload artifact to: gs://mock-bucket/mock_blob'
 )
 
 

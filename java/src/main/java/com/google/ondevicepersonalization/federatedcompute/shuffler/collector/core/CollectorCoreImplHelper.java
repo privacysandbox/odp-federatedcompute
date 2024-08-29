@@ -44,7 +44,8 @@ public class CollectorCoreImplHelper {
       IterationEntity iteration,
       Collection<String> contributions,
       Optional<String> batchId,
-      boolean intermediate) {
+      boolean intermediate,
+      String notificationEndpoint) {
     BlobDescription serverPlanBlob = blobManager.generateDownloadServerPlanDescription(iteration);
 
     List<String> gradients =
@@ -61,7 +62,10 @@ public class CollectorCoreImplHelper {
     String aggregatedGradientOutputSuffix =
         batchId.isPresent() ? batchId.get() + "/" + GRADIENT_FILE : GRADIENT_FILE;
 
-    String requestId = iteration.getId().toString();
+    String requestId =
+        batchId.isPresent()
+            ? iteration.getId().toString() + "_" + batchId.get()
+            : iteration.getId().toString();
 
     return AggregatorMessage.builder()
         .serverPlanBucket(serverPlanBlob.getHost())
@@ -74,6 +78,7 @@ public class CollectorCoreImplHelper {
             aggregatedGradientBlob.getResourceObject() + aggregatedGradientOutputSuffix)
         .requestId(requestId)
         .accumulateIntermediateUpdates(intermediate)
+        .notificationEndpoint(notificationEndpoint)
         .build();
   }
 
@@ -114,6 +119,7 @@ public class CollectorCoreImplHelper {
           .build();
     }
 
+    // TODO(b/331289420): Support multiple upload locations.
     BlobDescription newCheckpointBlob =
         blobManager.generateUploadCheckpointDescriptions(iteration)[0];
     BlobDescription newClientCheckpointBlob =

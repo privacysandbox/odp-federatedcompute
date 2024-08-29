@@ -26,6 +26,7 @@ from shuffler.proto import task_pb2
 def get_task_management_endpoint(
     tm_server: str, population_name: str, request_type: common.RequestType
 ) -> str:
+  # TODO (b/308702281): use libraries to construct URLs
   if tm_server.endswith('/'):
     tm_server = tm_server[:-1]
   server_endpoint = tm_server + common.TASK_MANAGEMENT_V1 + population_name
@@ -48,6 +49,7 @@ def get_task_builder_endpoint(request_type: common.RequestType) -> str:
   return server_endpoint
 
 
+# TODO (b/308043312): Support retries for applicable non-ok HTTP return codes.
 def create_task(
     endpoint: str,
     request: task_pb2.CreateTaskRequest,

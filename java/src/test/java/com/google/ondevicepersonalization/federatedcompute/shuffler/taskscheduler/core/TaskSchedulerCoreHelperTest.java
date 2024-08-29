@@ -399,11 +399,13 @@ public class TaskSchedulerCoreHelperTest {
     when(mockBlobDao.exists(any())).thenReturn(false);
 
     // act and assert
-    IllegalStateException exception =
+    IllegalArgumentException exception =
         assertThrows(
-            IllegalStateException.class,
+            IllegalArgumentException.class,
             () -> taskSchedulerCoreHelper.generateAndUploadDeviceCheckpoint(TRAINING_ITERATION));
-    assertThat(exception).hasMessageThat().contains("server checkpoint or plan do not exist");
+    assertThat(exception)
+        .hasMessageThat()
+        .contains("The server checkpoint or plan do not exist for provided iteration.");
     verify(mockBlobManager, times(1))
         .generateDownloadCheckpointDescription(isA(IterationEntity.class));
     verify(mockBlobManager, times(1)).generateDownloadServerPlanDescription(any());

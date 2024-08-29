@@ -36,6 +36,7 @@ def build_task_group_request_handler(
   model = build_task_request.model
   task_config = build_task_request.task_config
   flags = build_task_request.flags
+  task_report = task_builder_pb2.TaskReport()
 
   population_name = task_config.population_name
   is_training_and_eval = (
@@ -55,11 +56,21 @@ def build_task_group_request_handler(
     )
     # DP accounting validation for training task
     dp_parameters = config_validator.validate_fcp_dp(task_config, flags)
+    dp_parameters_proto = task_builder_pb2.TaskReport.DPHyperparameters(
+        dp_delta=dp_parameters.dp_delta,
+        dp_epsilon=dp_parameters.dp_epsilon,
+        noise_multiplier=dp_parameters.noise_multiplier,
+        dp_clip_norm=dp_parameters.dp_clip_norm,
+        num_training_rounds=dp_parameters.num_training_rounds,
+    )
+
+    task_report.dp_hyperparameters.CopyFrom(dp_parameters_proto)
     logging.info('Task config is valid! Start building the task group.')
   except common.TaskBuilderException as e:
     return _pack_task_builder_error(
         task_builder_pb2.ErrorType.Enum.INVALID_REQUEST,
         f'Task config is invalid: {str(e)}',
+        task_report=task_report,
     )
 
   # Compose learning algorithms based on `learning_process` config
@@ -69,14 +80,15 @@ def build_task_group_request_handler(
         dataset_policy=task_config.policies.dataset_policy,
         label_name=task_config.label_name,
     )
-    training_iterative_process, evaluation_iterative_process = (
+    training_iterative_process, evaluation_iterative_process, task_report = (
         learning_process_utils.compose_iterative_processes(
             model=model,
             learning_process=task_config.federated_learning.learning_process,
             dp_parameters=dp_parameters,
             training_and_eval=is_training_and_eval,
             eval_only=is_eval_only,
-            flags=flags
+            flags=flags,
+            task_report=task_report,
         )
     )
   except Exception as e:
@@ -84,6 +96,7 @@ def build_task_group_request_handler(
         task_builder_pb2.ErrorType.Enum.INVALID_REQUEST,
         'Failed to build learning algorithm based on `learning_process`'
         f' config: {str(e)}',
+        task_report=task_report,
     )
 
   if artifact_only:
@@ -117,6 +130,7 @@ def build_task_group_request_handler(
         task_builder_pb2.ErrorType.Enum.ARTIFACT_BUILDING_ERROR,
         f'Artifact building failed for task {main_task.task_id}: {str(e)}. Stop'
         ' building remaining artifacts.',
+        task_report=task_report,
     )
 
   if is_training_and_eval:
@@ -138,6 +152,7 @@ def build_task_group_request_handler(
           task_builder_pb2.ErrorType.Enum.ARTIFACT_BUILDING_ERROR,
           f'Artifact building failed for task {optional_task.task_id}:'
           f' {str(e)}. Stop building remaining artifacts.',
+          task_report=task_report,
       )
 
   # Create tasks in TM if task configuration is valid and artifact only mode is disabled.
@@ -152,6 +167,7 @@ def build_task_group_request_handler(
         return _pack_task_builder_error(
             task_builder_pb2.ErrorType.Enum.TASK_MANAGEMENT_ERROR,
             'Cannot find task management server.',
+            task_report=task_report,
         )
       logging.info(
           f'Connecting to task management server: {task_management_server}'
@@ -163,6 +179,7 @@ def build_task_group_request_handler(
     return _pack_task_builder_error(
         task_builder_pb2.ErrorType.Enum.TASK_MANAGEMENT_ERROR,
         f'Failed to create tasks by task management service: {str(e)}',
+        task_report=task_report,
     )
 
   # build artifacts for the associated eval process, if exists
@@ -180,6 +197,7 @@ def build_task_group_request_handler(
         task_builder_pb2.ErrorType.Enum.ARTIFACT_BUILDING_ERROR,
         f'Artifact failed to upload for task {main_task.task_id}:'
         f' {str(e)}. Stop building remaining artifacts.',
+        task_report=task_report,
     )
 
   if is_training_and_eval:
@@ -197,43 +215,51 @@ def build_task_group_request_handler(
           task_builder_pb2.ErrorType.Enum.ARTIFACT_BUILDING_ERROR,
           f'Artifact failed to upload for task {main_task.task_id}:'
           f' {str(e)}. Stop building remaining artifacts.',
+          task_report=task_report,
       )
-
   return _pack_task_builder_success(
       main_task=main_task,
       optional_task=optional_task,
+      task_report=task_report,
       is_eval_only=is_eval_only,
       is_training_and_eval=is_training_and_eval,
   )
 
 
 def _pack_task_builder_error(
-    error_type: task_builder_pb2.ErrorType.Enum, error_msg: str
+    error_type: task_builder_pb2.ErrorType.Enum,
+    error_msg: str,
+    task_report: task_builder_pb2.TaskReport,
 ) -> task_builder_pb2.BuildTaskResponse:
   return task_builder_pb2.BuildTaskResponse(
       error_info=task_builder_pb2.ErrorInfo(
           error_type=error_type,
           error_message=error_msg,
-      )
+      ),
+      task_report=task_report,
   )
 
 
 def _pack_task_builder_success(
     main_task: task_pb2.Task,
     optional_task: Optional[task_pb2.Task],
+    task_report: task_builder_pb2.TaskReport,
     is_eval_only: Optional[bool] = False,
     is_training_and_eval: Optional[bool] = False,
 ) -> task_builder_pb2.BuildTaskResponse:
   if is_eval_only:
     return task_builder_pb2.BuildTaskResponse(
-        task_group=task_builder_pb2.TaskGroup(eval_task=main_task)
+        task_group=task_builder_pb2.TaskGroup(eval_task=main_task),
+        task_report=task_report,
     )
   if is_training_and_eval:
     return task_builder_pb2.BuildTaskResponse(
         task_group=task_builder_pb2.TaskGroup(
             training_task=main_task, eval_task=optional_task
-        )
+        ),
+        task_report=task_report,
     )
   return task_builder_pb2.BuildTaskResponse(
-      task_group=task_builder_pb2.TaskGroup(training_task=main_task)
+      task_group=task_builder_pb2.TaskGroup(training_task=main_task),
+      task_report=task_report,
   )

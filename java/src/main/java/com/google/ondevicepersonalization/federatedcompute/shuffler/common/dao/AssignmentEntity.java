@@ -54,6 +54,7 @@ public class AssignmentEntity {
     CANCELED(101L),
     LOCAL_FAILED(102L),
     LOCAL_NOT_ELIGIBLE(103L),
+    REMOTE_FAILED(104L),
 
     // Inactive caused by timeout
     LOCAL_TIMEOUT(151L),

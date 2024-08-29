@@ -16,21 +16,47 @@
 
 package com.google.ondevicepersonalization.federatedcompute.shuffler.common;
 
+import com.google.common.base.Throwables;
+import com.google.fcp.aggregation.AggregationException;
 import com.google.fcp.tensorflow.TensorflowException;
+import com.google.scp.operator.cpio.cryptoclient.DecryptionKeyService.KeyFetchException;
+import com.google.scp.operator.cpio.cryptoclient.model.ErrorReason;
 
 /** An Exception helper class. */
 public class Exceptions {
 
   /** A function to decide if an exception is retryable. */
   public static boolean isRetryableException(Exception e) {
-    if (isTensorflowException(e)) {
+    if (isTensorflowException(e)
+        || isAggregationException(e)
+        || isNonRetryableKeyFetchException(e)) {
       return false;
     }
     return true;
   }
 
-  private static boolean isTensorflowException(Exception e) {
-    return (e instanceof TensorflowException) || (e.getCause() instanceof TensorflowException);
+  public static boolean isTensorflowException(Exception e) {
+    return (e instanceof TensorflowException)
+        || (Throwables.getRootCause(e) instanceof TensorflowException);
+  }
+
+  public static boolean isAggregationException(Exception e) {
+    return (e instanceof AggregationException)
+        || (Throwables.getRootCause(e) instanceof AggregationException);
+  }
+
+  public static boolean isNonRetryableKeyFetchException(Exception e) {
+    if (e instanceof KeyFetchException) {
+      // https://github.com/privacysandbox/coordinator-services-and-shared-libraries/blob/main/java/com/google/scp/operator/cpio/cryptoclient/MultiPartyDecryptionKeyServiceImpl.java#L238
+      return ((KeyFetchException) e).reason == ErrorReason.KEY_NOT_FOUND;
+    }
+    if (e.getCause() instanceof KeyFetchException) {
+      return ((KeyFetchException) e.getCause()).reason == ErrorReason.KEY_NOT_FOUND;
+    }
+    if (Throwables.getRootCause(e) instanceof KeyFetchException) {
+      return ((KeyFetchException) Throwables.getRootCause(e)).reason == ErrorReason.KEY_NOT_FOUND;
+    }
+    return false;
   }
 
   private Exceptions() {}

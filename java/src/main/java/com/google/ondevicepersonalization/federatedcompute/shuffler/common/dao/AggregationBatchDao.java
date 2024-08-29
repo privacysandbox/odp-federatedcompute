@@ -39,7 +39,11 @@ public interface AggregationBatchDao {
 
   /** Returns the sum of all batchSizes of batches in provided status for an iteration */
   public long querySumOfAggregationBatchesOfStatus(
-      IterationEntity iteration, long AggregationLevel, AggregationBatchEntity.Status status);
+      IterationEntity iteration, long AggregationLevel, List<AggregationBatchEntity.Status> status);
+
+  /** Get aggregation batch by id. */
+  public Optional<AggregationBatchEntity> getAggregationBatchById(
+      AggregationBatchId aggregationBatchId);
 
   /**
    * Creates a new batch and updates the given list of batches status to UPLOADED_COMPLETED and sets

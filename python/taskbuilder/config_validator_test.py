@@ -284,6 +284,9 @@ class ConfigValidatorTest(absltest.TestCase):
     )
     self.assertEqual(0.1, dp_parameters.dp_clip_norm)
     self.assertEqual(6.0, dp_parameters.noise_multiplier)
+    self.assertEqual(0.000000001, dp_parameters.dp_delta)
+    self.assertLess(dp_parameters.dp_epsilon, 0.2)
+    self.assertEqual(1000, dp_parameters.num_training_rounds)
 
   def test_validate_fcp_dp_calibration(self):
     self._test_data.differential_privacy.noise_multiplier = 0.0
@@ -292,6 +295,9 @@ class ConfigValidatorTest(absltest.TestCase):
     )
     self.assertEqual(0.1, dp_parameters.dp_clip_norm)
     self.assertGreater(dp_parameters.noise_multiplier, 0.0)
+    self.assertEqual(0.000000001, dp_parameters.dp_delta)
+    self.assertEqual(6.0, dp_parameters.dp_epsilon)
+    self.assertEqual(1000, dp_parameters.num_training_rounds)
 
 
 if __name__ == '__main__':

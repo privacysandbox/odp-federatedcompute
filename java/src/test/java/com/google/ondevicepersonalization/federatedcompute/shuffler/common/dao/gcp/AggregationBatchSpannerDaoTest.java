@@ -19,6 +19,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AggregationBatchEntity.Status.FULL;
 import static com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AggregationBatchEntity.Status.PUBLISH_COMPLETED;
 import static com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AggregationBatchEntity.Status.UPLOAD_COMPLETED;
+import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
@@ -29,6 +30,7 @@ import com.google.cloud.spanner.Value;
 import com.google.common.collect.ImmutableList;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AggregationBatchDao;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AggregationBatchEntity;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AggregationBatchId;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.IterationEntity;
 import java.io.IOException;
 import java.sql.SQLException;
@@ -191,7 +193,7 @@ public class AggregationBatchSpannerDaoTest {
                 .attemptId(0)
                 .build(),
             0,
-            PUBLISH_COMPLETED);
+            List.of(PUBLISH_COMPLETED));
 
     // assert
     assertThat(result).isEqualTo(75);
@@ -251,10 +253,83 @@ public class AggregationBatchSpannerDaoTest {
                 .attemptId(0)
                 .build(),
             0,
-            FULL);
+            List.of(FULL));
 
     // assert
     assertThat(result).isEqualTo(0);
+  }
+
+  @Test
+  public void testQuerySumOfAggregationBatchesOfStatus_matchMultiple() {
+    // arrange
+    dbClient
+        .readWriteTransaction()
+        .run(
+            transaction -> {
+              insertTask(
+                  transaction, /* populationName= */ "aaa", /* taskId= */ 111, /* status= */ 0);
+              insertIteration(
+                  transaction,
+                  /* populationName= */ "aaa",
+                  /* taskId= */ 111,
+                  /* iterationId= */ 9,
+                  /* status= */ 0,
+                  /* reportGoal= */ 300);
+              insertBatch(
+                  transaction,
+                  /* populationName= */ "aaa",
+                  /* taskId= */ 111,
+                  /* iterationId= */ 9,
+                  /* batchId= */ "batch-1",
+                  /* aggregationLevel= */ 0,
+                  /* status= */ PUBLISH_COMPLETED,
+                  /* batchSize= */ 50,
+                  /* createdByPartition */ "abc",
+                  /* createdTime */ toTs(NOW),
+                  /* aggregatedBy */ "batch-a",
+                  /* withStatusHistory */ true);
+              insertBatch(
+                  transaction,
+                  /* populationName= */ "aaa",
+                  /* taskId= */ 111,
+                  /* iterationId= */ 9,
+                  /* batchId= */ "batch-2",
+                  /* aggregationLevel= */ 0,
+                  /* status= */ PUBLISH_COMPLETED,
+                  /* batchSize= */ 25,
+                  /* createdByPartition */ "abc",
+                  /* createdTime */ toTs(NOW),
+                  /* aggregatedBy */ "batch-a",
+                  /* withStatusHistory */ true);
+              insertBatch(
+                  transaction,
+                  /* populationName= */ "aaa",
+                  /* taskId= */ 111,
+                  /* iterationId= */ 9,
+                  /* batchId= */ "batch-3",
+                  /* aggregationLevel= */ 0,
+                  /* status= */ FULL,
+                  /* batchSize= */ 25,
+                  /* createdByPartition */ "abc",
+                  /* createdTime */ toTs(NOW),
+                  /* aggregatedBy */ "batch-a",
+                  /* withStatusHistory */ true);
+              return null;
+            });
+    // act
+    long result =
+        dao.querySumOfAggregationBatchesOfStatus(
+            DEFAULT_ITERATION.toBuilder()
+                .populationName("aaa")
+                .taskId(111)
+                .iterationId(9)
+                .attemptId(0)
+                .build(),
+            0,
+            List.of(FULL, PUBLISH_COMPLETED));
+
+    // assert
+    assertThat(result).isEqualTo(100);
   }
 
   @Test
@@ -311,7 +386,7 @@ public class AggregationBatchSpannerDaoTest {
                 .attemptId(0)
                 .build(),
             1,
-            PUBLISH_COMPLETED);
+            List.of(PUBLISH_COMPLETED));
 
     // assert
     assertThat(result).isEqualTo(0);
@@ -363,6 +438,114 @@ public class AggregationBatchSpannerDaoTest {
 
     // assert
     assertThat(result).isEqualTo(Arrays.asList("batch-1"));
+  }
+
+  @Test
+  public void testQueryGetAggregationBatchById_Match() {
+    // arrange
+    dbClient
+        .readWriteTransaction()
+        .run(
+            transaction -> {
+              insertTask(
+                  transaction, /* populationName= */ "aaa", /* taskId= */ 111, /* status= */ 0);
+              insertIteration(
+                  transaction,
+                  /* populationName= */ "aaa",
+                  /* taskId= */ 111,
+                  /* iterationId= */ 9,
+                  /* status= */ 0,
+                  /* reportGoal= */ 300);
+              insertBatch(
+                  transaction,
+                  /* populationName= */ "aaa",
+                  /* taskId= */ 111,
+                  /* iterationId= */ 9,
+                  /* batchId= */ "batch-1",
+                  /* aggregationLevel= */ 0,
+                  /* status= */ FULL,
+                  /* batchSize= */ 50,
+                  /* createdByPartition */ "abc",
+                  /* createdTime */ toTs(NOW),
+                  /* aggregatedBy */ "batch-a",
+                  /* withStatusHistory */ true);
+              return null;
+            });
+
+    AggregationBatchId batchId =
+        AggregationBatchId.builder()
+            .populationName("aaa")
+            .taskId(111)
+            .iterationId(9)
+            .attemptId(0)
+            .batchId("batch-1")
+            .build();
+
+    // act
+    Optional<AggregationBatchEntity> result = dao.getAggregationBatchById(batchId);
+
+    // assert
+    AggregationBatchEntity entity =
+        AggregationBatchEntity.builder()
+            .populationName("aaa")
+            .taskId(111)
+            .iterationId(9)
+            .attemptId(0)
+            .batchId("batch-1")
+            .status(FULL)
+            .batchSize(50)
+            .createdByPartition("abc")
+            .aggregatedBy("batch-a")
+            .build();
+    assertThat(result.get()).isEqualTo(entity);
+  }
+
+  @Test
+  public void testQueryGetAggregationBatchById_NoMatch() {
+    // arrange
+    dbClient
+        .readWriteTransaction()
+        .run(
+            transaction -> {
+              insertTask(
+                  transaction, /* populationName= */ "aaa", /* taskId= */ 111, /* status= */ 0);
+              insertIteration(
+                  transaction,
+                  /* populationName= */ "aaa",
+                  /* taskId= */ 111,
+                  /* iterationId= */ 9,
+                  /* status= */ 0,
+                  /* reportGoal= */ 300);
+              insertBatch(
+                  transaction,
+                  /* populationName= */ "aaa",
+                  /* taskId= */ 111,
+                  /* iterationId= */ 9,
+                  /* batchId= */ "batch-1",
+                  /* aggregationLevel= */ 0,
+                  /* status= */ FULL,
+                  /* batchSize= */ 50,
+                  /* createdByPartition */ "abc",
+                  /* createdTime */ toTs(NOW),
+                  /* aggregatedBy */ "batch-a",
+                  /* withStatusHistory */ true);
+              return null;
+            });
+
+    AggregationBatchId batchId =
+        AggregationBatchId.builder()
+            .populationName("aaa")
+            .taskId(111)
+            .iterationId(9)
+            .attemptId(0)
+            .batchId("batch-2")
+            .build();
+
+    // act
+    Optional<AggregationBatchEntity> result = dao.getAggregationBatchById(batchId);
+
+    // assert
+    assertTrue(result.isEmpty());
   }
 
   @Test

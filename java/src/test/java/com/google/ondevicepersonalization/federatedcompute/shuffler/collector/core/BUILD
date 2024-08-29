@@ -21,6 +21,7 @@ java_test(
     test_class = "com.google.ondevicepersonalization.federatedcompute.shuffler.collector.core.CollectorCoreImplTest",
     deps = [
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/aggregator/core/message:aggregator_message",
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/aggregator/core/message:aggregator_notification",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/collector/core:collector_core_impl",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/collector/core:collector_core_impl_helper",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:constants",

@@ -122,6 +122,20 @@ module "aggregator_pubsub_topic" {
   parameter_value = module.pubsub.aggregator_topic_name
 }
 
+
+module "aggregator_notifications_pubsub_subscription" {
+  source          = "../../modules/parameters"
+  environment     = var.environment
+  parameter_name  = "AGGREGATOR_NOTIF_PUBSUB_SUBSCRIPTION"
+  parameter_value = module.pubsub.aggregator_notifications_subscription_name
+}
+
+module "aggregator_notifications_pubsub_topic" {
+  source          = "../../modules/parameters"
+  environment     = var.environment
+  parameter_name  = "AGGREGATOR_NOTIF_PUBSUB_TOPIC"
+  parameter_value = module.pubsub.aggregator_notifications_topic_name
+}
 module "model_updater_pubsub_subscription" {
   source          = "../../modules/parameters"
   environment     = var.environment

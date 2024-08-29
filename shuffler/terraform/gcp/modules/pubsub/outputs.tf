@@ -20,6 +20,14 @@ output "aggregator_subscription_name" {
   value = google_pubsub_subscription.aggregator-subscription.name
 }
 
+output "aggregator_notifications_topic_name" {
+  value = google_pubsub_topic.aggregator-notifications-topic.name
+}
+
+output "aggregator_notifications_subscription_name" {
+  value = google_pubsub_subscription.aggregator-notifications-subscription.name
+}
+
 output "model_updater_topic_name" {
   value = google_pubsub_topic.model-updater-topic.name
 }

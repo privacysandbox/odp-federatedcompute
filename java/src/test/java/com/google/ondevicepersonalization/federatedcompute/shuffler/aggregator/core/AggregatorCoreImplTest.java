@@ -32,6 +32,7 @@ import com.google.fcp.aggregation.AggregationSession;
 import com.google.fcp.plan.PhaseSession;
 import com.google.fcp.plan.TensorflowPlanSession;
 import com.google.fcp.tensorflow.AppFiles;
+import com.google.fcp.tensorflow.TensorflowException;
 import com.google.gson.Gson;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.aggregator.core.message.AggregatorMessage;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.crypto.Payload;
@@ -39,6 +40,7 @@ import com.google.ondevicepersonalization.federatedcompute.shuffler.common.crypt
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.BlobDao;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.BlobDescription;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.IterationEntity;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.common.messaging.HttpMessageSender;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.tensorflow.TensorflowPlanSessionFactory;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.modelupdater.core.message.ModelUpdaterMessage;
 import com.google.protobuf.ByteString;
@@ -123,6 +125,7 @@ public final class AggregatorCoreImplTest {
           .aggregatedGradientOutputObject(RESULT_1.getResourceObject())
           .requestId(ITERATION1.getId().toString())
           .accumulateIntermediateUpdates(false)
+          .notificationEndpoint("localhost")
           .build();
 
   private static final AggregatorMessage MESSAGE2 =
@@ -155,6 +158,7 @@ public final class AggregatorCoreImplTest {
 
   @Mock PublicKeyEncryptionService publicKeyEncryptionService;
   @Mock AppFiles appFiles;
+  @Mock HttpMessageSender httpMessageSender;
 
   ArgumentCaptor<byte[]> uploadResultCaptor;
   ArgumentCaptor<ModelUpdaterMessage> messageCaptor;
@@ -174,7 +178,8 @@ public final class AggregatorCoreImplTest {
             tensorflowPlanSessionFactory,
             decryptionKeyService,
             publicKeyEncryptionService,
-            appFiles);
+            appFiles,
+            httpMessageSender);
     gradient =
         ("{\n"
              + "  \"encryptedPayload\":\"EqHpPLNug0sxrO+C/khNBauZxBFaBDAnm9YsriaW5FIUduNy6JRpSuwVTRu41tMjxA8uuRL5nbyqvKgd7qAKC2PpcmjnrQ4WpO/++a0Z\",\n"
@@ -229,6 +234,7 @@ public final class AggregatorCoreImplTest {
     List<ByteString> capturedGradientResults = gradientCaptor.getAllValues();
     assertArrayEquals("HelloWorld".getBytes(), capturedGradientResults.get(0).toByteArray());
     verify(phaseSession, times(2)).toIntermediateUpdate();
+    verify(httpMessageSender, times(1)).sendMessage(any(), eq("localhost"));
   }
 
   @Test
@@ -352,5 +358,26 @@ public final class AggregatorCoreImplTest {
 
     // act
     assertThrows(IllegalStateException.class, () -> core.process(MESSAGE1));
+  }
+
+  @Test
+  public void testProcess_NotFailOnTensorflowException() throws Exception {
+    // arange
+    when(blobDao.downloadAndDecompressIfNeeded(any())).thenReturn(gradient);
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_1)).thenReturn(plan);
+    when(tensorflowPlanSessionFactory.createPlanSession(any())).thenReturn(tensorflowPlanSession);
+    when(tensorflowPlanSession.createPhaseSession(any(), any())).thenReturn(phaseSession);
+    doThrow(new IllegalStateException(new TensorflowException("error.")))
+        .when(phaseSession)
+        .accumulateClientUpdate(any());
+    when(phaseSession.toIntermediateUpdate()).thenReturn(ByteString.copyFrom(new byte[] {10}));
+    when(decryptionKeyService.getDecrypter(any())).thenReturn(hybridDecrypt);
+    when(hybridDecrypt.decrypt(any(), any())).thenReturn(Base64.decode(GZIP_GRADIENT));
+    when(publicKeyEncryptionService.encryptPayload(any(), any())).thenReturn(payload);
+
+    // act
+    core.process(MESSAGE1);
+
+    verify(httpMessageSender, times(1)).sendMessage(any(), eq("localhost"));
   }
 }

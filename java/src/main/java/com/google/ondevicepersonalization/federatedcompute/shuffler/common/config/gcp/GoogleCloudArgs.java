@@ -188,4 +188,14 @@ public final class GoogleCloudArgs {
       variableArity = true)
   private List<CompressionFormat> compressionFormats =
       new ArrayList<>(Arrays.asList(CompressionFormat.GZIP));
+
+  @Parameter(
+      names = "--aggregator_notification_pubsub_topic",
+      description = "The name of the aggregator notification pubsub topic.")
+  private String aggregatorNotificationPubsubTopic;
+
+  @Parameter(
+      names = "--aggregator_notification_pubsub_subscription",
+      description = "The name of the aggregator notification pubsub subscription.")
+  private String aggregatorNotificationPubsubSubscription;
 }

@@ -16,6 +16,8 @@
 
 package com.google.ondevicepersonalization.federatedcompute.shuffler.collector.core;
 
+import com.google.ondevicepersonalization.federatedcompute.shuffler.aggregator.core.message.AggregatorNotification;
+
 /** Collector core interface. */
 public interface CollectorCore {
 
@@ -27,4 +29,7 @@ public interface CollectorCore {
 
   /** Process timeouts for iteration in status COLLECTING. */
   public void processTimeouts();
+
+  /** Process notifications from the Aggregator. */
+  public void processAggregatorNotifications(AggregatorNotification.Attributes notification);
 }

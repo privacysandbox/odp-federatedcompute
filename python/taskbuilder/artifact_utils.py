@@ -115,11 +115,12 @@ def upload_artifacts(
     )
 
 
+# TODO (b/314209706): cache common data structures to avoid re-building artifacts.
 def _build_plan(
     learning_process_comp: tff.Computation,
     dataspec: data_spec.DataSpec,
     use_daf: Optional[bool] = False,
-    compact_graph: Optional[bool] = True
+    compact_graph: Optional[bool] = True,
 ) -> plan_pb2.Plan:
   logging.log(logging.INFO, 'Start building plan...')
   try:
@@ -143,12 +144,12 @@ def _build_plan(
     )
 
     if compact_graph:
-        logging.log(logging.INFO, 'Compacting client graph...')
-        keep_names = _find_all_plan_client_names(plan)
-        client_graph = tf.compat.v1.GraphDef()
-        plan.client_graph_bytes.Unpack(client_graph)
-        graph_compactor.compact_graph(client_graph, keep_names, options=None)
-        plan.client_graph_bytes.Pack(client_graph)
+      logging.log(logging.INFO, 'Compacting client graph...')
+      keep_names = _find_all_plan_client_names(plan)
+      client_graph = tf.compat.v1.GraphDef()
+      plan.client_graph_bytes.Unpack(client_graph)
+      graph_compactor.compact_graph(client_graph, keep_names, options=None)
+      plan.client_graph_bytes.Pack(client_graph)
 
     logging.log(logging.INFO, 'Adding TFLite graph to the plan...')
     return plan_utils.generate_and_add_flat_buffer_to_plan(plan)
@@ -185,6 +186,7 @@ def _find_all_plan_client_names(plan: plan_pb2.Plan) -> list[str]:
         _get_names_for_tensorflow_spec(phase.client_phase.tensorflow_spec)
     )
   return sorted(values)
+
 
 def _build_client_plan(
     plan: plan_pb2.Plan,

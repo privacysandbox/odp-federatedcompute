@@ -13,26 +13,35 @@
 # limitations under the License.
 
 import collections
-import functools
 from typing import Any, Callable, Sequence, TypeVar
 import common
+from shuffler.proto import task_builder_pb2
 import tensorflow as tf
 import tensorflow_federated as tff
 
 StateVar = TypeVar('StateVar')
 
 
-def _is_allowed_metrics(metric_name: str) -> bool:
-  return metric_name in common.METRICS_ALLOWLIST
+def metric_outcomes(
+    metrics: list[task_builder_pb2.Metric],
+) -> dict[str, list[str]]:
+  outcome = {'accepted_metrics': [], 'rejected_metrics': []}
+  for metric in metrics:
+    metric_name = metric.name
+    if metric_name in common.METRICS_ALLOWLIST:
+      outcome['accepted_metrics'].append(metric_name)
+    else:
+      outcome['rejected_metrics'].append(metric_name)
+  return outcome
 
 
 def build_metric_constructors_list(
-    metric_names: Sequence[str],
+    allowed_metric_names: Sequence[str],
 ) -> list[Callable[[], tf.keras.metrics.Metric]]:
   """Builds a no-arg callable that constructors specified metrics.
 
   Args:
-    metric_names: A sequence of `str` metric names.
+    allowed_metric_names: A sequence of `str` metric names.
 
   Returns:
     A `list` of no-arg callables matching the order of `metrics_enum_list`. Each
@@ -47,11 +56,6 @@ def build_metric_constructors_list(
     # make some of the downstream checks in TFF side fail.
     return common.METRICS_ALLOWLIST[metric_name]
 
-  allowed_metric_names = [
-      metric_name
-      for metric_name in metric_names
-      if _is_allowed_metrics(metric_name)
-  ]
   return [
       _build_metric_constructor(metric_name)
       for metric_name in allowed_metric_names

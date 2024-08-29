@@ -125,7 +125,12 @@ public class TaskSchedulerCoreImpl implements TaskSchedulerCore {
           // Generate and upload device checkpoint for new training task
           TaskInfo taskInfo = ProtoParser.toProto(task.getInfo(), TaskInfo.getDefaultInstance());
           if (taskInfo.hasTrainingInfo()) {
-            taskSchedulerCoreHelper.generateAndUploadDeviceCheckpoint(baseIteration);
+            try {
+              taskSchedulerCoreHelper.generateAndUploadDeviceCheckpoint(baseIteration);
+            } catch (IllegalArgumentException e) {
+              logger.warn("Provided iteration's server checkpoint or plan do not exist.");
+              return;
+            }
           }
           taskDao.updateTaskStatus(task.getId(), TaskEntity.Status.CREATED, TaskEntity.Status.OPEN);
         } finally {

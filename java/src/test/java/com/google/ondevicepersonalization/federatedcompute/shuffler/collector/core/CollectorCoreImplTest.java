@@ -16,6 +16,7 @@
 
 package com.google.ondevicepersonalization.federatedcompute.shuffler.collector.core;
 
+import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -26,6 +27,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableList;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.aggregator.core.message.AggregatorMessage;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.aggregator.core.message.AggregatorNotification;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AggregationBatchDao;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AggregationBatchEntity;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AssignmentDao;
@@ -98,10 +100,30 @@ public final class CollectorCoreImplTest {
           .resultId(18)
           .build();
 
+  private static final AggregatorNotification.Attributes ATTRIBUTES1 =
+      AggregatorNotification.Attributes.builder()
+          .requestId("us/35/17/0_batch")
+          .status(AggregatorNotification.Status.ERROR)
+          .errorReason(AggregatorNotification.ErrorReason.AGGREGATION_ERROR)
+          .build();
+
+  private static final AggregationBatchEntity BATCH_ENTITY1 =
+      AggregationBatchEntity.builder()
+          .populationName("us")
+          .taskId(35)
+          .iterationId(17)
+          .attemptId(0)
+          .status(AggregationBatchEntity.Status.PUBLISH_COMPLETED)
+          .batchId("batch")
+          .aggregationLevel(0)
+          .batchSize(50)
+          .createdByPartition("us/36/18/0_batch")
+          .build();
+
   private static final IterationEntity AGG_ITERATION1 =
       IterationEntity.builder()
           .populationName("us")
-          .taskId(36)
+          .taskId(35)
           .iterationId(17)
           .attemptId(0)
           .status(Status.AGGREGATING)
@@ -233,6 +255,7 @@ public final class CollectorCoreImplTest {
             instantSource,
             messageSender,
             "agTopic",
+            "endpoint",
             "muTopic",
             lockRegistry,
             15,
@@ -273,17 +296,17 @@ public final class CollectorCoreImplTest {
 
   @Test
   public void testProcess_TryLockFailed() {
-    when(lockRegistry.obtain("collector_" + AGG_ITERATION1.getId().toString())).thenReturn(lock);
+    when(lockRegistry.obtain("collector_" + AGG_ITERATION2.getId().toString())).thenReturn(lock);
     when(lockRegistry.obtain("collector_" + ITERATION1.getId().toString())).thenReturn(lock);
     when(lock.tryLock()).thenReturn(false);
     when(taskDao.getIterationsOfStatus(Status.AGGREGATING))
-        .thenReturn(ImmutableList.of(AGG_ITERATION1));
+        .thenReturn(ImmutableList.of(AGG_ITERATION2));
     when(taskDao.getIterationsOfStatus(Status.COLLECTING)).thenReturn(ImmutableList.of(ITERATION1));
 
     core.processAggregating();
     core.processCollecting();
 
-    verify(lockRegistry, times(1)).obtain("collector_" + AGG_ITERATION1.getId().toString());
+    verify(lockRegistry, times(1)).obtain("collector_" + AGG_ITERATION2.getId().toString());
     verify(lockRegistry, times(1)).obtain("collector_" + ITERATION1.getId().toString());
     verify(messageSender, times(0)).sendMessage(any(), any());
     verify(taskDao, times(0)).updateIterationStatus(any(), any());
@@ -303,7 +326,7 @@ public final class CollectorCoreImplTest {
     when(collectorCoreImplHelper.createModelUpdaterMessage(any(), any()))
         .thenReturn(MODEL_UPDATER_MESSAGE);
     when(aggregationBatchDao.querySumOfAggregationBatchesOfStatus(
-            any(), anyLong(), eq(AggregationBatchEntity.Status.UPLOAD_COMPLETED)))
+            any(), anyLong(), eq(List.of(AggregationBatchEntity.Status.UPLOAD_COMPLETED))))
         .thenReturn(3L);
 
     core.processAggregating();
@@ -318,7 +341,7 @@ public final class CollectorCoreImplTest {
     verify(aggregationBatchDao, times(2)).updateAggregationBatchStatus(any(), any());
     verify(aggregationBatchDao, times(1))
         .querySumOfAggregationBatchesOfStatus(
-            AGG_ITERATION1, 0, AggregationBatchEntity.Status.UPLOAD_COMPLETED);
+            AGG_ITERATION1, 0, List.of(AggregationBatchEntity.Status.UPLOAD_COMPLETED));
     verify(collectorCoreImplHelper, times(1))
         .createModelUpdaterMessage(eq(AGG_ITERATION1), eq(List.of("batch1", "batch2")));
     verify(messageSender, times(1)).sendMessage(eq(MODEL_UPDATER_MESSAGE), eq("muTopic"));
@@ -346,6 +369,12 @@ public final class CollectorCoreImplTest {
         .thenReturn(ImmutableList.of("iter2_1", "iter2_2"));
     when(blobDao.listByPartition(eq(DIR2_2), any())).thenReturn(ImmutableList.of("iter2_3"));
     when(assignmentDao.queryAssignmentIdsOfStatus(
+            ITERATION1.getId(), AssignmentEntity.Status.LOCAL_COMPLETED, Optional.empty()))
+        .thenReturn(ImmutableList.of("iter1_1", "iter1_2"));
+    when(assignmentDao.queryAssignmentIdsOfStatus(
+            ITERATION2.getId(), AssignmentEntity.Status.LOCAL_COMPLETED, Optional.empty()))
+        .thenReturn(ImmutableList.of("iter2_1", "iter2_2", "iter2_3"));
+    when(assignmentDao.queryAssignmentIdsOfStatus(
             ITERATION1.getId(), AssignmentEntity.Status.UPLOAD_COMPLETED, Optional.empty()))
         .thenReturn(ImmutableList.of("iter1_1", "iter1_2"));
     when(assignmentDao.queryAssignmentIdsOfStatus(
@@ -356,10 +385,10 @@ public final class CollectorCoreImplTest {
     when(aggregationBatchDao.queryAggregationBatchIdsOfStatus(any(), anyLong(), any(), any()))
         .thenReturn(List.of());
     when(aggregationBatchDao.querySumOfAggregationBatchesOfStatus(
-            ITERATION1, 0, AggregationBatchEntity.Status.PUBLISH_COMPLETED))
+            ITERATION1, 0, List.of(AggregationBatchEntity.Status.PUBLISH_COMPLETED)))
         .thenReturn(0L);
     when(aggregationBatchDao.querySumOfAggregationBatchesOfStatus(
-            ITERATION2, 0, AggregationBatchEntity.Status.PUBLISH_COMPLETED))
+            ITERATION2, 0, List.of(AggregationBatchEntity.Status.PUBLISH_COMPLETED)))
         .thenReturn(0L);
     when(aggregationBatchDao.updateAggregationBatchStatus(any(), any())).thenReturn(true);
     when(assignmentDao.queryAssignmentIdsOfStatus(
@@ -367,7 +396,7 @@ public final class CollectorCoreImplTest {
             eq(AssignmentEntity.Status.UPLOAD_COMPLETED),
             any(Optional.class)))
         .thenReturn(ImmutableList.of("iter2_1", "iter2_2", "iter2_3"));
-    when(collectorCoreImplHelper.createAggregatorMessage(any(), any(), any(), anyBoolean()))
+    when(collectorCoreImplHelper.createAggregatorMessage(any(), any(), any(), anyBoolean(), any()))
         .thenReturn(AGGREGATOR_MESSAGE);
 
     // act
@@ -430,14 +459,18 @@ public final class CollectorCoreImplTest {
             Optional.of(ITERATION2.getId().toString()));
     verify(aggregationBatchDao, times(1))
         .querySumOfAggregationBatchesOfStatus(
-            ITERATION1, 0, AggregationBatchEntity.Status.PUBLISH_COMPLETED);
+            ITERATION1, 0, List.of(AggregationBatchEntity.Status.PUBLISH_COMPLETED));
     verify(aggregationBatchDao, times(1))
         .querySumOfAggregationBatchesOfStatus(
-            ITERATION2, 0, AggregationBatchEntity.Status.PUBLISH_COMPLETED);
+            ITERATION2, 0, List.of(AggregationBatchEntity.Status.PUBLISH_COMPLETED));
     verify(aggregationBatchDao, times(1)).updateAggregationBatchStatus(any(), any());
     verify(collectorCoreImplHelper, times(1))
         .createAggregatorMessage(
-            eq(ITERATION2), eq(List.of("iter2_1", "iter2_2", "iter2_3")), any(), eq(false));
+            eq(ITERATION2),
+            eq(List.of("iter2_1", "iter2_2", "iter2_3")),
+            any(),
+            eq(false),
+            eq("endpoint"));
     verify(assignmentDao, times(1))
         .queryAssignmentIdsOfStatus(
             eq(ITERATION1.getId()),
@@ -478,11 +511,13 @@ public final class CollectorCoreImplTest {
     verify(assignmentDao, times(1))
         .batchUpdateAssignmentStatus(
             List.of(toAssignmentId(ITERATION1, "iter1_1"), toAssignmentId(ITERATION1, "iter1_2")),
+            Optional.empty(),
             AssignmentEntity.Status.ASSIGNED,
             AssignmentEntity.Status.LOCAL_TIMEOUT);
     verify(assignmentDao, times(1))
         .batchUpdateAssignmentStatus(
             List.of(toAssignmentId(ITERATION2, "iter2_1")),
+            Optional.empty(),
             AssignmentEntity.Status.ASSIGNED,
             AssignmentEntity.Status.LOCAL_TIMEOUT);
   }
@@ -528,11 +563,13 @@ public final class CollectorCoreImplTest {
     verify(assignmentDao, times(1))
         .batchUpdateAssignmentStatus(
             List.of(toAssignmentId(ITERATION1, "iter1_1"), toAssignmentId(ITERATION1, "iter1_2")),
+            Optional.empty(),
             AssignmentEntity.Status.LOCAL_COMPLETED,
             AssignmentEntity.Status.UPLOAD_TIMEOUT);
     verify(assignmentDao, times(1))
         .batchUpdateAssignmentStatus(
             List.of(toAssignmentId(ITERATION2, "iter2_1")),
+            Optional.empty(),
             AssignmentEntity.Status.LOCAL_COMPLETED,
             AssignmentEntity.Status.UPLOAD_TIMEOUT);
   }
@@ -551,6 +588,7 @@ public final class CollectorCoreImplTest {
             instantSource,
             messageSender,
             "agTopic",
+            "endpoint",
             "muTopic",
             lockRegistry,
             15,
@@ -580,7 +618,7 @@ public final class CollectorCoreImplTest {
             any(), anyLong(), eq(AggregationBatchEntity.Status.PUBLISH_COMPLETED), any()))
         .thenReturn(List.of("batch-1"));
     when(aggregationBatchDao.querySumOfAggregationBatchesOfStatus(
-            ITERATION1, 0, AggregationBatchEntity.Status.PUBLISH_COMPLETED))
+            ITERATION1, 0, List.of(AggregationBatchEntity.Status.PUBLISH_COMPLETED)))
         .thenReturn(2L);
     when(aggregationBatchDao.updateAggregationBatchStatus(any(), any())).thenReturn(true);
     when(assignmentDao.queryAssignmentIdsOfStatus(
@@ -591,7 +629,7 @@ public final class CollectorCoreImplTest {
     when(assignmentDao.queryAssignmentIdsOfStatus(
             ITERATION1.getId(), AssignmentEntity.Status.UPLOAD_COMPLETED, Optional.of("batch-1")))
         .thenReturn(ImmutableList.of("iter1_1", "iter1_2"));
-    when(collectorCoreImplHelper.createAggregatorMessage(any(), any(), any(), anyBoolean()))
+    when(collectorCoreImplHelper.createAggregatorMessage(any(), any(), any(), anyBoolean(), any()))
         .thenReturn(AGGREGATOR_MESSAGE);
 
     // act
@@ -606,6 +644,7 @@ public final class CollectorCoreImplTest {
     verify(assignmentDao, times(1))
         .batchUpdateAssignmentStatus(
             List.of(toAssignmentId(ITERATION1, "iter1_3")),
+            Optional.empty(),
             AssignmentEntity.Status.LOCAL_COMPLETED,
             AssignmentEntity.Status.UPLOAD_COMPLETED);
     verify(assignmentDao, times(1))
@@ -634,13 +673,14 @@ public final class CollectorCoreImplTest {
             Optional.of(ITERATION1.getId().toString()));
     verify(aggregationBatchDao, times(1))
         .querySumOfAggregationBatchesOfStatus(
-            ITERATION1, 0, AggregationBatchEntity.Status.PUBLISH_COMPLETED);
+            ITERATION1, 0, List.of(AggregationBatchEntity.Status.PUBLISH_COMPLETED));
     verify(aggregationBatchDao, times(2)).updateAggregationBatchStatus(any(), any());
     verify(collectorCoreImplHelper, times(1))
         .createAggregatorMessage(
-            eq(ITERATION1), eq(List.of("iter1_1", "iter1_2")), any(), eq(false));
+            eq(ITERATION1), eq(List.of("iter1_1", "iter1_2")), any(), eq(false), eq("endpoint"));
     verify(collectorCoreImplHelper, times(1))
-        .createAggregatorMessage(eq(ITERATION1), eq(List.of("iter1_3")), any(), eq(false));
+        .createAggregatorMessage(
+            eq(ITERATION1), eq(List.of("iter1_3")), any(), eq(false), eq("endpoint"));
     verify(assignmentDao, times(3))
         .queryAssignmentIdsOfStatus(
             eq(ITERATION1.getId()),
@@ -662,6 +702,7 @@ public final class CollectorCoreImplTest {
             instantSource,
             messageSender,
             "agTopic",
+            "endpoint",
             "muTopic",
             lockRegistry,
             15,
@@ -691,7 +732,7 @@ public final class CollectorCoreImplTest {
             any(), anyLong(), eq(AggregationBatchEntity.Status.PUBLISH_COMPLETED), any()))
         .thenReturn(List.of("batch-1"));
     when(aggregationBatchDao.querySumOfAggregationBatchesOfStatus(
-            ITERATION1, 0, AggregationBatchEntity.Status.PUBLISH_COMPLETED))
+            ITERATION1, 0, List.of(AggregationBatchEntity.Status.PUBLISH_COMPLETED)))
         .thenReturn(2L);
     when(aggregationBatchDao.updateAggregationBatchStatus(any(), any())).thenReturn(true);
     when(assignmentDao.queryAssignmentIdsOfStatus(
@@ -712,7 +753,7 @@ public final class CollectorCoreImplTest {
     when(assignmentDao.queryAssignmentIdsOfStatus(
             ITERATION1.getId(), AssignmentEntity.Status.UPLOAD_COMPLETED, Optional.of("batch-1")))
         .thenReturn(ImmutableList.of("iter1_1", "iter1_2"));
-    when(collectorCoreImplHelper.createAggregatorMessage(any(), any(), any(), anyBoolean()))
+    when(collectorCoreImplHelper.createAggregatorMessage(any(), any(), any(), anyBoolean(), any()))
         .thenReturn(AGGREGATOR_MESSAGE);
 
     // act
@@ -727,6 +768,7 @@ public final class CollectorCoreImplTest {
     verify(assignmentDao, times(1))
         .batchUpdateAssignmentStatus(
             List.of(toAssignmentId(ITERATION1, "iter1_3")),
+            Optional.empty(),
             AssignmentEntity.Status.LOCAL_COMPLETED,
             AssignmentEntity.Status.UPLOAD_COMPLETED);
     verify(assignmentDao, times(1))
@@ -755,13 +797,14 @@ public final class CollectorCoreImplTest {
             Optional.of(ITERATION1.getId().toString()));
     verify(aggregationBatchDao, times(1))
         .querySumOfAggregationBatchesOfStatus(
-            ITERATION1, 0, AggregationBatchEntity.Status.PUBLISH_COMPLETED);
+            ITERATION1, 0, List.of(AggregationBatchEntity.Status.PUBLISH_COMPLETED));
     verify(aggregationBatchDao, times(1)).updateAggregationBatchStatus(any(), any());
     verify(collectorCoreImplHelper, times(1))
         .createAggregatorMessage(
-            eq(ITERATION1), eq(List.of("iter1_1", "iter1_2")), any(), eq(false));
+            eq(ITERATION1), eq(List.of("iter1_1", "iter1_2")), any(), eq(false), eq("endpoint"));
     verify(collectorCoreImplHelper, times(0))
-        .createAggregatorMessage(eq(ITERATION1), eq(List.of("iter1_3")), any(), eq(false));
+        .createAggregatorMessage(
+            eq(ITERATION1), eq(List.of("iter1_3")), any(), eq(false), eq("endpoint"));
     verify(assignmentDao, times(2))
         .queryAssignmentIdsOfStatus(
             eq(ITERATION1.getId()),
@@ -798,8 +841,403 @@ public final class CollectorCoreImplTest {
     verify(assignmentDao, times(1))
         .batchUpdateAssignmentStatus(
             List.of(toAssignmentId(ITERATION1, "iter1_1"), toAssignmentId(ITERATION1, "iter1_3")),
+            Optional.empty(),
             AssignmentEntity.Status.LOCAL_COMPLETED,
             AssignmentEntity.Status.UPLOAD_COMPLETED);
+  }
+
+  @Test
+  public void testProcessAggregatorNotifications_successHandleFailure() {
+    when(taskDao.getIterationById(any())).thenReturn(Optional.of(AGG_ITERATION1));
+    when(aggregationBatchDao.getAggregationBatchById(any())).thenReturn(Optional.of(BATCH_ENTITY1));
+    when(aggregationBatchDao.updateAggregationBatchStatus(any(), any())).thenReturn(true);
+    when(assignmentDao.queryAssignmentIdsOfStatus(
+            AGG_ITERATION1.getId(),
+            AssignmentEntity.Status.UPLOAD_COMPLETED,
+            Optional.of(BATCH_ENTITY1.getBatchId())))
+        .thenReturn(ImmutableList.of("iter1_1", "iter1_2"));
+    when(assignmentDao.batchUpdateAssignmentStatus(any(), any(), any(), any())).thenReturn(2);
+    when(aggregationBatchDao.querySumOfAggregationBatchesOfStatus(any(), anyLong(), any()))
+        .thenReturn(1L);
+    when(taskDao.updateIterationStatus(any(), any())).thenReturn(true);
+
+    core.processAggregatorNotifications(ATTRIBUTES1);
+    verify(taskDao, times(1)).getIterationById(AGG_ITERATION1.getId());
+    verify(aggregationBatchDao, times(1)).getAggregationBatchById(BATCH_ENTITY1.getId());
+    verify(aggregationBatchDao, times(1))
+        .updateAggregationBatchStatus(
+            BATCH_ENTITY1,
+            BATCH_ENTITY1.toBuilder().status(AggregationBatchEntity.Status.FAILED).build());
+    verify(assignmentDao, times(1))
+        .queryAssignmentIdsOfStatus(
+            AGG_ITERATION1.getId(),
+            AssignmentEntity.Status.UPLOAD_COMPLETED,
+            Optional.of(BATCH_ENTITY1.getBatchId()));
+    verify(assignmentDao, times(1))
+        .batchUpdateAssignmentStatus(
+            List.of(
+                toAssignmentId(AGG_ITERATION1, "iter1_1"),
+                toAssignmentId(AGG_ITERATION1, "iter1_2")),
+            Optional.of(BATCH_ENTITY1.getBatchId()),
+            AssignmentEntity.Status.UPLOAD_COMPLETED,
+            AssignmentEntity.Status.REMOTE_FAILED);
+    verify(aggregationBatchDao, times(1))
+        .querySumOfAggregationBatchesOfStatus(
+            AGG_ITERATION1,
+            AGG_ITERATION1.getAggregationLevel() - 1,
+            List.of(
+                AggregationBatchEntity.Status.PUBLISH_COMPLETED,
+                AggregationBatchEntity.Status.UPLOAD_COMPLETED));
+    verify(taskDao, times(1))
+        .updateIterationStatus(
+            AGG_ITERATION1,
+            AGG_ITERATION1.toBuilder().status(Status.COLLECTING).aggregationLevel(0).build());
+  }
+
+  @Test
+  public void testProcessAggregatorNotifications_successHandleFailed() {
+    when(taskDao.getIterationById(any())).thenReturn(Optional.of(AGG_ITERATION1));
+    when(aggregationBatchDao.getAggregationBatchById(any()))
+        .thenReturn(
+            Optional.of(
+                BATCH_ENTITY1.toBuilder().status(AggregationBatchEntity.Status.FAILED).build()));
+    when(aggregationBatchDao.updateAggregationBatchStatus(any(), any())).thenReturn(true);
+    when(assignmentDao.queryAssignmentIdsOfStatus(
+            AGG_ITERATION1.getId(),
+            AssignmentEntity.Status.UPLOAD_COMPLETED,
+            Optional.of(BATCH_ENTITY1.getBatchId())))
+        .thenReturn(ImmutableList.of("iter1_1", "iter1_2"));
+    when(assignmentDao.batchUpdateAssignmentStatus(any(), any(), any(), any())).thenReturn(2);
+    when(aggregationBatchDao.querySumOfAggregationBatchesOfStatus(any(), anyLong(), any()))
+        .thenReturn(1L);
+    when(taskDao.updateIterationStatus(any(), any())).thenReturn(true);
+
+    core.processAggregatorNotifications(ATTRIBUTES1);
+    verify(taskDao, times(1)).getIterationById(AGG_ITERATION1.getId());
+    verify(aggregationBatchDao, times(1)).getAggregationBatchById(BATCH_ENTITY1.getId());
+    verify(aggregationBatchDao, times(0)).updateAggregationBatchStatus(any(), any());
+    verify(assignmentDao, times(1))
+        .queryAssignmentIdsOfStatus(
+            AGG_ITERATION1.getId(),
+            AssignmentEntity.Status.UPLOAD_COMPLETED,
+            Optional.of(BATCH_ENTITY1.getBatchId()));
+    verify(assignmentDao, times(1))
+        .batchUpdateAssignmentStatus(
+            List.of(
+                toAssignmentId(AGG_ITERATION1, "iter1_1"),
+                toAssignmentId(AGG_ITERATION1, "iter1_2")),
+            Optional.of(BATCH_ENTITY1.getBatchId()),
+            AssignmentEntity.Status.UPLOAD_COMPLETED,
+            AssignmentEntity.Status.REMOTE_FAILED);
+    verify(aggregationBatchDao, times(1))
+        .querySumOfAggregationBatchesOfStatus(
+            AGG_ITERATION1,
+            AGG_ITERATION1.getAggregationLevel() - 1,
+            List.of(
+                AggregationBatchEntity.Status.PUBLISH_COMPLETED,
+                AggregationBatchEntity.Status.UPLOAD_COMPLETED));
+    verify(taskDao, times(1))
+        .updateIterationStatus(
+            AGG_ITERATION1,
+            AGG_ITERATION1.toBuilder().status(Status.COLLECTING).aggregationLevel(0).build());
+  }
+
+  @Test
+  public void testProcessAggregatorNotifications_successOK() {
+    core.processAggregatorNotifications(
+        ATTRIBUTES1.toBuilder().status(AggregatorNotification.Status.OK).build());
+    verify(aggregationBatchDao, times(0))
+        .updateAggregationBatchStatus(
+            BATCH_ENTITY1,
+            BATCH_ENTITY1.toBuilder().status(AggregationBatchEntity.Status.FAILED).build());
+    verify(assignmentDao, times(0))
+        .batchUpdateAssignmentStatus(
+            List.of(
+                toAssignmentId(AGG_ITERATION1, "iter1_1"),
+                toAssignmentId(AGG_ITERATION1, "iter1_2")),
+            Optional.of(BATCH_ENTITY1.getBatchId()),
+            AssignmentEntity.Status.UPLOAD_COMPLETED,
+            AssignmentEntity.Status.REMOTE_FAILED);
+    verify(taskDao, times(0))
+        .updateIterationStatus(
+            AGG_ITERATION1,
+            AGG_ITERATION1.toBuilder().status(Status.COLLECTING).aggregationLevel(0).build());
+  }
+
+  @Test
+  public void testProcessAggregatorNotifications_invalidRequestId() {
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            core.processAggregatorNotifications(
+                ATTRIBUTES1.toBuilder().requestId("helloWorld").build()));
+  }
+
+  @Test
+  public void testProcessAggregatorNotifications_invalidBatchId() {
+    when(aggregationBatchDao.getAggregationBatchById(any())).thenReturn(Optional.empty());
+
+    core.processAggregatorNotifications(ATTRIBUTES1);
+    verify(aggregationBatchDao, times(1)).getAggregationBatchById(BATCH_ENTITY1.getId());
+    verify(aggregationBatchDao, times(0))
+        .updateAggregationBatchStatus(
+            BATCH_ENTITY1,
+            BATCH_ENTITY1.toBuilder().status(AggregationBatchEntity.Status.FAILED).build());
+    verify(assignmentDao, times(0))
+        .batchUpdateAssignmentStatus(
+            List.of(
+                toAssignmentId(AGG_ITERATION1, "iter1_1"),
+                toAssignmentId(AGG_ITERATION1, "iter1_2")),
+            Optional.of(BATCH_ENTITY1.getBatchId()),
+            AssignmentEntity.Status.UPLOAD_COMPLETED,
+            AssignmentEntity.Status.REMOTE_FAILED);
+    verify(taskDao, times(0))
+        .updateIterationStatus(
+            AGG_ITERATION1,
+            AGG_ITERATION1.toBuilder().status(Status.COLLECTING).aggregationLevel(0).build());
+  }
+
+  @Test
+  public void testProcessAggregatorNotifications_invalidBatchStatus() {
+    when(aggregationBatchDao.getAggregationBatchById(any()))
+        .thenReturn(
+            Optional.of(
+                BATCH_ENTITY1.toBuilder().status(AggregationBatchEntity.Status.FULL).build()));
+
+    core.processAggregatorNotifications(ATTRIBUTES1);
+    verify(aggregationBatchDao, times(1)).getAggregationBatchById(BATCH_ENTITY1.getId());
+    verify(aggregationBatchDao, times(0))
+        .updateAggregationBatchStatus(
+            BATCH_ENTITY1,
+            BATCH_ENTITY1.toBuilder().status(AggregationBatchEntity.Status.FAILED).build());
+    verify(assignmentDao, times(0))
+        .batchUpdateAssignmentStatus(
+            List.of(
+                toAssignmentId(AGG_ITERATION1, "iter1_1"),
+                toAssignmentId(AGG_ITERATION1, "iter1_2")),
+            Optional.of(BATCH_ENTITY1.getBatchId()),
+            AssignmentEntity.Status.UPLOAD_COMPLETED,
+            AssignmentEntity.Status.REMOTE_FAILED);
+    verify(taskDao, times(0))
+        .updateIterationStatus(
+            AGG_ITERATION1,
+            AGG_ITERATION1.toBuilder().status(Status.COLLECTING).aggregationLevel(0).build());
+  }
+
+  @Test
+  public void testProcessAggregatorNotifications_failUpdateAggregationBatch() {
+    when(aggregationBatchDao.getAggregationBatchById(any())).thenReturn(Optional.of(BATCH_ENTITY1));
+    when(aggregationBatchDao.updateAggregationBatchStatus(any(), any())).thenReturn(false);
+
+    assertThrows(
+        IllegalStateException.class, () -> core.processAggregatorNotifications(ATTRIBUTES1));
+    verify(aggregationBatchDao, times(1)).getAggregationBatchById(BATCH_ENTITY1.getId());
+    verify(aggregationBatchDao, times(1))
+        .updateAggregationBatchStatus(
+            BATCH_ENTITY1,
+            BATCH_ENTITY1.toBuilder().status(AggregationBatchEntity.Status.FAILED).build());
+    verify(assignmentDao, times(0))
+        .batchUpdateAssignmentStatus(
+            List.of(
+                toAssignmentId(AGG_ITERATION1, "iter1_1"),
+                toAssignmentId(AGG_ITERATION1, "iter1_2")),
+            Optional.of(BATCH_ENTITY1.getBatchId()),
+            AssignmentEntity.Status.UPLOAD_COMPLETED,
+            AssignmentEntity.Status.REMOTE_FAILED);
+    verify(taskDao, times(0))
+        .updateIterationStatus(
+            AGG_ITERATION1,
+            AGG_ITERATION1.toBuilder().status(Status.COLLECTING).aggregationLevel(0).build());
+  }
+
+  @Test
+  public void testProcessAggregatorNotifications_failUpdateAssignments() {
+    when(aggregationBatchDao.getAggregationBatchById(any())).thenReturn(Optional.of(BATCH_ENTITY1));
+    when(aggregationBatchDao.updateAggregationBatchStatus(any(), any())).thenReturn(true);
+    when(assignmentDao.queryAssignmentIdsOfStatus(
+            AGG_ITERATION1.getId(),
+            AssignmentEntity.Status.UPLOAD_COMPLETED,
+            Optional.of(BATCH_ENTITY1.getBatchId())))
+        .thenReturn(ImmutableList.of("iter1_1", "iter1_2"));
+    when(assignmentDao.batchUpdateAssignmentStatus(any(), any(), any(), any())).thenReturn(1);
+    when(aggregationBatchDao.querySumOfAggregationBatchesOfStatus(any(), anyLong(), any()))
+        .thenReturn(1L);
+    when(taskDao.updateIterationStatus(any(), any())).thenReturn(true);
+
+    assertThrows(
+        IllegalStateException.class, () -> core.processAggregatorNotifications(ATTRIBUTES1));
+    verify(aggregationBatchDao, times(1)).getAggregationBatchById(BATCH_ENTITY1.getId());
+    verify(aggregationBatchDao, times(1))
+        .updateAggregationBatchStatus(
+            BATCH_ENTITY1,
+            BATCH_ENTITY1.toBuilder().status(AggregationBatchEntity.Status.FAILED).build());
+    verify(assignmentDao, times(1))
+        .queryAssignmentIdsOfStatus(
+            AGG_ITERATION1.getId(),
+            AssignmentEntity.Status.UPLOAD_COMPLETED,
+            Optional.of(BATCH_ENTITY1.getBatchId()));
+    verify(assignmentDao, times(1))
+        .batchUpdateAssignmentStatus(
+            List.of(
+                toAssignmentId(AGG_ITERATION1, "iter1_1"),
+                toAssignmentId(AGG_ITERATION1, "iter1_2")),
+            Optional.of(BATCH_ENTITY1.getBatchId()),
+            AssignmentEntity.Status.UPLOAD_COMPLETED,
+            AssignmentEntity.Status.REMOTE_FAILED);
+    verify(aggregationBatchDao, times(0))
+        .querySumOfAggregationBatchesOfStatus(
+            AGG_ITERATION1,
+            AGG_ITERATION1.getAggregationLevel() - 1,
+            List.of(
+                AggregationBatchEntity.Status.PUBLISH_COMPLETED,
+                AggregationBatchEntity.Status.UPLOAD_COMPLETED));
+    verify(taskDao, times(0))
+        .updateIterationStatus(
+            AGG_ITERATION1,
+            AGG_ITERATION1.toBuilder().status(Status.COLLECTING).aggregationLevel(0).build());
+  }
+
+  @Test
+  public void testProcessAggregatorNotifications_successIterationCollecting() {
+    when(taskDao.getIterationById(any())).thenReturn(Optional.of(ITERATION1));
+    when(aggregationBatchDao.getAggregationBatchById(any())).thenReturn(Optional.of(BATCH_ENTITY1));
+    when(aggregationBatchDao.updateAggregationBatchStatus(any(), any())).thenReturn(true);
+    when(assignmentDao.queryAssignmentIdsOfStatus(
+            ITERATION1.getId(),
+            AssignmentEntity.Status.UPLOAD_COMPLETED,
+            Optional.of(BATCH_ENTITY1.getBatchId())))
+        .thenReturn(ImmutableList.of("iter1_1", "iter1_2"));
+    when(assignmentDao.batchUpdateAssignmentStatus(any(), any(), any(), any())).thenReturn(2);
+    when(aggregationBatchDao.querySumOfAggregationBatchesOfStatus(any(), anyLong(), any()))
+        .thenReturn(1L);
+    when(taskDao.updateIterationStatus(any(), any())).thenReturn(true);
+
+    core.processAggregatorNotifications(ATTRIBUTES1);
+    verify(aggregationBatchDao, times(1)).getAggregationBatchById(BATCH_ENTITY1.getId());
+    verify(aggregationBatchDao, times(1))
+        .updateAggregationBatchStatus(
+            BATCH_ENTITY1,
+            BATCH_ENTITY1.toBuilder().status(AggregationBatchEntity.Status.FAILED).build());
+    verify(assignmentDao, times(1))
+        .queryAssignmentIdsOfStatus(
+            ITERATION1.getId(),
+            AssignmentEntity.Status.UPLOAD_COMPLETED,
+            Optional.of(BATCH_ENTITY1.getBatchId()));
+    verify(assignmentDao, times(1))
+        .batchUpdateAssignmentStatus(
+            List.of(toAssignmentId(ITERATION1, "iter1_1"), toAssignmentId(ITERATION1, "iter1_2")),
+            Optional.of(BATCH_ENTITY1.getBatchId()),
+            AssignmentEntity.Status.UPLOAD_COMPLETED,
+            AssignmentEntity.Status.REMOTE_FAILED);
+    verify(taskDao, times(1)).getIterationById(ITERATION1.getId());
+    verify(aggregationBatchDao, times(0))
+        .querySumOfAggregationBatchesOfStatus(
+            ITERATION1,
+            ITERATION1.getAggregationLevel() - 1,
+            List.of(
+                AggregationBatchEntity.Status.PUBLISH_COMPLETED,
+                AggregationBatchEntity.Status.UPLOAD_COMPLETED));
+    verify(taskDao, times(0))
+        .updateIterationStatus(
+            ITERATION1,
+            ITERATION1.toBuilder().status(Status.COLLECTING).aggregationLevel(0).build());
+  }
+
+  @Test
+  public void testProcessAggregatorNotifications_successReportGoalMet() {
+    when(taskDao.getIterationById(any())).thenReturn(Optional.of(AGG_ITERATION1));
+    when(aggregationBatchDao.getAggregationBatchById(any()))
+        .thenReturn(
+            Optional.of(
+                BATCH_ENTITY1.toBuilder().status(AggregationBatchEntity.Status.FAILED).build()));
+    when(aggregationBatchDao.updateAggregationBatchStatus(any(), any())).thenReturn(true);
+    when(assignmentDao.queryAssignmentIdsOfStatus(
+            AGG_ITERATION1.getId(),
+            AssignmentEntity.Status.UPLOAD_COMPLETED,
+            Optional.of(BATCH_ENTITY1.getBatchId())))
+        .thenReturn(ImmutableList.of("iter1_1", "iter1_2"));
+    when(assignmentDao.batchUpdateAssignmentStatus(any(), any(), any(), any())).thenReturn(2);
+    when(aggregationBatchDao.querySumOfAggregationBatchesOfStatus(any(), anyLong(), any()))
+        .thenReturn(20L);
+    when(taskDao.updateIterationStatus(any(), any())).thenReturn(true);
+
+    core.processAggregatorNotifications(ATTRIBUTES1);
+    verify(taskDao, times(1)).getIterationById(AGG_ITERATION1.getId());
+    verify(aggregationBatchDao, times(1)).getAggregationBatchById(BATCH_ENTITY1.getId());
+    verify(aggregationBatchDao, times(0)).updateAggregationBatchStatus(any(), any());
+    verify(assignmentDao, times(1))
+        .queryAssignmentIdsOfStatus(
+            AGG_ITERATION1.getId(),
+            AssignmentEntity.Status.UPLOAD_COMPLETED,
+            Optional.of(BATCH_ENTITY1.getBatchId()));
+    verify(assignmentDao, times(1))
+        .batchUpdateAssignmentStatus(
+            List.of(
+                toAssignmentId(AGG_ITERATION1, "iter1_1"),
+                toAssignmentId(AGG_ITERATION1, "iter1_2")),
+            Optional.of(BATCH_ENTITY1.getBatchId()),
+            AssignmentEntity.Status.UPLOAD_COMPLETED,
+            AssignmentEntity.Status.REMOTE_FAILED);
+    verify(aggregationBatchDao, times(1))
+        .querySumOfAggregationBatchesOfStatus(
+            AGG_ITERATION1,
+            AGG_ITERATION1.getAggregationLevel() - 1,
+            List.of(
+                AggregationBatchEntity.Status.PUBLISH_COMPLETED,
+                AggregationBatchEntity.Status.UPLOAD_COMPLETED));
+    verify(taskDao, times(0))
+        .updateIterationStatus(
+            AGG_ITERATION1,
+            AGG_ITERATION1.toBuilder().status(Status.COLLECTING).aggregationLevel(0).build());
+  }
+
+  @Test
+  public void testProcessAggregatorNotifications_failedIterationStatusUpdate() {
+    when(taskDao.getIterationById(any())).thenReturn(Optional.of(AGG_ITERATION1));
+    when(aggregationBatchDao.getAggregationBatchById(any()))
+        .thenReturn(
+            Optional.of(
+                BATCH_ENTITY1.toBuilder().status(AggregationBatchEntity.Status.FAILED).build()));
+    when(aggregationBatchDao.updateAggregationBatchStatus(any(), any())).thenReturn(true);
+    when(assignmentDao.queryAssignmentIdsOfStatus(
+            AGG_ITERATION1.getId(),
+            AssignmentEntity.Status.UPLOAD_COMPLETED,
+            Optional.of(BATCH_ENTITY1.getBatchId())))
+        .thenReturn(ImmutableList.of("iter1_1", "iter1_2"));
+    when(assignmentDao.batchUpdateAssignmentStatus(any(), any(), any(), any())).thenReturn(2);
+    when(aggregationBatchDao.querySumOfAggregationBatchesOfStatus(any(), anyLong(), any()))
+        .thenReturn(1L);
+    when(taskDao.updateIterationStatus(any(), any())).thenReturn(false);
+
+    assertThrows(
+        IllegalStateException.class, () -> core.processAggregatorNotifications(ATTRIBUTES1));
+    verify(taskDao, times(1)).getIterationById(AGG_ITERATION1.getId());
+    verify(aggregationBatchDao, times(1)).getAggregationBatchById(BATCH_ENTITY1.getId());
+    verify(aggregationBatchDao, times(0)).updateAggregationBatchStatus(any(), any());
+    verify(assignmentDao, times(1))
+        .queryAssignmentIdsOfStatus(
+            AGG_ITERATION1.getId(),
+            AssignmentEntity.Status.UPLOAD_COMPLETED,
+            Optional.of(BATCH_ENTITY1.getBatchId()));
+    verify(assignmentDao, times(1))
+        .batchUpdateAssignmentStatus(
+            List.of(
+                toAssignmentId(AGG_ITERATION1, "iter1_1"),
+                toAssignmentId(AGG_ITERATION1, "iter1_2")),
+            Optional.of(BATCH_ENTITY1.getBatchId()),
+            AssignmentEntity.Status.UPLOAD_COMPLETED,
+            AssignmentEntity.Status.REMOTE_FAILED);
+    verify(aggregationBatchDao, times(1))
+        .querySumOfAggregationBatchesOfStatus(
+            AGG_ITERATION1,
+            AGG_ITERATION1.getAggregationLevel() - 1,
+            List.of(
+                AggregationBatchEntity.Status.PUBLISH_COMPLETED,
+                AggregationBatchEntity.Status.UPLOAD_COMPLETED));
+    verify(taskDao, times(1))
+        .updateIterationStatus(
+            AGG_ITERATION1,
+            AGG_ITERATION1.toBuilder().status(Status.COLLECTING).aggregationLevel(0).build());
   }
 
   private AssignmentId toAssignmentId(IterationEntity iteration, String assignmentId) {

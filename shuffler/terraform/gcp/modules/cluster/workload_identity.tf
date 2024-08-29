@@ -19,5 +19,5 @@ module "gke-workload-identity" {
   name       = "${var.environment}-gke-wi"
   namespace  = "default"
   project_id = var.project_id
-  roles      = ["roles/spanner.databaseUser", "roles/logging.logWriter", "roles/iam.serviceAccountTokenCreator", "roles/storage.objectUser", "roles/pubsub.publisher", "roles/gkehub.serviceAgent", "roles/secretmanager.secretAccessor"]
+  roles      = ["roles/spanner.databaseUser", "roles/logging.logWriter", "roles/iam.serviceAccountTokenCreator", "roles/storage.objectUser", "roles/pubsub.publisher", "roles/pubsub.subscriber", "roles/gkehub.serviceAgent", "roles/secretmanager.secretAccessor"]
 }

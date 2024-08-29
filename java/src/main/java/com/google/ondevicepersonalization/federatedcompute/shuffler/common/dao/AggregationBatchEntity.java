@@ -41,8 +41,8 @@ public class AggregationBatchEntity {
   private Status status;
   private String aggregatedBy;
 
-  public AggregationBatchEntity getId() {
-    return AggregationBatchEntity.builder()
+  public AggregationBatchId getId() {
+    return AggregationBatchId.builder()
         .populationName(populationName)
         .taskId(taskId)
         .iterationId(iterationId)

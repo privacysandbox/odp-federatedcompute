@@ -29,6 +29,7 @@
       }
     }
     evaluation {
+      source_training_task_id: 1
       checkpoint_selector: "every_1_round"
       evaluation_traffic: 0.2
       report_goal: 2

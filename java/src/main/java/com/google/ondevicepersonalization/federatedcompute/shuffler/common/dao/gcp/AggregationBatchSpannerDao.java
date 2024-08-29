@@ -42,6 +42,11 @@ public class AggregationBatchSpannerDao implements AggregationBatchDao {
   private DatabaseClient dbClient;
   private InstantSource instantSource;
 
+  private static final String SELECT_AGGREGATION_BATCHES =
+      "SELECT PopulationName, TaskId, IterationId, AttemptId, BatchId, AggregationLevel,"
+          + " Status, BatchSize, CreatedByPartition, CreatedTime, AggregatedBy\n"
+          + " FROM AggregationBatch\n";
+
   private static final String SELECT_STATUS_ID_OF_STATUS =
       "SELECT MAX(StatusId) as StatusId \n"
           + " FROM AggregationBatchStatusHistory \n"
@@ -72,7 +77,7 @@ public class AggregationBatchSpannerDao implements AggregationBatchDao {
           + "   AND IterationId = @iterationId \n"
           + "   AND AttemptId = @attemptId \n"
           + "   AND AggregationLevel = @aggregationLevel \n"
-          + "   AND Status = @status \n";
+          + "   AND Status in UNNEST(@status) \n";
 
   private static final String SELECT_BATCH_IDS_OF_STATUS_FOR_PARTITION =
       "SELECT BatchId \n"
@@ -90,6 +95,56 @@ public class AggregationBatchSpannerDao implements AggregationBatchDao {
       @Qualifier("taskDatabaseClient") DatabaseClient dbClient, InstantSource instantSource) {
     this.dbClient = dbClient;
     this.instantSource = instantSource;
+  }
+
+  public Optional<AggregationBatchEntity> getAggregationBatchById(
+      AggregationBatchId aggregationBatchId) {
+    Statement statement =
+        Statement.newBuilder(
+                SELECT_AGGREGATION_BATCHES
+                    + "WHERE PopulationName = @populationName\n"
+                    + "AND TaskId = @taskId\n"
+                    + "AND iterationId = @iterationId\n"
+                    + "AND attemptId = @attemptId\n"
+                    + "AND batchId = @batchId\n")
+            .bind("populationName")
+            .to(aggregationBatchId.getPopulationName())
+            .bind("iterationId")
+            .to(aggregationBatchId.getIterationId())
+            .bind("taskId")
+            .to(aggregationBatchId.getTaskId())
+            .bind("attemptId")
+            .to(aggregationBatchId.getAttemptId())
+            .bind("batchId")
+            .to(aggregationBatchId.getBatchId())
+            .build();
+    try (ResultSet resultSet =
+        dbClient
+            .singleUse() // Execute a single read or query against Cloud Spanner.
+            .executeQuery(statement)) {
+      return extractAggregationBatchEntitiesFromResultSet(resultSet).stream().findFirst();
+    }
+  }
+
+  private static List<AggregationBatchEntity> extractAggregationBatchEntitiesFromResultSet(
+      ResultSet resultSet) {
+    ImmutableList.Builder<AggregationBatchEntity> entitiesBuilder = ImmutableList.builder();
+    while (resultSet.next()) {
+      entitiesBuilder.add(
+          AggregationBatchEntity.builder()
+              .populationName(resultSet.getString("PopulationName"))
+              .taskId(resultSet.getLong("TaskId"))
+              .iterationId(resultSet.getLong("IterationId"))
+              .attemptId(resultSet.getLong("AttemptId"))
+              .batchId(resultSet.getString("BatchId"))
+              .status(AggregationBatchEntity.Status.fromCode(resultSet.getLong("Status")))
+              .batchSize(resultSet.getLong("BatchSize"))
+              .createdByPartition(resultSet.getString("CreatedByPartition"))
+              .aggregatedBy(
+                  resultSet.isNull("AggregatedBy") ? null : resultSet.getString("AggregatedBy"))
+              .build());
+    }
+    return entitiesBuilder.build();
   }
 
   @Override
@@ -277,7 +332,9 @@ public class AggregationBatchSpannerDao implements AggregationBatchDao {
 
   @Override
   public long querySumOfAggregationBatchesOfStatus(
-      IterationEntity iteration, long aggregationLevel, AggregationBatchEntity.Status status) {
+      IterationEntity iteration,
+      long aggregationLevel,
+      List<AggregationBatchEntity.Status> status) {
     Statement.Builder statement;
     statement = Statement.newBuilder(SUM_BATCH_SIZE_OF_STATUS);
     statement
@@ -292,7 +349,7 @@ public class AggregationBatchSpannerDao implements AggregationBatchDao {
         .bind("aggregationLevel")
         .to(aggregationLevel)
         .bind("status")
-        .to(status.code())
+        .toInt64Array(status.stream().map(AggregationBatchEntity.Status::code).toList())
         .build();
 
     try (ResultSet resultSet =

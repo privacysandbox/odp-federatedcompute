@@ -292,6 +292,31 @@ public class TaskSpannerDao implements TaskDao {
     return queryTaskEntities(dbClient.singleUseReadOnlyTransaction(), statementBuilder.build());
   }
 
+  public Optional<IterationEntity> getIterationById(IterationId iterationId) {
+    Statement statement =
+        Statement.newBuilder(
+                SELECT_ITERATIONS
+                    + "WHERE PopulationName = @populationName\n"
+                    + "AND TaskId = @taskId\n"
+                    + "AND iterationId = @iterationId\n"
+                    + "AND attemptId = @attemptId")
+            .bind("populationName")
+            .to(iterationId.getPopulationName())
+            .bind("iterationId")
+            .to(iterationId.getIterationId())
+            .bind("taskId")
+            .to(iterationId.getTaskId())
+            .bind("attemptId")
+            .to(iterationId.getAttemptId())
+            .build();
+    try (ResultSet resultSet =
+        dbClient
+            .singleUse() // Execute a single read or query against Cloud Spanner.
+            .executeQuery(statement)) {
+      return extractIterationEntitiesFromResultSet(resultSet).stream().findFirst();
+    }
+  }
+
   public Optional<IterationEntity> getLastIterationOfTask(String populationName, long taskId) {
     Statement statement =
         Statement.newBuilder(
@@ -300,7 +325,7 @@ public class TaskSpannerDao implements TaskDao {
                     + "AND TaskId = @taskId\n"
                     + "ORDER BY IterationId DESC, AttemptId DESC\n"
                     + "LIMIT 1")
-            .bind("PopulationName")
+            .bind("populationName")
             .to(populationName)
             .bind("taskId")
             .to(taskId)

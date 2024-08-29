@@ -446,14 +446,16 @@ public class AssignmentSpannerDao implements AssignmentDao {
   }
 
   @Override
-  public int batchUpdateAssignmentStatus(List<AssignmentId> assignmentIds, Status from, Status to) {
+  public int batchUpdateAssignmentStatus(
+      List<AssignmentId> assignmentIds, Optional<String> batchId, Status from, Status to) {
     try {
       List<List<AssignmentId>> partitions =
           Lists.partition(assignmentIds, ASSIGNMENT_BATCH_UPDATE_SIZE);
       List<ListenableFuture<Integer>> futures = new ArrayList<>();
       for (List<AssignmentId> partition : partitions) {
         futures.add(
-            executorService.submit(() -> singleBatchUpdateAssignmentStatus(partition, from, to)));
+            executorService.submit(
+                () -> singleBatchUpdateAssignmentStatus(partition, batchId, from, to)));
       }
       return Futures.successfulAsList(futures).get().stream()
           .filter(Objects::nonNull)
@@ -466,7 +468,7 @@ public class AssignmentSpannerDao implements AssignmentDao {
   }
 
   private int singleBatchUpdateAssignmentStatus(
-      List<AssignmentId> assignmentIds, Status from, Status to) {
+      List<AssignmentId> assignmentIds, Optional<String> batchId, Status from, Status to) {
     try {
       List<Mutation> mutations = new ArrayList<>();
       return dbClient
@@ -474,11 +476,9 @@ public class AssignmentSpannerDao implements AssignmentDao {
           .run(
               transaction -> {
                 for (AssignmentId assignmentId : assignmentIds) {
-                  // Ensure the latest Status is as expected and batchId is NULL for updating status
-                  // as batchId being set is an end-state.
+                  // Ensure the latest Status is as expected.
                   Long currentStatusId =
-                      getLastVersionOfStatus(transaction, assignmentId, from, Optional.empty())
-                          .orElse(null);
+                      getLastVersionOfStatus(transaction, assignmentId, from, batchId).orElse(null);
                   if (currentStatusId == null) {
                     logger.error(
                         "Failed to find status of assignment id {}",

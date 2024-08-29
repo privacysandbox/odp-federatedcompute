@@ -98,6 +98,7 @@ class TaskUtilsTest(absltest.TestCase):
     self.assertEqual('source_population', eval_info.training_population_name)
     checkpoint_selector = eval_info.check_point_selector
     self.assertTrue(checkpoint_selector.HasField('iteration_selector'))
+    self.assertEqual(1, eval_info.training_task_id)
     iteration_selector = checkpoint_selector.iteration_selector
     self.assertEqual(2, iteration_selector.size)
 

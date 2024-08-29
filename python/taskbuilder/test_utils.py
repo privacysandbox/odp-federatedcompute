@@ -94,6 +94,7 @@ def get_good_training_and_eval_task_config() -> task_builder_pb2.TaskConfig:
                   client_plan_url=common.TEST_BLOB_PATH,
                   checkpoint_url=common.TEST_BLOB_PATH,
               ),
+              source_training_task_id=1,
           ),
       ),
       differential_privacy=task_builder_pb2.DifferentialPrivacy(

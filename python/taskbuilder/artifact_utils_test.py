@@ -34,6 +34,9 @@ TEST_FL_SETUP = task_builder_pb2.LearningProcess(
 TEST_DP_PARAMETERS = common.DpParameter(
     noise_multiplier=1.0,
     dp_clip_norm=0.1,
+    dp_epsilon=3.0,
+    dp_delta=0.00001,
+    num_training_rounds=100,
 )
 TEST_DATASET_POLICY = task_builder_pb2.DatasetPolicy(
     batch_size=3,
@@ -50,13 +53,16 @@ class ArtifactUtilsTest(absltest.TestCase):
     self._task.server_phase_url.extend([common.TEST_BLOB_PATH])
     self._task.init_checkpoint_url.extend([common.TEST_BLOB_PATH])
     self._model = test_utils.get_functional_model_without_metrics()
-    training_process, _ = learning_process_utils.compose_iterative_processes(
-        model=self._model,
-        learning_process=TEST_FL_SETUP,
-        dp_parameters=TEST_DP_PARAMETERS,
-        training_and_eval=False,
-        eval_only=False,
-        flags=task_builder_pb2.ExperimentFlags()
+    training_process, _, task_report = (
+        learning_process_utils.compose_iterative_processes(
+            model=self._model,
+            learning_process=TEST_FL_SETUP,
+            dp_parameters=TEST_DP_PARAMETERS,
+            training_and_eval=False,
+            eval_only=False,
+            flags=task_builder_pb2.ExperimentFlags(),
+            task_report=task_builder_pb2.TaskReport(),
+        )
     )
     self._learning_process = training_process
     test_example_selector = plan_pb2.ExampleSelector(
@@ -129,13 +135,16 @@ class ArtifactUtilsTest(absltest.TestCase):
       self.fail('Unexpected exception is raised when success is expected.')
 
   def test_build_eval_artifacts_success(self):
-    _, eval_process = learning_process_utils.compose_iterative_processes(
-        model=self._model,
-        learning_process=TEST_FL_SETUP,
-        dp_parameters=TEST_DP_PARAMETERS,
-        training_and_eval=False,
-        eval_only=True,
-        flags=task_builder_pb2.ExperimentFlags()
+    _, eval_process, task_report = (
+        learning_process_utils.compose_iterative_processes(
+            model=self._model,
+            learning_process=TEST_FL_SETUP,
+            dp_parameters=TEST_DP_PARAMETERS,
+            training_and_eval=False,
+            eval_only=True,
+            flags=task_builder_pb2.ExperimentFlags(),
+            task_report=task_builder_pb2.TaskReport(),
+        )
     )
 
     try:

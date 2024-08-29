@@ -233,6 +233,7 @@ public class GCSBlobManager implements BlobManager {
 
   private BlobDescription generateDownloadCheckpointDescription(
       String populationName, long taskId, long iterationId, String assignmentId) {
+    // TODO(b/331620532): Consider using assignmentId for the storage partition.
     String bucketName =
         String.format(
             config.getModelBucketTemplate(),

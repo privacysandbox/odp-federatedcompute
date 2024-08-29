@@ -64,7 +64,7 @@ module "aggregator_sa" {
   source                = "../../modules/serviceaccount"
   environment           = var.environment
   project_id            = var.project_id
-  roles                 = ["roles/iam.serviceAccountTokenCreator", "roles/iam.serviceAccountUser", "roles/logging.logWriter", "roles/storage.objectUser", "roles/pubsub.subscriber", "roles/secretmanager.secretAccessor", "roles/confidentialcomputing.workloadUser", "roles/monitoring.editor"]
+  roles                 = ["roles/iam.serviceAccountTokenCreator", "roles/iam.serviceAccountUser", "roles/logging.logWriter", "roles/storage.objectUser", "roles/pubsub.subscriber", "roles/pubsub.publisher", "roles/secretmanager.secretAccessor", "roles/confidentialcomputing.workloadUser", "roles/monitoring.editor"]
   service_account_email = var.aggregator_service_account
   service_account_name  = "ag"
 }

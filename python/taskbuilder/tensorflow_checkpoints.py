@@ -65,6 +65,7 @@ def build_initial_checkpoint_bytes(
 def _create_checkpoint(
     sess: tf.compat.v1.Session, checkpoint_op: plan_pb2.CheckpointOp
 ) -> bytes:
+  # TODO (b/308453073): consider using a memory-based file system to avoid disk I/O.
   temp_file = tempfile.mktemp()
   try:
     plan_utils.write_checkpoint(sess, checkpoint_op, temp_file)

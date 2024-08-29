@@ -39,6 +39,7 @@ java_library(
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/crypto/gcp:public_key_decryption_config",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao/gcp:gcs_blob_dao",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/messaging/gcp:pub_sub_subscriber_config",
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/messaging/gcp:gcp_http_message_sender",
         "@maven//:io_micrometer_micrometer_registry_prometheus",
         "@maven//:com_google_cloud_google_cloud_logging_logback",
         "@maven//:org_springframework_boot_spring_boot",

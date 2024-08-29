@@ -87,7 +87,10 @@ java_library(
         "Exceptions.java",
     ],
     deps = [
+        "@coordinator-services-and-shared-libraries//:crypto_client",
+        "@federatedcompute//fcp/java_src/main/java/com/google/fcp/aggregation:aggregation_exception",
         "@federatedcompute//fcp/java_src/main/java/com/google/fcp/tensorflow:tensorflow_exception",
+        "@maven//:com_google_guava_guava",
     ],
 )
 

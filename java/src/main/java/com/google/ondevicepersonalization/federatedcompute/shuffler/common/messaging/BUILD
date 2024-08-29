@@ -20,3 +20,10 @@ java_library(
         "MessageSender.java",
     ],
 )
+
+java_library(
+    name = "http_message_sender",
+    srcs = [
+        "HttpMessageSender.java",
+    ],
+)

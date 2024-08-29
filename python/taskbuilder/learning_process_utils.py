@@ -27,9 +27,11 @@ def compose_iterative_processes(
     training_and_eval: bool,
     eval_only: bool,
     flags: task_builder_pb2.ExperimentFlags,
+    task_report: task_builder_pb2.TaskReport,
 ) -> Tuple[
     Optional[tff.templates.IterativeProcess],
     Optional[tff.templates.IterativeProcess],
+    task_builder_pb2.TaskReport,
 ]:
   """Composes the training iterative process and the evaluation iterative process..
 
@@ -41,26 +43,40 @@ def compose_iterative_processes(
       evaluation learning process together.
     eval_only: If generating the evaluation learning process only.
 
-  Returns:
-    A tuple of (training learing process, evaluation learning process).
+  Returns: A tuple of (training learning process, evaluation learning
+  process, task report).
   """
-  # Unpack configurations
-  learning_algo = learning_process.type
-  client_optimizer = learning_process.client_optimizer
-  server_optimizer = learning_process.server_optimizer
-  client_learning_rate = learning_process.client_learning_rate
-  server_learning_rate = learning_process.server_learning_rate
+  # Unpack configurations and set default if not provided
+  learning_algo = (
+      learning_process.type or task_builder_pb2.LearningAlgo.Enum.FED_AVG
+  )
+  client_optimizer = (
+      learning_process.client_optimizer or task_builder_pb2.Optimizer.Enum.SGD
+  )
+  server_optimizer = (
+      learning_process.server_optimizer or task_builder_pb2.Optimizer.Enum.SGD
+  )
+  client_learning_rate = learning_process.client_learning_rate or 0.1
+  server_learning_rate = learning_process.server_learning_rate or 1.0
   training_report_goal = learning_process.runtime_config.report_goal
 
-  # Set default values if not provided
-  if not client_learning_rate:
-    client_learning_rate = 0.1
-  if not server_learning_rate:
-    server_learning_rate = 1.0
+  task_report.applied_algorithms.client_optimizer = client_optimizer
+  task_report.applied_algorithms.server_optimizer = server_optimizer
+  task_report.applied_algorithms.learning_algo = learning_algo
+
   metrics = learning_process.metrics
 
+  # Find accepted and rejected metrics
+  metric_outcomes = metrics_utils.metric_outcomes(metrics)
+  metric_results = task_builder_pb2.TaskReport.MetricResults(
+      accepted_metrics=", ".join(metric_outcomes["accepted_metrics"]).lstrip(),
+      rejected_metrics=", ".join(metric_outcomes["rejected_metrics"]).lstrip(),
+  )
+  task_report.metric_results.CopyFrom(metric_results)
   # Add metrics into model.
-  model = _compose_model_with_metrics(model, metrics)
+  model = _compose_model_with_metrics(
+      model, metric_outcomes["accepted_metrics"]
+  )
 
   def compose_eval_iterative_process(
       training_iterative_process: tff.templates.IterativeProcess,
@@ -114,37 +130,48 @@ def compose_iterative_processes(
 
   # Inject DP parameters to the learning process.
   # Only Fixed Gaussian is supported.
-  fixed_guassian_dp_aggregator = None if flags.skip_dp_aggregator else (
-      tff.aggregators.DifferentiallyPrivateFactory.gaussian_fixed(
-          noise_multiplier=dp_parameters.noise_multiplier,
-          clip=dp_parameters.dp_clip_norm,
-          clients_per_round=training_report_goal,
-      )
-  )
+  fixed_gaussian_dp_aggregator = None
+  if not flags.skip_dp_aggregator:
+    fixed_gaussian_dp_aggregator = (
+        tff.aggregators.DifferentiallyPrivateFactory.gaussian_fixed(
+            noise_multiplier=dp_parameters.noise_multiplier,
+            clip=dp_parameters.dp_clip_norm,
+            clients_per_round=training_report_goal,
+        )
+    )
+    task_report.applied_algorithms.dp_aggregator = (
+        task_builder_pb2.DpAggregator.FIXED_GAUSSIAN
+    )
 
   def compose_training_iterative_process() -> tff.templates.IterativeProcess:
     if learning_algo == task_builder_pb2.LearningAlgo.Enum.FED_SGD:
       return tff.learning.algorithms.build_fed_sgd(
           model_fn=model,
           server_optimizer_fn=tff_server_optimizer,
-          model_aggregator=fixed_guassian_dp_aggregator,
+          model_aggregator=fixed_gaussian_dp_aggregator,
       )
     return tff.learning.algorithms.build_unweighted_fed_avg(
         model_fn=model,
         client_optimizer_fn=tff_client_optimizer,
         server_optimizer_fn=tff_server_optimizer,
-        model_aggregator=fixed_guassian_dp_aggregator,
+        model_aggregator=fixed_gaussian_dp_aggregator,
     )
 
   training_iterative_process = compose_training_iterative_process()
   if eval_only:
-    return None, compose_eval_iterative_process(training_iterative_process)
+    return (
+        None,
+        compose_eval_iterative_process(training_iterative_process),
+        task_report,
+    )
   elif training_and_eval:
-    return training_iterative_process, compose_eval_iterative_process(
-        training_iterative_process
+    return (
+        training_iterative_process,
+        compose_eval_iterative_process(training_iterative_process),
+        task_report,
     )
   else:
-    return training_iterative_process, None
+    return training_iterative_process, None, task_report
 
 
 def _get_optimizer(
@@ -160,10 +187,10 @@ def _get_optimizer(
 
 def _compose_model_with_metrics(
     model: tff.learning.models.FunctionalModel,
-    metrics: list[task_builder_pb2.Metric],
+    metrics: list[str],
 ) -> tff.learning.models.FunctionalModel:
   metrics_constructors = metrics_utils.build_metric_constructors_list(
-      metric_names=[metric.name for metric in metrics]
+      allowed_metric_names=metrics
   )
   (
       model.initialize_metrics_state,

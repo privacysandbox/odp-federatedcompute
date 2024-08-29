@@ -16,6 +16,7 @@
 
 package com.google.ondevicepersonalization.federatedcompute.shuffler.common.security;
 
+import java.util.concurrent.TimeUnit;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
@@ -23,8 +24,6 @@ import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import java.util.concurrent.TimeUnit;
 
 @Configuration
 @EnableAutoConfiguration

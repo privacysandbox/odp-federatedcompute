@@ -126,6 +126,7 @@ java_library(
     ],
     deps = [
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:lombok_java",
+        ":aggregation_batch_id",
     ],
 )
 

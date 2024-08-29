@@ -30,6 +30,7 @@ java_library(
     deps = [
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/collector/controllers:collector_controller",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/collector/core:collector_core_impl",
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/collector/core/gcp:pub_sub_message_receiver",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/collector/scheduler:scheduled_task",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:constants",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/config/gcp:gcp_parameter_config",

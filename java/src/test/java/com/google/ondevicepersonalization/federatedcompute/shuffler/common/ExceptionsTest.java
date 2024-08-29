@@ -18,7 +18,10 @@ package com.google.ondevicepersonalization.federatedcompute.shuffler.common;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import com.google.fcp.aggregation.AggregationException;
 import com.google.fcp.tensorflow.TensorflowException;
+import com.google.scp.operator.cpio.cryptoclient.DecryptionKeyService.KeyFetchException;
+import com.google.scp.operator.cpio.cryptoclient.model.ErrorReason;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -39,6 +42,55 @@ public final class ExceptionsTest {
             Exceptions.isRetryableException(
                 new IllegalStateException(new TensorflowException("tf"))))
         .isFalse();
+  }
+
+  @Test
+  public void testIsRetryableException_AggregationException() {
+    // act and assert
+    assertThat(Exceptions.isRetryableException(new AggregationException("tf"))).isFalse();
+  }
+
+  @Test
+  public void testIsRetryableException_AggregationExceptionInIllegalState() {
+    // act and assert
+    assertThat(
+            Exceptions.isRetryableException(
+                new IllegalStateException(new AggregationException("tf"))))
+        .isFalse();
+  }
+
+  @Test
+  public void testIsRetryableException_KeyFetchException() {
+    // act and assert
+    assertThat(
+            Exceptions.isRetryableException(new KeyFetchException("tf", ErrorReason.KEY_NOT_FOUND)))
+        .isFalse();
+  }
+
+  @Test
+  public void testIsRetryableException_KeyFetchExceptionInIllegalState() {
+    // act and assert
+    assertThat(
+            Exceptions.isRetryableException(
+                new IllegalStateException(new KeyFetchException("tf", ErrorReason.KEY_NOT_FOUND))))
+        .isFalse();
+  }
+
+  @Test
+  public void testIsRetryableException_KeyFetchExceptionRetryable() {
+    // act and assert
+    assertThat(Exceptions.isRetryableException(new KeyFetchException("tf", ErrorReason.INTERNAL)))
+        .isTrue();
+  }
+
+  @Test
+  public void testIsRetryableException_KeyFetchExceptionInIllegalStateRetryable() {
+    // act and assert
+    assertThat(
+            Exceptions.isRetryableException(
+                new IllegalStateException(
+                    new KeyFetchException("tf", ErrorReason.KEY_SERVICE_UNAVAILABLE))))
+        .isTrue();
   }
 
   @Test

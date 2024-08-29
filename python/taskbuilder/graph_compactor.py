@@ -4,9 +4,8 @@ import collections
 from typing import Any, Callable, Collection, Iterable, Optional, Set
 
 from absl import logging
-import tensorflow as tf
-
 from google.protobuf import text_format
+import tensorflow as tf
 
 SHORT_NAME_PREFIX = '.'
 CONTROL_PREFIX = '^'
@@ -809,6 +808,7 @@ class PruningGraphBuilder:
   ) -> 'PruningGraphBuilder':
     """Extends the pruning graph with nodes from the given graph."""
     if self._compact:
+
       def _maybe_add_node(node):
         compact_node = self._compact_node(node)
         hashable_node_bytes = self._hashable_node_bytes(compact_node)

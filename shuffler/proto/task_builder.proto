@@ -99,7 +99,7 @@ message BuildTaskRequest {
 }
 
 // Build task response.
-// Next Id: 3
+// Next Id: 4
 message BuildTaskResponse {
   // One of two outcomes, depending on whether the task building request
   // succeeds.
@@ -115,6 +115,7 @@ message BuildTaskResponse {
     // The task, if created, will be cancelled.
     ErrorInfo error_info = 2;
   }
+  TaskReport task_report = 3;
 }
 
 // Task mode
@@ -214,7 +215,7 @@ message LearningProcess {
 }
 
 // Evaluation info
-// Next Id: 8
+// Next Id: 9
 message Evaluation {
   string source_training_population = 1;
   string checkpoint_selector = 2;
@@ -223,6 +224,7 @@ message Evaluation {
   double over_selection_rate = 5;
   string example_selector_uri = 6;
   ArtifactBuilding artifact_building = 7;
+  int64 source_training_task_id = 8;
 }
 
 // Federated learning setup
@@ -250,4 +252,29 @@ message TaskConfig {
   FederatedLearning federated_learning = 5;
   DifferentialPrivacy differential_privacy = 6;
   bool use_daf = 7;
+}
+
+// Task Report
+// Next Id: 5
+message TaskReport {
+  message AppliedAlgorithms {
+    LearningAlgo.Enum learning_algo = 1;
+    Optimizer.Enum client_optimizer = 2;
+    Optimizer.Enum server_optimizer = 3;
+    DpAggregator.Enum dp_aggregator = 4;
+  }
+  AppliedAlgorithms applied_algorithms = 1;
+  message MetricResults {
+    string accepted_metrics = 1;
+    string rejected_metrics = 2;
+  }
+  MetricResults metric_results = 3;
+  message DPHyperparameters {
+    float dp_delta = 1;
+    float dp_epsilon = 2;
+    float noise_multiplier = 3;
+    float dp_clip_norm = 4;
+    int64 num_training_rounds = 5;
+  }
+  DPHyperparameters dp_hyperparameters = 4;
 }

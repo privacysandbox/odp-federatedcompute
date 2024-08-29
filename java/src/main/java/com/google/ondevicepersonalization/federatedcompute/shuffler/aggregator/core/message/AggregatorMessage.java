@@ -55,4 +55,7 @@ public class AggregatorMessage {
 
   /** Id of the request. */
   private String requestId;
+
+  /** Notification endpoint to send HTTP POST to upon job completion if provided. */
+  private String notificationEndpoint;
 }

@@ -68,6 +68,59 @@ resource "google_pubsub_subscription" "aggregator-dlq-subscription" {
   provider                     = google
 }
 
+resource "google_pubsub_topic" "aggregator-notifications-topic" {
+  name     = "aggregator-notifications-${var.environment}-topic"
+  provider = google
+}
+
+resource "google_pubsub_topic" "aggregator-notifications-dead-letter" {
+  name     = "aggregator-notifications-${var.environment}-topic-dead-letter"
+  provider = google
+}
+
+resource "google_pubsub_subscription" "aggregator-notifications-subscription" {
+  name  = "aggregator-notifications-${var.environment}-subscription"
+  topic = google_pubsub_topic.aggregator-notifications-topic.name
+
+  # 7 days
+  message_retention_duration = "604800s"
+  retain_acked_messages      = true
+
+  ack_deadline_seconds = 60
+
+  expiration_policy {
+    # Dont expire
+    ttl = ""
+  }
+
+  dead_letter_policy {
+    dead_letter_topic     = google_pubsub_topic.aggregator-notifications-dead-letter.id
+    max_delivery_attempts = 10
+  }
+
+  enable_exactly_once_delivery = true
+  provider                     = google
+}
+
+resource "google_pubsub_subscription" "aggregator-notifications-dlq-subscription" {
+  name  = "aggregator-notifications-dlq-${var.environment}-subscription"
+  topic = google_pubsub_topic.aggregator-notifications-dead-letter.name
+
+  # 7 days
+  message_retention_duration = "604800s"
+  retain_acked_messages      = true
+
+  ack_deadline_seconds = 60
+
+  expiration_policy {
+    # Dont expire
+    ttl = ""
+  }
+
+  enable_exactly_once_delivery = true
+  provider                     = google
+}
+
 resource "google_pubsub_topic" "model-updater-topic" {
   name     = "model-updater-${var.environment}-topic"
   provider = google
@@ -129,6 +182,18 @@ resource "google_pubsub_topic_iam_member" "pubsub_sa_publish_aggregator_deadlett
 
 resource "google_pubsub_subscription_iam_member" "pubsub_sa_pull_aggregator_topic_sub" {
   subscription = google_pubsub_subscription.aggregator-subscription.name
+  role         = "roles/pubsub.subscriber"
+  member       = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+}
+
+resource "google_pubsub_topic_iam_member" "pubsub_sa_publish_aggregator_notifications_deadletter_topic" {
+  topic  = google_pubsub_topic.aggregator-notifications-dead-letter.name
+  role   = "roles/pubsub.publisher"
+  member = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+}
+
+resource "google_pubsub_subscription_iam_member" "pubsub_sa_pull_aggregator_notifications_topic_sub" {
+  subscription = google_pubsub_subscription.aggregator-notifications-subscription.name
   role         = "roles/pubsub.subscriber"
   member       = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
 }

@@ -47,7 +47,8 @@ public interface AssignmentDao {
    *
    * @return Number of assignment statuses updated.
    */
-  public int batchUpdateAssignmentStatus(List<AssignmentId> assignmentIds, Status from, Status to);
+  public int batchUpdateAssignmentStatus(
+      List<AssignmentId> assignmentIds, Optional<String> batchId, Status from, Status to);
 
   /**
    * Creates a new batch for the iteration, assigns the provided assignments to the new batch, and

@@ -509,6 +509,65 @@ public final class TaskSpannerDaoTest {
   }
 
   @Test
+  public void testIterationById_Succeeded() {
+    // arrange
+    dbClient
+        .readWriteTransaction()
+        .run(
+            transaction -> {
+              insertTask(
+                  transaction,
+                  "us",
+                  /* taskId= */ 111,
+                  /* status= */ 0,
+                  /* insertStatusHist= */ true);
+              insertIteration(
+                  transaction,
+                  /* populationName= */ "us",
+                  /* taskId= */ 111,
+                  /* iterationId= */ 9,
+                  /* status= */ 2,
+                  /* reportGoal= */ 300,
+                  /* insertStatusHist= */ true);
+              insertIteration(
+                  transaction,
+                  /* populationName= */ "us",
+                  /* taskId= */ 111,
+                  /* iterationId= */ 10,
+                  /* status= */ 0,
+                  /* reportGoal= */ 300,
+                  /* insertStatusHist= */ true);
+              return null;
+            });
+
+    // act
+    IterationId iterationId =
+        IterationId.builder().iterationId(10).taskId(111).attemptId(0).populationName("us").build();
+    Optional<IterationEntity> iteration = dao.getIterationById(iterationId);
+
+    // assert
+    assertThat(iteration)
+        .isEqualTo(
+            Optional.of(
+                IterationEntity.builder()
+                    .populationName("us")
+                    .taskId(111)
+                    .iterationId(10)
+                    .attemptId(0)
+                    .reportGoal(300)
+                    .status(IterationEntity.Status.fromCode(0))
+                    .baseIterationId(9)
+                    .baseOnResultId(9)
+                    .resultId(10)
+                    .info(ITERATION_INFO)
+                    .aggregationLevel(0)
+                    .maxAggregationSize(301)
+                    .minClientVersion(MIN_CLIENT_VERSION)
+                    .maxClientVersion(MAX_CLIENT_VERSION)
+                    .build()));
+  }
+
+  @Test
   public void testGetLastIterationRespectTaskId_Succeeded() {
     // arrange
     dbClient

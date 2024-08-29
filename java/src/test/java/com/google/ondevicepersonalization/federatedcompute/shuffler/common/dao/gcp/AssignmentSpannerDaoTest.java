@@ -644,6 +644,7 @@ public final class AssignmentSpannerDaoTest {
     int updated =
         dao.batchUpdateAssignmentStatus(
             List.of(assignmentId1, assignmentId2),
+            Optional.empty(),
             AssignmentEntity.Status.ASSIGNED,
             AssignmentEntity.Status.LOCAL_COMPLETED);
 
@@ -742,6 +743,7 @@ public final class AssignmentSpannerDaoTest {
     int updated =
         dao.batchUpdateAssignmentStatus(
             List.of(assignmentId1, assignmentId2, assignmentId3),
+            Optional.empty(),
             AssignmentEntity.Status.ASSIGNED,
             AssignmentEntity.Status.LOCAL_COMPLETED);
 

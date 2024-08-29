@@ -22,7 +22,7 @@ java_library(
         "AggregatorCore.java",
     ],
     deps = [
-        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/aggregator/core/message:aggregator_message"
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/aggregator/core/message:aggregator_message",
     ],
 )
 
@@ -34,8 +34,10 @@ java_library(
     deps = [
         ":aggregator_core",
         "@federatedcompute//fcp/java_src/main/java/com/google/fcp/tensorflow:app_files",
+        "@federatedcompute//fcp/java_src/main/java/com/google/fcp/tensorflow:tensorflow_exception",
         "@maven//:com_google_crypto_tink_tink",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/aggregator/core/message:aggregator_message",
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/aggregator/core/message:aggregator_notification",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:compression_utils",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:exceptions",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:constants",
@@ -44,6 +46,7 @@ java_library(
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:blob_description",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/tensorflow:tensorflow_plan_session_factory",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/crypto:public_key_encryption_service",
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/messaging:http_message_sender",
         "@coordinator-services-and-shared-libraries//:crypto_client",
         "@maven//:com_google_guava_guava",
         "@maven//:com_google_protobuf_protobuf_java",
