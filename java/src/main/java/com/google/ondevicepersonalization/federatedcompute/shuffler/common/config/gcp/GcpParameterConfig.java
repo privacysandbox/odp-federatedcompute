@@ -516,4 +516,68 @@ public class GcpParameterConfig {
             + aggregatorNotificationPubsubTopic);
     return aggregatorNotificationPubsubTopic;
   }
+
+  @Bean
+  @Qualifier("modelCdnSigningKeyName")
+  public String modelCdnSigningKeyName() {
+    String modelCdnSigningKeyName = googleCloudArgs.getModelCdnSigningKeyName();
+    if (Strings.isNullOrEmpty(modelCdnSigningKeyName)) {
+      modelCdnSigningKeyName =
+          gcpParameterClient.getParameter("MODEL_CDN_SIGNING_KEY_NAME").orElse(null);
+    }
+    logger.info("Registering modelCdnSigningKeyName parameter as: " + modelCdnSigningKeyName);
+    return modelCdnSigningKeyName;
+  }
+
+  @Bean
+  @Qualifier("modelCdnSigningKeyValue")
+  public String modelCdnSigningKeyValue(String modelCdnSigningKeyName) {
+    // Pull the key A/B directed by the key name.
+    String paramKey = "MODEL_CDN_SIGNING_KEY_VALUE";
+    String modelCdnSigningKeyValue = null;
+    if (modelCdnSigningKeyName.endsWith("a")) {
+      logger.info("Registering modelCdnSigningKeyValueA");
+      modelCdnSigningKeyValue = googleCloudArgs.getModelCdnSigningKeyValueA();
+      paramKey += "_A";
+    } else if (modelCdnSigningKeyName.endsWith("b")) {
+      logger.info("Registering modelCdnSigningKeyValueB");
+      modelCdnSigningKeyValue = googleCloudArgs.getModelCdnSigningKeyValueB();
+      paramKey += "_B";
+    }
+    if (Strings.isNullOrEmpty(modelCdnSigningKeyValue)) {
+      modelCdnSigningKeyValue = gcpParameterClient.getParameter(paramKey).orElse(null);
+    }
+    // This is a private key. Only log as debug.
+    logger.debug("Registering modelCdnSigningKeyValue parameter as: " + modelCdnSigningKeyValue);
+    return modelCdnSigningKeyValue;
+  }
+
+  @Bean
+  @Qualifier("modelCdnEndpoint")
+  public String modelCdnEndpoint() {
+    String modelCdnEndpoint = googleCloudArgs.getModelCdnEndpoint();
+    if (Strings.isNullOrEmpty(modelCdnEndpoint)) {
+      modelCdnEndpoint = gcpParameterClient.getParameter("MODEL_CDN_ENDPOINT").orElse(null);
+    }
+    logger.info("Registering modelCdnEndpoint parameter as: " + modelCdnEndpoint);
+    return modelCdnEndpoint;
+  }
+
+  @Bean
+  @Qualifier("aggregationBatchFailureThreshold")
+  public Long aggregationBatchFailureThreshold() {
+    Long aggregationBatchFailureThreshold = googleCloudArgs.getAggregationBatchFailureThreshold();
+    if (aggregationBatchFailureThreshold == null || aggregationBatchFailureThreshold < 0) {
+      String aggregationBatchFailureThresholdParameterValue =
+          gcpParameterClient.getParameter("AGGREGATION_BATCH_FAILURE_THRESHOLD").orElse(null);
+      aggregationBatchFailureThreshold =
+          aggregationBatchFailureThresholdParameterValue == null
+              ? null
+              : Long.parseLong(aggregationBatchFailureThresholdParameterValue);
+    }
+    logger.info(
+        "Registering aggregationBatchFailureThreshold parameter as: "
+            + aggregationBatchFailureThreshold);
+    return aggregationBatchFailureThreshold;
+  }
 }

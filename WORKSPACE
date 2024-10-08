@@ -73,8 +73,10 @@ maven_install(
         "com.google.code.findbugs:jsr305:3.0.2",
         "io.github.resilience4j:resilience4j-core:1.7.1",
         "io.github.resilience4j:resilience4j-retry:1.7.1",
+        # Apache 4.x used for coordinator dependency.
         "org.apache.httpcomponents:httpcore:4.4.14",
         "org.apache.httpcomponents:httpclient:4.5.13",
+        "org.apache.httpcomponents.client5:httpclient5:5.3.1",
         "org.apache.httpcomponents.core5:httpcore5:5.1.4",
         "org.apache.httpcomponents.core5:httpcore5-h2:5.1.4",  # Explicit transitive dependency to avoid https://issues.apache.org/jira/browse/HTTPCLIENT-2222
         "com.fasterxml.jackson.datatype:jackson-datatype-guava:2.15.2",

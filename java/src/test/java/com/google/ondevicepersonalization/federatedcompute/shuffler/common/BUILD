@@ -46,6 +46,7 @@ java_test(
     test_class = "com.google.ondevicepersonalization.federatedcompute.shuffler.common.ExceptionsTest",
     deps = [
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:exceptions",
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:non_retryable_exception",
         "@federatedcompute//fcp/java_src/main/java/com/google/fcp/tensorflow:tensorflow_exception",
         "@federatedcompute//fcp/java_src/main/java/com/google/fcp/aggregation:aggregation_exception",
         "@coordinator-services-and-shared-libraries//:crypto_client",

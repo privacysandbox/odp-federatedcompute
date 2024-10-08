@@ -30,6 +30,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerExceptionFactory;
@@ -61,6 +64,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.slf4j.LoggerFactory;
 import org.springframework.integration.support.locks.LockRegistry;
 
 @RunWith(TestParameterInjector.class)
@@ -364,6 +368,73 @@ public final class TaskSchedulerCoreImplTest {
   }
 
   @Test
+  public void processApplying_longerThan5min_metricSent() {
+    // arrange
+    ListAppender<ILoggingEvent> listAppender = prepairListAppender();
+    IterationEntity iteration =
+        IterationEntity.builder()
+            .populationName("us")
+            .taskId(13)
+            .iterationId(3)
+            .reportGoal(333)
+            .status(Status.APPLYING)
+            .baseIterationId(0)
+            .baseOnResultId(0)
+            .resultId(1)
+            .build();
+    when(mockTaskDao.getActiveTasks()).thenReturn(ImmutableList.of(DEFAULT_TASK));
+    when(mockTaskSchedulerCoreHelper.isApplyingDone(iteration)).thenReturn(false);
+    when(mockTaskDao.getLastIterationOfTask(anyString(), anyLong()))
+        .thenReturn(Optional.of(iteration));
+    Optional<Instant> instant = Optional.of(Instant.parse("2023-08-31T23:54:00Z"));
+    when(mockTaskDao.getIterationCreatedTime(iteration)).thenReturn(instant);
+
+    // act
+    taskScheduler.processActiveTasks();
+
+    // assert
+    verify(mockTaskDao, times(1)).getIterationCreatedTime(iteration);
+    verify(mockTaskDao, times(0)).createIteration(any());
+    verify(mockTaskDao, times(1)).getLastIterationOfTask("us", 13);
+    List<ILoggingEvent> logsList = listAppender.list;
+    assertThat(logsList.size()).isEqualTo(1);
+    assertThat(logsList.get(0).getFormattedMessage().contains(
+        "Iteration us/13/3/0 in APPLYING status for more than 5 min")).isTrue();
+  }
+
+  @Test
+  public void processApplying_notLongerThan5min_metricNotSent() {
+    // arrange
+    ListAppender<ILoggingEvent> listAppender = prepairListAppender();
+    IterationEntity iteration =
+        IterationEntity.builder()
+            .populationName("us")
+            .taskId(13)
+            .iterationId(3)
+            .reportGoal(333)
+            .status(Status.APPLYING)
+            .baseIterationId(0)
+            .baseOnResultId(0)
+            .resultId(1)
+            .build();
+    when(mockTaskDao.getActiveTasks()).thenReturn(ImmutableList.of(DEFAULT_TASK));
+    when(mockTaskSchedulerCoreHelper.isApplyingDone(iteration)).thenReturn(false);
+    when(mockTaskDao.getLastIterationOfTask(anyString(), anyLong()))
+        .thenReturn(Optional.of(iteration));
+    Optional<Instant> instant = Optional.of(Instant.parse("2023-08-31T23:56:00Z"));
+    when(mockTaskDao.getIterationCreatedTime(iteration)).thenReturn(instant);
+
+    // act
+    taskScheduler.processActiveTasks();
+
+    // assert
+    verify(mockTaskDao, times(1)).getIterationCreatedTime(iteration);
+    verify(mockTaskDao, times(0)).createIteration(any());
+    verify(mockTaskDao, times(1)).getLastIterationOfTask("us", 13);
+    List<ILoggingEvent> logsList = listAppender.list;
+    assertThat(logsList.size()).isEqualTo(0);
+  }
+  @Test
   public void process_hasEnoughCompletedIteration_noCreation() {
     // arrange
     IterationEntity iteration =
@@ -445,20 +516,20 @@ public final class TaskSchedulerCoreImplTest {
   @TestParameters("{status: APPLYING_FAILED}")
   public void process_lastIterationFailed_updateFailure(IterationEntity.Status status) {
     // arrange
+    ListAppender<ILoggingEvent> listAppender = prepairListAppender();
+    IterationEntity iteration = IterationEntity.builder()
+        .populationName("us")
+        .taskId(13)
+        .iterationId(1)
+        .reportGoal(333)
+        .status(status)
+        .baseIterationId(0)
+        .baseOnResultId(0)
+        .resultId(1)
+        .build();
     when(mockTaskDao.getActiveTasks()).thenReturn(ImmutableList.of(DEFAULT_TASK));
     when(mockTaskDao.getLastIterationOfTask(anyString(), anyLong()))
-        .thenReturn(
-            Optional.of(
-                IterationEntity.builder()
-                    .populationName("us")
-                    .taskId(13)
-                    .iterationId(1)
-                    .reportGoal(333)
-                    .status(status)
-                    .baseIterationId(0)
-                    .baseOnResultId(0)
-                    .resultId(1)
-                    .build()));
+        .thenReturn(Optional.of(iteration));
 
     // act
     taskScheduler.processActiveTasks();
@@ -470,6 +541,11 @@ public final class TaskSchedulerCoreImplTest {
     verify(mockTaskDao, times(1))
         .updateTaskStatus(
             eq(DEFAULT_TASK.getId()), eq(DEFAULT_TASK.getStatus()), eq(TaskEntity.Status.FAILED));
+    List<ILoggingEvent> logsList = listAppender.list;
+    assertThat(logsList.size()).isEqualTo(1);
+    assertThat(logsList.get(0).getFormattedMessage().contains(
+        String.format("Iteration %s in %s status", iteration.getId(),
+            status.name()))).isTrue();
   }
 
   @Test
@@ -854,5 +930,17 @@ public final class TaskSchedulerCoreImplTest {
 
     verify(mockTaskDao, times(0)).updateIterationStatus(any(), any());
     verify(lock, times(1)).unlock();
+  }
+
+  private ListAppender<ILoggingEvent> prepairListAppender() {
+    Logger logger = (Logger) LoggerFactory.getLogger(TaskSchedulerCoreImpl.class);
+
+    // create and start a ListAppender
+    ListAppender<ILoggingEvent> listAppender = new ListAppender<>();
+    listAppender.start();
+
+    // add the appender to the logger
+    logger.addAppender(listAppender);
+    return listAppender;
   }
 }

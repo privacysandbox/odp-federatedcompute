@@ -37,6 +37,8 @@ module "shuffler" {
   client_gradient_bucket_versioning                      = var.client_gradient_bucket_versioning
   model_bucket_force_destroy                             = var.model_bucket_force_destroy
   model_bucket_versioning                                = var.model_bucket_versioning
+  client_gradient_bucket_location                        = var.client_gradient_bucket_location
+  model_bucket_location                                  = var.model_bucket_location
   aggregated_gradient_bucket_lifecycle_age_days          = var.aggregated_gradient_bucket_lifecycle_age_days
   client_gradient_bucket_lifecycle_age_days              = var.client_gradient_bucket_lifecycle_age_days
   model_bucket_lifecycle_age_days                        = var.model_bucket_lifecycle_age_days
@@ -90,4 +92,11 @@ module "shuffler" {
   task_builder_port                                      = var.task_builder_port
   task_builder_service_account                           = var.task_builder_service_account
   initial_deployment                                     = var.initial_deployment
+  alarms_notification_email                              = var.alarms_notification_email
+  aggregator_pub_sub_ack_latency_threshold_ms            = var.aggregator_pub_sub_ack_latency_threshold_ms
+  model_updater_pub_sub_ack_latency_threshold_ms         = var.model_updater_pub_sub_ack_latency_threshold_ms
+  enable_notification_alerts                             = var.enable_notification_alerts
+  task_assignment_report_result_failures                 = var.task_assignment_report_result_failures
+  task_assignment_no_task_available_failures             = var.task_assignment_no_task_available_failures
+  aggregation_batch_failure_threshold                    = var.aggregation_batch_failure_threshold
 }

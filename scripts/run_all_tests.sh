@@ -18,11 +18,17 @@
 set -e
 set -x
 
-# Run all java tests
-bazel test //java/src/test/java/com/google/ondevicepersonalization/federatedcompute/shuffler/... --test_output=errors
+if [ -z "$1" ] || [ "$1" == "java" ]; then
+  # Run all java tests
+  bazel test //java/src/test/java/com/google/ondevicepersonalization/federatedcompute/shuffler/... --test_output=errors
 
-# Run all java manual tests
-bazel test //java/src/test/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao/gcp:task_spanner_dao_test --test_output=errors
-bazel test //java/src/test/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao/gcp:assignment_spanner_dao_test --test_output=errors
-bazel test //java/src/test/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao/gcp:aggregation_batch_spanner_dao_test --test_output=errors
+  # Run all java manual tests
+  bazel test //java/src/test/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao/gcp:task_spanner_dao_test --test_output=errors
+  bazel test //java/src/test/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao/gcp:assignment_spanner_dao_test --test_output=errors
+  bazel test //java/src/test/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao/gcp:aggregation_batch_spanner_dao_test --test_output=errors
+fi
 
+if [ -z "$1" ] || [ "$1" == "python" ]; then
+  # Run all python tests
+  bazel test //python/... --test_output=errors
+fi

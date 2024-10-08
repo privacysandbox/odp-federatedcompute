@@ -232,9 +232,30 @@ variable "aggregated_gradient_bucket_lifecycle_age_days" {
   default     = 60
 }
 
+variable "model_bucket_location" {
+  description = "GCS bucket location (https://cloud.google.com/storage/docs/locations) for the model bucket."
+  type        = string
+}
+
+variable "client_gradient_bucket_location" {
+  description = "GCS bucket location (https://cloud.google.com/storage/docs/locations) for the client gradient bucket."
+  type        = string
+}
+
 variable "allow_rooted_devices" {
   description = "Whether to allow rooted devices. This setting will have no effect when authentication is disabled. It is recommended to be set false for production environments."
   type        = bool
   default     = false
+}
+
+variable "parent_domain_name" {
+  description = "Custom domain name to register and use for external APIs."
+  type        = string
+}
+
+variable "aggregation_batch_failure_threshold" {
+  description = "The number of aggregation batches failed for an iteration before moving the iteration to a failure state."
+  type        = number
+  default     = null
 }
 

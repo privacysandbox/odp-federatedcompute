@@ -198,4 +198,30 @@ public final class GoogleCloudArgs {
       names = "--aggregator_notification_pubsub_subscription",
       description = "The name of the aggregator notification pubsub subscription.")
   private String aggregatorNotificationPubsubSubscription;
+
+  @Parameter(
+      names = "--model_cdn_signing_key_name",
+      description = "The name of the signing key for the model CDN requests.")
+  private String modelCdnSigningKeyName;
+
+  @Parameter(
+      names = "--model_cdn_signing_key_value_a",
+      description = "The value of the signing key A for model CDN request.")
+  private String modelCdnSigningKeyValueA;
+
+  @Parameter(
+      names = "--model_cdn_signing_key_value_b",
+      description = "The value of the signing key B for model CDN request.")
+  private String modelCdnSigningKeyValueB;
+
+  @Parameter(names = "--model_cdn_endpoint", description = "The endpoint of the model CDN.")
+  private String modelCdnEndpoint;
+
+  @Parameter(
+      names = "--aggregation_batch_failure_threshold",
+      description =
+          "The number of aggregation batches failed for an iteration before moving the iteration to"
+              + " a failure state.",
+      validateWith = PositiveInteger.class)
+  private Long aggregationBatchFailureThreshold;
 }

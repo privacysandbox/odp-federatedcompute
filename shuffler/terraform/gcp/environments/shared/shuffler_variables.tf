@@ -126,6 +126,16 @@ variable "aggregated_gradient_bucket_lifecycle_age_days" {
   default     = 60
 }
 
+variable "model_bucket_location" {
+  description = "GCS bucket location (https://cloud.google.com/storage/docs/locations) for the model bucket."
+  type        = string
+}
+
+variable "client_gradient_bucket_location" {
+  description = "GCS bucket location (https://cloud.google.com/storage/docs/locations) for the client gradient bucket."
+  type        = string
+}
+
 # https://cloud.google.com/spanner/docs/pitr
 # Must be between 1 hour and 7 days. Can be specified in days, hours, minutes, or seconds.
 # eg: 1d, 24h, 1440m, and 86400s are equivalent.
@@ -268,7 +278,7 @@ variable "upload_timeout_minutes" {
 variable "aggregator_instance_source_image" {
   description = "The aggregator OS source container image to run."
   type        = string
-  default     = "projects/confidential-space-images/global/images/confidential-space-debug-240200"
+  default     = "projects/confidential-space-images/global/images/confidential-space-240900"
 }
 
 variable "aggregator_machine_type" {
@@ -311,7 +321,7 @@ variable "aggregator_subscriber_max_outstanding_element_count" {
 variable "model_updater_instance_source_image" {
   description = "The model_updater OS source container image to run."
   type        = string
-  default     = "projects/confidential-space-images/global/images/confidential-space-debug-240200"
+  default     = "projects/confidential-space-images/global/images/confidential-space-240900"
 }
 
 variable "model_updater_machine_type" {
@@ -423,4 +433,45 @@ variable "initial_deployment" {
   default     = false
 }
 
+# Monitoring alerts parameters
+variable "alarms_notification_email" {
+  description = "The email to send alarm notifications to"
+  type        = string
+  default     = ""
+}
 
+variable "aggregator_pub_sub_ack_latency_threshold_ms" {
+  description = "Aggregator pub/sub ack latency threshold"
+  type        = number
+  default     = 10000
+}
+
+variable "model_updater_pub_sub_ack_latency_threshold_ms" {
+  description = "Model Updater pub/sub ack latency threshold"
+  type        = number
+  default     = 25000
+}
+
+variable "enable_notification_alerts" {
+  description = "Whether or not to enable notification alerts."
+  type        = bool
+  default     = false
+}
+
+variable "task_assignment_report_result_failures" {
+  description = "Num of Report Result failures to trigger alert"
+  type        = number
+  default     = 100
+}
+
+variable "task_assignment_no_task_available_failures" {
+  description = "Num of No_Task_Available failures to trigger alert"
+  type        = number
+  default     = 100
+}
+
+variable "aggregation_batch_failure_threshold" {
+  description = "The number of aggregation batches failed for an iteration before moving the iteration to a failure state."
+  type        = number
+  default     = null
+}

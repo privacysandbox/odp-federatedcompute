@@ -28,12 +28,12 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.HttpStatus;
-import org.apache.http.StatusLine;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
+import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
+import org.apache.hc.core5.http.HttpEntity;
+import org.apache.hc.core5.http.HttpStatus;
+import org.apache.hc.core5.http.io.HttpClientResponseHandler;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -41,18 +41,17 @@ import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.invocation.InvocationOnMock;
 
 @RunWith(JUnit4.class)
 public class GcpVMMetadataServiceClientTest {
 
   private GcpVMMetadataServiceClient gcpVMMetadataServiceClient;
-  @Mock HttpClient mockHttpClient;
+  @Mock CloseableHttpClient mockHttpClient;
 
-  @Mock HttpResponse mockHttpResponse;
+  @Mock CloseableHttpResponse mockHttpResponse;
 
   @Mock HttpEntity mockHttpEntity;
-
-  @Mock StatusLine mockStatusLine;
 
   ArgumentCaptor<HttpGet> httpGetCaptor;
 
@@ -64,51 +63,70 @@ public class GcpVMMetadataServiceClientTest {
   }
 
   @Test
-  public void test_getGcpProjectId() throws IOException {
+  public void test_getGcpProjectId() throws Exception {
     InputStream is = new ByteArrayInputStream("HelloWorld".getBytes());
-    when(mockHttpClient.execute(any())).thenReturn(mockHttpResponse);
+    when(mockHttpClient.execute(any(), any(HttpClientResponseHandler.class)))
+        .thenAnswer(
+            (InvocationOnMock invocation) -> {
+              @SuppressWarnings("unchecked")
+              HttpClientResponseHandler<String> handler =
+                  (HttpClientResponseHandler<String>) invocation.getArguments()[1];
+              return handler.handleResponse(mockHttpResponse);
+            });
     when(mockHttpResponse.getEntity()).thenReturn(mockHttpEntity);
     when(mockHttpEntity.getContent()).thenReturn(is);
 
     assertEquals("HelloWorld", gcpVMMetadataServiceClient.getGcpProjectId());
-    verify(mockHttpClient, times(1)).execute(httpGetCaptor.capture());
+    verify(mockHttpClient, times(1))
+        .execute(httpGetCaptor.capture(), any(HttpClientResponseHandler.class));
     List<HttpGet> captorList = httpGetCaptor.getAllValues();
     HttpGet httpGet = captorList.get(0);
     assertEquals("Google", httpGet.getHeaders("Metadata-Flavor")[0].getValue());
     assertEquals(
         "http://metadata.google.internal/computeMetadata/v1/project/project-id",
-        httpGet.getURI().toString());
+        httpGet.getUri().toString());
   }
 
   @Test
-  public void test_getMetadata() throws IOException {
+  public void test_getMetadata() throws Exception {
     InputStream is = new ByteArrayInputStream("HelloWorld".getBytes());
-
-    when(mockHttpClient.execute(any())).thenReturn(mockHttpResponse);
+    when(mockHttpClient.execute(any(), any(HttpClientResponseHandler.class)))
+        .thenAnswer(
+            (InvocationOnMock invocation) -> {
+              @SuppressWarnings("unchecked")
+              HttpClientResponseHandler<String> handler =
+                  (HttpClientResponseHandler<String>) invocation.getArguments()[1];
+              return handler.handleResponse(mockHttpResponse);
+            });
     when(mockHttpResponse.getEntity()).thenReturn(mockHttpEntity);
     when(mockHttpEntity.getContent()).thenReturn(is);
-    when(mockHttpResponse.getStatusLine()).thenReturn(mockStatusLine);
-    when(mockStatusLine.getStatusCode()).thenReturn(HttpStatus.SC_OK);
+    when(mockHttpResponse.getCode()).thenReturn(HttpStatus.SC_OK);
 
     assertEquals("HelloWorld", gcpVMMetadataServiceClient.getMetadata("key").get());
-    verify(mockHttpClient, times(1)).execute(httpGetCaptor.capture());
+    verify(mockHttpClient, times(1))
+        .execute(httpGetCaptor.capture(), any(HttpClientResponseHandler.class));
     List<HttpGet> captorList = httpGetCaptor.getAllValues();
     HttpGet httpGet = captorList.get(0);
     assertEquals("Google", httpGet.getHeaders("Metadata-Flavor")[0].getValue());
     assertEquals(
         "http://metadata.google.internal/computeMetadata/v1/instance/attributes/key",
-        httpGet.getURI().toString());
+        httpGet.getUri().toString());
   }
 
   @Test
   public void test_getMetadataNotFound() throws IOException {
     InputStream is = new ByteArrayInputStream("HelloWorld".getBytes());
-
-    when(mockHttpClient.execute(any())).thenReturn(mockHttpResponse);
+    when(mockHttpClient.execute(any(), any(HttpClientResponseHandler.class)))
+        .thenAnswer(
+            (InvocationOnMock invocation) -> {
+              @SuppressWarnings("unchecked")
+              HttpClientResponseHandler<String> handler =
+                  (HttpClientResponseHandler<String>) invocation.getArguments()[1];
+              return handler.handleResponse(mockHttpResponse);
+            });
     when(mockHttpResponse.getEntity()).thenReturn(mockHttpEntity);
     when(mockHttpEntity.getContent()).thenReturn(is);
-    when(mockHttpResponse.getStatusLine()).thenReturn(mockStatusLine);
-    when(mockStatusLine.getStatusCode()).thenReturn(HttpStatus.SC_NOT_FOUND);
+    when(mockHttpResponse.getCode()).thenReturn(HttpStatus.SC_NOT_FOUND);
 
     assertTrue(gcpVMMetadataServiceClient.getMetadata("key").isEmpty());
   }
@@ -117,11 +135,17 @@ public class GcpVMMetadataServiceClientTest {
   public void test_getMetadataBadStatus() throws IOException {
     InputStream is = new ByteArrayInputStream("HelloWorld".getBytes());
 
-    when(mockHttpClient.execute(any())).thenReturn(mockHttpResponse);
+    when(mockHttpClient.execute(any(), any(HttpClientResponseHandler.class)))
+        .thenAnswer(
+            (InvocationOnMock invocation) -> {
+              @SuppressWarnings("unchecked")
+              HttpClientResponseHandler<String> handler =
+                  (HttpClientResponseHandler<String>) invocation.getArguments()[1];
+              return handler.handleResponse(mockHttpResponse);
+            });
     when(mockHttpResponse.getEntity()).thenReturn(mockHttpEntity);
     when(mockHttpEntity.getContent()).thenReturn(is);
-    when(mockHttpResponse.getStatusLine()).thenReturn(mockStatusLine);
-    when(mockStatusLine.getStatusCode()).thenReturn(HttpStatus.SC_BAD_REQUEST);
+    when(mockHttpResponse.getCode()).thenReturn(HttpStatus.SC_BAD_REQUEST);
 
     assertThrows(IOException.class, () -> gcpVMMetadataServiceClient.getMetadata("key"));
   }

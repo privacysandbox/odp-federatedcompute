@@ -47,8 +47,21 @@ explore: task {
 }
 
 explore: iteration{
+  join: iteration_open {
+    type: inner
+    relationship: one_to_one
+    sql_on: ${iteration.population_name} = ${iteration_open.population_name} AND ${iteration.task_id} = ${iteration_open.task_id} AND ${iteration.iteration_id} = ${iteration_open.iteration_id} AND ${iteration_open.status} = 0;;
+  }
+}
+
+explore: iteration_open {
+  sql_always_where: Status = 0;;
 }
 
 explore: iteration_completion{
-  sql_always_where: Status = 0 or Status = 1;;
+  sql_always_where: Status = 0 or Status = 2;;
+}
+
+explore: iteration_aggregating_to_complete{
+  sql_always_where: Status = 1 or Status = 2;;
 }

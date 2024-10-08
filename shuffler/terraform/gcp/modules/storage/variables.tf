@@ -84,6 +84,16 @@ variable "aggregated_gradient_bucket_lifecycle_age_days" {
   type        = number
 }
 
+variable "model_bucket_location" {
+  description = "GCS bucket location (https://cloud.google.com/storage/docs/locations) for the model bucket."
+  type        = string
+}
+
+variable "client_gradient_bucket_location" {
+  description = "GCS bucket location (https://cloud.google.com/storage/docs/locations) for the client gradient bucket."
+  type        = string
+}
+
 # https://cloud.google.com/spanner/docs/pitr
 # Must be between 1 hour and 7 days. Can be specified in days, hours, minutes, or seconds.
 # eg: 1d, 24h, 1440m, and 86400s are equivalent.

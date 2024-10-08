@@ -2170,6 +2170,73 @@ public final class TaskSpannerDaoTest {
         dao.getIterationIdsPerEveryKHoursSelector("us", 111, 1, 31));
   }
 
+  @Test
+  public void getIterationCreatedTime_returnExpected(){
+    dbClient
+        .readWriteTransaction()
+        .run(
+            transaction -> {
+              insertTask(
+                  transaction,
+                  "us",
+                  /* taskId= */ 111,
+                  /* status= */ 0,
+                  /* insertStatusHist= */ true);
+              insertIteration(
+                  transaction,
+                  /* populationName= */ "us",
+                  /* taskId= */ 111,
+                  /* iterationId= */ 1,
+                  /* status= */ ITERATION_COLLECTING,
+                  /* reportGoal= */ 300,
+                  /* insertStatusHist= */ false);
+
+              insertIterationStatusHist(
+                  transaction,
+                  /* populationName= */ "us",
+                  /* taskId= */ 111,
+                  /* iterationId= */ 1,
+                  /* statusId= */ 0,
+                  /* status= */ ITERATION_COLLECTING,
+                  /* createdTime= */ TS_NOW,
+                  /* aggregationLevel= */ 0);
+
+              insertIterationStatusHist(
+                  transaction,
+                  /* populationName= */ "us",
+                  /* taskId= */ 111,
+                  /* iterationId= */ 1,
+                  /* statusId= */ 1,
+                  /* status= */ ITERATION_APPLYING,
+                  /* createdTime= */ TS_NOW,
+                  /* aggregationLevel= */ 0);
+              return null;
+            });
+
+    // act and assert
+    Optional<Instant> iterationCreatedTime = dao.getIterationCreatedTime(DEFAULT_ITERATION);
+    Optional<Instant> emptyIterationCreatedTime = dao.getIterationCreatedTime(
+        IterationEntity.builder()
+            .populationName("none")
+            .taskId(111)
+            .iterationId(10)
+            .attemptId(0)
+            .reportGoal(300)
+            .status(IterationEntity.Status.fromCode(0))
+            .baseIterationId(9)
+            .baseOnResultId(9)
+            .resultId(10)
+            .info(ITERATION_INFO)
+            .aggregationLevel(0)
+            .maxAggregationSize(301)
+            .minClientVersion(MIN_CLIENT_VERSION)
+            .maxClientVersion(MAX_CLIENT_VERSION)
+            .build());
+    assertTrue(emptyIterationCreatedTime.isEmpty());
+    assertTrue(iterationCreatedTime.isPresent());
+    assertTrue(iterationCreatedTime.get().equals(TimestampInstantConverter.TO_INSTANT.convert(TS_NOW)));
+  }
+
   private ImmutableMap<Long, Timestamp> buildIterationIdTimestampMap(
       Instant startTime, long startIterationId, long count, int intervalInSeconds) {
     ImmutableMap.Builder<Long, Timestamp> builder = ImmutableMap.builder();

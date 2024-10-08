@@ -21,13 +21,14 @@ import com.google.gson.Gson;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.messaging.HttpMessageSender;
 import com.google.scp.shared.api.util.ErrorUtil;
 import java.io.IOException;
-import org.apache.http.HttpStatus;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.ContentType;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.util.EntityUtils;
+import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
+import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.HttpStatus;
+import org.apache.hc.core5.http.HttpVersion;
+import org.apache.hc.core5.http.io.entity.EntityUtils;
+import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,9 +54,8 @@ public class GcpHttpMessageSender implements HttpMessageSender {
   public <T> void sendMessage(T message, String endpoint) {
     try {
       HttpPost request = new HttpPost(endpoint);
+      request.setVersion(HttpVersion.HTTP_1_1);
       request.setHeader("Content-Type", "application/json");
-      request.addHeader("accept", "application/json");
-
       request.addHeader("Authorization", String.format("Bearer %s", getAccessToken()));
 
       Gson gson = new Gson();
@@ -65,7 +65,7 @@ public class GcpHttpMessageSender implements HttpMessageSender {
       try {
         String responseBody = new String(response.getEntity().getContent().readAllBytes());
 
-        if (response.getStatusLine().getStatusCode() != HttpStatus.SC_OK) {
+        if (response.getCode() != HttpStatus.SC_OK) {
           var errorResponse = ErrorUtil.parseErrorResponse(responseBody);
           var exception = ErrorUtil.toServiceException(errorResponse);
 

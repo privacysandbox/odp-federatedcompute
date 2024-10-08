@@ -44,7 +44,7 @@ java_library(
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:constants",
         "@maven//:com_beust_jcommander",
         "@maven//:com_google_cloud_google_cloud_secretmanager",
-        "@maven//:org_apache_httpcomponents_httpclient",
+        "@maven//:org_apache_httpcomponents_client5_httpclient5",
         "@maven//:org_springframework_spring_beans",
         "@maven//:org_springframework_spring_context",
     ],
@@ -70,6 +70,8 @@ java_library(
     deps = [
         ":configurations",
         "@maven//:com_google_cloud_google_cloud_secretmanager",
+        "@maven//:org_apache_httpcomponents_client5_httpclient5",
+        "@maven//:org_apache_httpcomponents_core5_httpcore5",
         "@maven//:org_apache_httpcomponents_httpclient",
         "@maven//:org_apache_httpcomponents_httpcore",
         "@maven//:org_springframework_spring_beans",

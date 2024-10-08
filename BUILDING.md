@@ -16,13 +16,13 @@ Images can be built using the provided script
 
 The expected output for images built within the provided [Dockerfile](Dockerfile):
 ```
-bazel-bin/shuffler/services/aggregator/aggregator_image/index.json:      "digest": "sha256:47d794ec4653a135d434e5e5095145c8f91442d0f3fde972fdc367b8aaf13703"
-bazel-bin/shuffler/services/collector/collector_image/index.json:      "digest": "sha256:08ba57f255f6c6b19cd986aa2b643cfb571fdeb508824215e661798053f39180"
-bazel-bin/shuffler/services/modelupdater/model_updater_image/index.json:      "digest": "sha256:9f6fb2566681f57aa7ddb30f06ca0086eccfa871e1bae7fa8952611b7c7ddc41"
-bazel-bin/shuffler/services/taskassignment/task_assignment_image/index.json:      "digest": "sha256:a626d7b680cf5314b663a879a22ebd58799cc0b7b902bda400f158e9153f2843"
-bazel-bin/shuffler/services/taskbuilder/task_builder_image/index.json:      "digest": "sha256:cee0f537b9332a35c9044aec9497a31cc5c9ad3dfdd5230435d7b76b2b43ffcd"
-bazel-bin/shuffler/services/taskmanagement/task_management_image/index.json:      "digest": "sha256:516a9311d1de4466401975cde870b6f2acf4a49e05c4d63f988a7ea2c2610803"
-bazel-bin/shuffler/services/taskscheduler/task_scheduler_image/index.json:      "digest": "sha256:cacfb2b70d7553147f3ec4dff2c7d275281e354c87155e66cabf822d2e81d34b"
+bazel-bin/shuffler/services/aggregator/aggregator_image/index.json:      "digest": "sha256:a8a66a800c23865604e9ab816e6c3fc24c29bbed34187b5e21c93819f3594533"
+bazel-bin/shuffler/services/collector/collector_image/index.json:      "digest": "sha256:7be6b26c12d678614e6e92fc225985198afcfae6293abf84ddac7c6db217de25"
+bazel-bin/shuffler/services/modelupdater/model_updater_image/index.json:      "digest": "sha256:9bc980a096865f4dffcfd44e956441a1be72319f214c1bb0198f5441e9e619db"
+bazel-bin/shuffler/services/taskassignment/task_assignment_image/index.json:      "digest": "sha256:9169c5bc235022972f9cd1ce370716397314f1dcdd67b605426f99f9a0f46c54"
+bazel-bin/shuffler/services/taskbuilder/task_builder_image/index.json:      "digest": "sha256:87dcaf4adeb728d67ba73c29e2997aac318335f172f9484986dbb45154ddd398"
+bazel-bin/shuffler/services/taskmanagement/task_management_image/index.json:      "digest": "sha256:b00553e6648ded8fde0d773be566333dbb3c5eaef06074e54f1c7adea1e82962"
+bazel-bin/shuffler/services/taskscheduler/task_scheduler_image/index.json:      "digest": "sha256:8f9669d23f8a76f6b22303016accd36809559218562289a2c4c0dfbadf36fb1a"
 ```
 
 ## Publishing

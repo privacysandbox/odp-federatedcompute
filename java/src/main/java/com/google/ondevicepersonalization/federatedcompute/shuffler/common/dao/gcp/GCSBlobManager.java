@@ -23,6 +23,7 @@ import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.HttpMethod;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
+import com.google.common.base.Preconditions;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.CompressionUtils.CompressionFormat;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AssignmentEntity;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AssignmentId;
@@ -33,9 +34,18 @@ import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.I
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.Partitioner;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.TaskEntity;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.Key;
+import java.security.NoSuchAlgorithmException;
+import java.time.InstantSource;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import org.springframework.stereotype.Component;
 
 /** Google Cloud Storage Blob Manager */
@@ -63,11 +73,30 @@ public class GCSBlobManager implements BlobManager {
   private Storage storage;
   private GCSConfig config;
   private Partitioner partitioner;
+  private String modelCdnEndpoint;
+  private String modelCdnSigningKeyName;
+  private String modelCdnSigningKeyValue;
 
-  public GCSBlobManager(Storage storage, GCSConfig config, Partitioner partitioner) {
+  private InstantSource instantSource;
+
+  public GCSBlobManager(
+      Storage storage,
+      GCSConfig config,
+      Partitioner partitioner,
+      InstantSource instantSource,
+      Optional<String> modelCdnSigningKeyName,
+      Optional<String> modelCdnSigningKeyValue,
+      Optional<String> modelCdnEndpoint) {
     this.storage = storage;
     this.config = config;
     this.partitioner = partitioner;
+    this.instantSource = instantSource;
+    Preconditions.checkArgument(
+        modelCdnEndpoint.isEmpty()
+            || (modelCdnSigningKeyName.isPresent() && modelCdnSigningKeyValue.isPresent()));
+    this.modelCdnEndpoint = modelCdnEndpoint.orElse(null);
+    this.modelCdnSigningKeyName = modelCdnSigningKeyName.orElse(null);
+    this.modelCdnSigningKeyValue = modelCdnSigningKeyValue.orElse(null);
   }
 
   public BlobDescription generateUploadGradientDescription(
@@ -244,7 +273,7 @@ public class GCSBlobManager implements BlobManager {
         .host(bucketName)
         .resourceObject(objectName)
         .url(
-            generateV4GetObjectSignedUrl(
+            generateGetModelObjectSignedUrl(
                 bucketName, objectName, config.getDownloadCheckpointTokenDurationInSecond()))
         .headers(EMPTY_HEADER)
         .build();
@@ -290,7 +319,7 @@ public class GCSBlobManager implements BlobManager {
         .host(bucketName)
         .resourceObject(objectName)
         .url(
-            generateV4GetObjectSignedUrl(
+            generateGetModelObjectSignedUrl(
                 bucketName, objectName, config.getDownloadPlanTokenDurationInSecond()))
         .headers(EMPTY_HEADER)
         .build();
@@ -385,6 +414,52 @@ public class GCSBlobManager implements BlobManager {
             Storage.SignUrlOption.withExtHeaders(headers),
             Storage.SignUrlOption.withV4Signature());
     return url.toString();
+  }
+
+  private String generateGetModelObjectSignedUrl(
+      String bucketName, String objectName, long durationInSecond) throws StorageException {
+    if (modelCdnEndpoint != null) {
+      return generateGetCdnSignedUrl(
+          modelCdnEndpoint,
+          modelCdnSigningKeyName,
+          modelCdnSigningKeyValue,
+          objectName,
+          durationInSecond);
+    }
+    return generateV4GetObjectSignedUrl(bucketName, objectName, durationInSecond);
+  }
+
+  private String generateGetCdnSignedUrl(
+      String endpoint, String keyName, String keyValue, String objectName, long durationInSecond) {
+    try {
+      String url = String.format("https://%s/%s", endpoint, objectName);
+      final long expirationTimeSeconds = (instantSource.millis() / 1000) + durationInSecond;
+
+      String urlToSign =
+          url
+              + (url.contains("?") ? "&" : "?")
+              + "Expires="
+              + expirationTimeSeconds
+              + "&KeyName="
+              + keyName;
+
+      String encoded = getSignature(Base64.getUrlDecoder().decode(keyValue), urlToSign);
+      return urlToSign + "&Signature=" + encoded;
+    } catch (InvalidKeyException | NoSuchAlgorithmException e) {
+      throw new IllegalStateException(
+          "Failed to generate CDN Signed URL for object " + objectName, e);
+    }
+  }
+
+  private static String getSignature(byte[] privateKey, String input)
+      throws InvalidKeyException, NoSuchAlgorithmException {
+
+    final String algorithm = "HmacSHA1";
+    final int offset = 0;
+    Key key = new SecretKeySpec(privateKey, offset, privateKey.length, algorithm);
+    Mac mac = Mac.getInstance(algorithm);
+    mac.init(key);
+    return Base64.getUrlEncoder().encodeToString(mac.doFinal(input.getBytes()));
   }
 
   private String generateV4GetObjectSignedUrl(

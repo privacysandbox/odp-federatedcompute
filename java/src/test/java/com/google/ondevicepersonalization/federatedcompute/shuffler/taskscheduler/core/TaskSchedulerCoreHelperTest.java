@@ -358,7 +358,8 @@ public class TaskSchedulerCoreHelperTest {
     prepareUploadDeviceCheckpoint(TRAINING_ITERATION);
     doNothing().when(mockBlobDao).compressAndUpload(any(), any());
     byte[] plan_v2 = getClass().getResourceAsStream("/resources/plan_v2").readAllBytes();
-    when(mockBlobDao.downloadAndDecompressIfNeeded(SERVER_PLAN_DESCRIPTION_1)).thenReturn(plan_v2);
+    when(mockBlobDao.downloadAndDecompressIfNeeded(SERVER_PLAN_DESCRIPTION_1))
+        .thenReturn(Optional.of(plan_v2));
 
     // act and assert
     taskSchedulerCoreHelper.generateAndUploadDeviceCheckpoint(TRAINING_ITERATION);
@@ -581,7 +582,7 @@ public class TaskSchedulerCoreHelperTest {
     when(mockBlobDao.exists(METRICS_DESCRIPTIONS)).thenReturn(true);
     String jsonString = "{\"loss\": 0.5, \"auc-roc\": 0.7}";
     when(mockBlobDao.downloadAndDecompressIfNeeded(METRICS_DESCRIPTIONS[0]))
-        .thenReturn(jsonString.getBytes(StandardCharsets.UTF_8));
+        .thenReturn(Optional.of(jsonString.getBytes(StandardCharsets.UTF_8)));
     when(mockModelMetricsDao.upsertModelMetrics(any())).thenReturn(true);
 
     // act and assert
@@ -626,9 +627,10 @@ public class TaskSchedulerCoreHelperTest {
     when(mockBlobManager.generateUploadClientCheckpointDescriptions(iterationEntity))
         .thenReturn(new BlobDescription[] {CHECKPOINT_DESCRIPTIONS_1, CHECKPOINT_DESCRIPTIONS_1});
 
-    when(mockBlobDao.downloadAndDecompressIfNeeded(SERVER_PLAN_DESCRIPTION_1)).thenReturn(PLAN);
+    when(mockBlobDao.downloadAndDecompressIfNeeded(SERVER_PLAN_DESCRIPTION_1))
+        .thenReturn(Optional.of(PLAN));
     when(mockBlobDao.downloadAndDecompressIfNeeded(CHECKPOINT_DESCRIPTIONS_1))
-        .thenReturn(CHECKPOINT);
+        .thenReturn(Optional.of(CHECKPOINT));
     when(mockTensorflowPlanSessionFactory.createPlanSession(any()))
         .thenReturn(mockTensorflowPlanSession);
     when(mockTensorflowPlanSessionFactory.createPhaseSessionV2(any()))

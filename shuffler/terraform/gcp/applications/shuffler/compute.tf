@@ -169,7 +169,9 @@ module "task_management" {
     module.metrics_spanner_instance,
     module.metrics_database_name,
     module.client_gradient_bucket_template,
-    module.model_bucket_template
+    module.model_bucket_template,
+    module.model_cdn_endpoint,
+    module.model_cdn_signing_key_name
   ]
 }
 
@@ -201,4 +203,22 @@ module "task_management_server_url" {
   environment     = var.environment
   parameter_name  = "TASK_MANAGEMENT_SERVER_URL"
   parameter_value = var.initial_deployment ? "undefined" : module.task_management.task_management_url
+}
+
+module "monitoring_alerts" {
+  source                                         = "../../modules/monitoring"
+  count                                          = var.enable_notification_alerts ? 1 : 0
+  environment                                    = var.environment
+  alarms_notification_email                      = var.alarms_notification_email
+  aggregator_pub_sub_ack_latency_threshold_ms    = var.aggregator_pub_sub_ack_latency_threshold_ms
+  model_updater_pub_sub_ack_latency_threshold_ms = var.model_updater_pub_sub_ack_latency_threshold_ms
+  aggregator_subscription_name                   = module.pubsub.aggregator_subscription_name
+  model_updater_subscription_name                = module.pubsub.model_updater_subscription_name
+  metrics_spanner_instance_name                  = module.storage.metrics_spanner_instance_name
+  spanner_instance_name                          = module.storage.spanner_instance_name
+  spanner_task_database_name                     = module.storage.spanner_database_name
+  spanner_lock_database_name                     = module.storage.spanner_lock_database_name
+  task_assignment_report_result_failures         = var.task_assignment_report_result_failures
+  task_assignment_no_task_available_failures     = var.task_assignment_no_task_available_failures
+  cluster_name                                   = module.gke_cluster.cluster_name
 }

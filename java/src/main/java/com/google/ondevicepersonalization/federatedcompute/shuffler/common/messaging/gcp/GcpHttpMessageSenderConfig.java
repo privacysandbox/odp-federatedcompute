@@ -18,11 +18,18 @@ package com.google.ondevicepersonalization.federatedcompute.shuffler.common.mess
 
 import com.google.auth.oauth2.GoogleCredentials;
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.apache.hc.client5.http.config.ConnectionConfig;
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.cookie.StandardCookieSpec;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.core5.http.io.SocketConfig;
+import org.apache.hc.core5.pool.PoolConcurrencyPolicy;
+import org.apache.hc.core5.pool.PoolReusePolicy;
+import org.apache.hc.core5.util.TimeValue;
+import org.apache.hc.core5.util.Timeout;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -32,23 +39,24 @@ public class GcpHttpMessageSenderConfig {
 
   @Bean
   public CloseableHttpClient messageSenderHttpClient() {
-    RequestConfig requestConfig =
-        RequestConfig.custom()
-            .setConnectTimeout(3000)
-            .setSocketTimeout(3000)
-            .setConnectionRequestTimeout(3000)
-            .setExpectContinueEnabled(true)
+    PoolingHttpClientConnectionManager connectionManager =
+        PoolingHttpClientConnectionManagerBuilder.create()
+            .setDefaultSocketConfig(
+                SocketConfig.custom().setSoTimeout(Timeout.ofMinutes(1)).build())
+            .setPoolConcurrencyPolicy(PoolConcurrencyPolicy.STRICT)
+            .setConnPoolPolicy(PoolReusePolicy.LIFO)
+            .setDefaultConnectionConfig(
+                ConnectionConfig.custom()
+                    .setSocketTimeout(Timeout.ofMinutes(1))
+                    .setConnectTimeout(Timeout.ofMinutes(1))
+                    .setTimeToLive(TimeValue.ofMinutes(10))
+                    .build())
             .build();
-    PoolingHttpClientConnectionManager connManager = new PoolingHttpClientConnectionManager();
-    connManager.setMaxTotal(100);
-    connManager.setDefaultMaxPerRoute(100);
-    connManager.setValidateAfterInactivity(2000);
-    return HttpClientBuilder.create()
-        .setDefaultRequestConfig(requestConfig)
-        .setConnectionManager(connManager)
-        .evictExpiredConnections()
-        .evictIdleConnections(30, TimeUnit.SECONDS)
-        .build();
+    return HttpClients.custom()
+            .setConnectionManager(connectionManager)
+            .setDefaultRequestConfig(
+                    RequestConfig.custom().setCookieSpec(StandardCookieSpec.STRICT).build())
+            .build();
   }
 
   @Bean

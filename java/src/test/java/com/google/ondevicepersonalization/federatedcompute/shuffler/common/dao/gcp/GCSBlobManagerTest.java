@@ -43,8 +43,11 @@ import com.google.testing.junit.testparameterinjector.TestParameterInjector;
 import com.google.testing.junit.testparameterinjector.TestParameters;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.time.Instant;
+import java.time.InstantSource;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.junit.Before;
 import org.junit.Test;
@@ -72,6 +75,9 @@ public final class GCSBlobManagerTest {
   private static final long DOWNLOAD_PLAN_DURATION = 5;
   private static final long DOWNLOAD_CHECKPOINT_DURATION = 60;
   private static final long UPLOAD_CHECKPOINT_DURATION = 120;
+  private static final String CDN_KEY_VALUE = "Lb2UV_cs8PsXuZW49E17Qg";
+  private static final String CDN_ENDPOINT = "endpoint";
+  private static final String CDN_KEY_NAME = "key1";
 
   private final HashMap<String, String> putHeaders;
   private final HashMap<String, String> emptyHeaders;
@@ -113,6 +119,9 @@ public final class GCSBlobManagerTest {
           .build();
 
   private GCSBlobManager manager;
+  private GCSBlobManager managerWithCDN;
+  private static Instant NOW = Instant.parse("2023-09-01T00:00:00Z");
+  private static InstantSource instantSource = InstantSource.fixed(NOW);
   @Mock Storage mockStorage;
   @Mock Partitioner mockPartitioner;
   @Mock IterationEntity mockIterationEntity;
@@ -126,7 +135,25 @@ public final class GCSBlobManagerTest {
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
-    manager = new GCSBlobManager(mockStorage, CONFIG, mockPartitioner);
+    manager =
+        new GCSBlobManager(
+            mockStorage,
+            CONFIG,
+            mockPartitioner,
+            instantSource,
+            Optional.empty(),
+            Optional.empty(),
+            Optional.empty());
+
+    managerWithCDN =
+        new GCSBlobManager(
+            mockStorage,
+            CONFIG,
+            mockPartitioner,
+            instantSource,
+            Optional.of(CDN_KEY_NAME),
+            Optional.of(CDN_KEY_VALUE),
+            Optional.of(CDN_ENDPOINT));
   }
 
   @Test
@@ -443,6 +470,30 @@ public final class GCSBlobManagerTest {
   }
 
   @Test
+  public void testGenerateDownloadCheckpointDescriptionWithCdn() {
+    // arrange
+    when(mockPartitioner.getCheckpointStoagePartition(anyString(), anyLong(), anyLong()))
+        .thenReturn(4);
+
+    // act
+    BlobDescription description = managerWithCDN.generateDownloadCheckpointDescription(ASSIGNMENT);
+
+    // assert
+    String bucketName = "mdl-4";
+    String objectName = "us/35/13/d/0/client_checkpoint";
+    assertThat(description)
+        .isEqualTo(
+            BlobDescription.builder()
+                .host(bucketName)
+                .resourceObject(objectName)
+                .url(
+                    "https://endpoint/us/35/13/d/0/client_checkpoint?Expires=1693526460&KeyName=key1&Signature=hw4eoFmuKdqNUHIgYEn_3E-x9_w=")
+                .headers(emptyHeaders)
+                .build());
+    verify(mockPartitioner, times(1)).getCheckpointStoagePartition("us", 35, 13);
+  }
+
+  @Test
   public void testGenerateDownloadCheckpointDescription_Server() throws MalformedURLException {
     // arrange
     when(mockPartitioner.getCheckpointStoagePartition(anyString(), anyLong(), anyLong()))
@@ -501,6 +552,29 @@ public final class GCSBlobManagerTest {
             eq(DOWNLOAD_PLAN_DURATION),
             eq(TimeUnit.SECONDS),
             refEq(Storage.SignUrlOption.withV4Signature()));
+  }
+
+  @Test
+  public void testGenerateDownloadDevicePlanDescriptionWithCdn() {
+    // arrange
+    when(mockPartitioner.getPlanStoagePartition(anyString(), anyLong(), anyLong())).thenReturn(4);
+
+    // act
+    BlobDescription description = managerWithCDN.generateDownloadDevicePlanDescription(ASSIGNMENT);
+
+    // assert
+    String bucketName = "mdl-4";
+    String objectName = "us/35/0/s/0/client_only_plan";
+    assertThat(description)
+        .isEqualTo(
+            BlobDescription.builder()
+                .host(bucketName)
+                .resourceObject(objectName)
+                .url(
+                    "https://endpoint/us/35/0/s/0/client_only_plan?Expires=1693526405&KeyName=key1&Signature=yKxTApKw9vZ73K4mVnJFyqpfTaU=")
+                .headers(emptyHeaders)
+                .build());
+    verify(mockPartitioner, times(1)).getPlanStoagePartition("us", 35, 13);
   }
 
   @Test

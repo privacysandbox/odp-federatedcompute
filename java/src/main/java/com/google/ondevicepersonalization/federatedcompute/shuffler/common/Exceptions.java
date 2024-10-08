@@ -29,7 +29,8 @@ public class Exceptions {
   public static boolean isRetryableException(Exception e) {
     if (isTensorflowException(e)
         || isAggregationException(e)
-        || isNonRetryableKeyFetchException(e)) {
+        || isNonRetryableKeyFetchException(e)
+        || isNonRetryableException(e)) {
       return false;
     }
     return true;
@@ -43,6 +44,11 @@ public class Exceptions {
   public static boolean isAggregationException(Exception e) {
     return (e instanceof AggregationException)
         || (Throwables.getRootCause(e) instanceof AggregationException);
+  }
+
+  public static boolean isNonRetryableException(Exception e) {
+    return (e instanceof NonRetryableException)
+        || (Throwables.getRootCause(e) instanceof NonRetryableException);
   }
 
   public static boolean isNonRetryableKeyFetchException(Exception e) {

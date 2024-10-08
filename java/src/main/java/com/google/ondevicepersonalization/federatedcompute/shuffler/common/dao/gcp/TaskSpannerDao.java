@@ -38,6 +38,7 @@ import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.T
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.TaskEntity;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.TaskEntity.Status;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.TaskId;
+import java.time.Instant;
 import java.time.InstantSource;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -909,5 +910,42 @@ public class TaskSpannerDao implements TaskDao {
     }
 
     return result.build();
+  }
+
+  public Optional<Instant> getIterationCreatedTime(IterationEntity iterationEntity) {
+    String query =
+        "SELECT CreatedTime\n"
+            + "FROM IterationStatusHistory\n"
+            + "Where PopulationName=@populationName and TaskId=@taskId\n"
+            + "and IterationId=@iterationId and Status=@status\n"
+            + "and AttemptId=@attemptId and AggregationLevel=@aggregationLevel\n"
+            + "ORDER BY CreatedTime DESC\n"
+            + "LIMIT 1";
+    Statement statement =
+        Statement.newBuilder(query)
+            .bind("populationName")
+            .to(iterationEntity.getPopulationName())
+            .bind("taskId")
+            .to(iterationEntity.getTaskId())
+            .bind("iterationId")
+            .to(iterationEntity.getIterationId())
+            .bind("status")
+            .to(iterationEntity.getStatus().code())
+            .bind("AttemptId")
+            .to(iterationEntity.getAttemptId())
+            .bind("AggregationLevel")
+            .to(iterationEntity.getAggregationLevel())
+            .build();
+    Optional<Instant> createdTime = Optional.empty();
+    try (ResultSet resultSet =
+        dbClient
+            .singleUse() // Execute a single read or query against Cloud Spanner.
+            .executeQuery(statement)) {
+      while (resultSet.next()) {
+        createdTime = Optional.of(TimestampInstantConverter.TO_INSTANT.convert(
+            resultSet.getTimestamp("CreatedTime")));
+      }
+    }
+    return createdTime;
   }
 }

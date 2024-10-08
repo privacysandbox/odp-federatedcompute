@@ -349,4 +349,55 @@ public final class TaskAssignmentCoreImplTest {
             /* from= */ Status.ASSIGNED,
             Status.LOCAL_NOT_ELIGIBLE);
   }
+
+  @Test
+  public void testReportLocalFailedExampleGeneration_Succeeded() {
+    // act
+    taskAssignment.reportLocalFailedExampleGeneration(
+        /* populationName= */ DEFAULT_POPULATION_NAME,
+        /* taskId= */ DEFAULT_TASK_ID,
+        /* aggregationId */ DEFAULT_ITERATION_ID,
+        /* assignmentId= */ DEFAULT_SESSION_ID);
+
+    // assert
+    verify(mockAssignmentDao, times(1))
+        .updateAssignmentStatus(
+            /* assignmentId= */ DEFAULT_ASSIGNMENT_ID,
+            /* from= */ Status.ASSIGNED,
+            Status.LOCAL_FAILED_EXAMPLE_GENERATION);
+  }
+
+  @Test
+  public void testReportLocalFailedModelComputation_Succeeded() {
+    // act
+    taskAssignment.reportLocalFailedModelComputation(
+        /* populationName= */ DEFAULT_POPULATION_NAME,
+        /* taskId= */ DEFAULT_TASK_ID,
+        /* aggregationId */ DEFAULT_ITERATION_ID,
+        /* assignmentId= */ DEFAULT_SESSION_ID);
+
+    // assert
+    verify(mockAssignmentDao, times(1))
+        .updateAssignmentStatus(
+            /* assignmentId= */ DEFAULT_ASSIGNMENT_ID,
+            /* from= */ Status.ASSIGNED,
+            Status.LOCAL_FAILED_MODEL_COMPUTATION);
+  }
+
+  @Test
+  public void testReportLocalFailedOpsError_Succeeded() {
+    // act
+    taskAssignment.reportLocalFailedOpsError(
+        /* populationName= */ DEFAULT_POPULATION_NAME,
+        /* taskId= */ DEFAULT_TASK_ID,
+        /* aggregationId */ DEFAULT_ITERATION_ID,
+        /* assignmentId= */ DEFAULT_SESSION_ID);
+
+    // assert
+    verify(mockAssignmentDao, times(1))
+        .updateAssignmentStatus(
+            /* assignmentId= */ DEFAULT_ASSIGNMENT_ID,
+            /* from= */ Status.ASSIGNED,
+            Status.LOCAL_FAILED_OPS_ERROR);
+  }
 }

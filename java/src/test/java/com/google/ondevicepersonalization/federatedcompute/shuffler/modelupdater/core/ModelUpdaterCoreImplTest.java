@@ -132,7 +132,7 @@ public final class ModelUpdaterCoreImplTest {
           .serverPlanObject(PLAN_1.getResourceObject())
           .intermediateGradientBucket(GRADIENT1.getHost())
           .intermediateGradientPrefix("us/35/17/s/0/")
-          .intermediateGradients(List.of("gradient"))
+          .intermediateGradients(List.of("gradient", "gradient", "gradient"))
           .checkpointBucket(CURRENT_MODEL1.getHost())
           .checkpointObject(CURRENT_MODEL1.getResourceObject())
           .newCheckpointOutputBucket(NEW_MODEL1_1.getHost())
@@ -207,12 +207,12 @@ public final class ModelUpdaterCoreImplTest {
   @Test
   public void testProcess_Succeeded() throws Exception {
     // arange
-    when(blobDao.downloadAndDecompressIfNeeded(PLAN_1)).thenReturn(plan);
-    when(blobDao.downloadAndDecompressIfNeeded(PLAN_2)).thenReturn(plan);
-    when(blobDao.downloadAndDecompressIfNeeded(CURRENT_MODEL1)).thenReturn(checkpoint);
-    when(blobDao.downloadAndDecompressIfNeeded(CURRENT_MODEL2)).thenReturn(checkpoint);
-    when(blobDao.downloadAndDecompressIfNeeded(GRADIENT1)).thenReturn(gradient);
-    when(blobDao.downloadAndDecompressIfNeeded(GRADIENT2)).thenReturn(gradient);
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_1)).thenReturn(Optional.of(plan));
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_2)).thenReturn(Optional.of(plan));
+    when(blobDao.downloadAndDecompressIfNeeded(CURRENT_MODEL1)).thenReturn(Optional.of(checkpoint));
+    when(blobDao.downloadAndDecompressIfNeeded(CURRENT_MODEL2)).thenReturn(Optional.of(checkpoint));
+    when(blobDao.downloadAndDecompressIfNeeded(GRADIENT1)).thenReturn(Optional.of(gradient));
+    when(blobDao.downloadAndDecompressIfNeeded(GRADIENT2)).thenReturn(Optional.of(gradient));
     when(tensorflowPlanSessionFactory.createPlanSession(any())).thenReturn(tensorflowPlanSession);
     when(tensorflowPlanSession.createPhaseSession(any(), any())).thenReturn(phaseSession);
     doNothing().when(phaseSession).accumulateIntermediateUpdate(any());
@@ -222,6 +222,7 @@ public final class ModelUpdaterCoreImplTest {
     when(phaseSession.getClientCheckpoint(any())).thenReturn(ByteString.copyFrom(new byte[] {9}));
     when(decryptionKeyService.getDecrypter(any())).thenReturn(hybridDecrypt);
     when(hybridDecrypt.decrypt(any(), any())).thenReturn(Base64.decode(GZIP_GRADIENT));
+    when(phaseSession.toIntermediateUpdate()).thenReturn(ByteString.copyFrom(new byte[] {10}));
 
     // act
     core.process(MESSAGE1);
@@ -242,12 +243,12 @@ public final class ModelUpdaterCoreImplTest {
     verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(PLAN_2));
     verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(CURRENT_MODEL1));
     verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(CURRENT_MODEL2));
-    verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(GRADIENT1));
+    verify(blobDao, times(3)).downloadAndDecompressIfNeeded(eq(GRADIENT1));
     verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(GRADIENT2));
-    verify(tensorflowPlanSessionFactory, times(2)).createPlanSession(any());
-    verify(tensorflowPlanSession, times(2)).createPhaseSession(any(), eq(Optional.of(appFiles)));
+    verify(tensorflowPlanSessionFactory, times(4)).createPlanSession(any());
+    verify(tensorflowPlanSession, times(4)).createPhaseSession(any(), eq(Optional.of(appFiles)));
     verify(phaseSession, times(2)).applyAggregatedUpdates();
-    verify(phaseSession, times(2)).accumulateIntermediateUpdate(gradientCaptor.capture());
+    verify(phaseSession, times(6)).accumulateIntermediateUpdate(gradientCaptor.capture());
     List<ByteString> capturedGradientResults = gradientCaptor.getAllValues();
     assertArrayEquals("HelloWorld".getBytes(), capturedGradientResults.get(0).toByteArray());
     verify(phaseSession, times(2)).toCheckpoint();
@@ -260,12 +261,12 @@ public final class ModelUpdaterCoreImplTest {
   public void testProcessV2_Succeeded() throws Exception {
     // arange
     byte[] plan2 = getClass().getResourceAsStream("/resources/plan_v2").readAllBytes();
-    when(blobDao.downloadAndDecompressIfNeeded(PLAN_1)).thenReturn(plan2);
-    when(blobDao.downloadAndDecompressIfNeeded(PLAN_2)).thenReturn(plan2);
-    when(blobDao.downloadAndDecompressIfNeeded(CURRENT_MODEL1)).thenReturn(checkpoint);
-    when(blobDao.downloadAndDecompressIfNeeded(CURRENT_MODEL2)).thenReturn(checkpoint);
-    when(blobDao.downloadAndDecompressIfNeeded(GRADIENT1)).thenReturn(gradient);
-    when(blobDao.downloadAndDecompressIfNeeded(GRADIENT2)).thenReturn(gradient);
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_1)).thenReturn(Optional.of(plan2));
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_2)).thenReturn(Optional.of(plan2));
+    when(blobDao.downloadAndDecompressIfNeeded(CURRENT_MODEL1)).thenReturn(Optional.of(checkpoint));
+    when(blobDao.downloadAndDecompressIfNeeded(CURRENT_MODEL2)).thenReturn(Optional.of(checkpoint));
+    when(blobDao.downloadAndDecompressIfNeeded(GRADIENT1)).thenReturn(Optional.of(gradient));
+    when(blobDao.downloadAndDecompressIfNeeded(GRADIENT2)).thenReturn(Optional.of(gradient));
     when(tensorflowPlanSessionFactory.createAggregationSession(any()))
         .thenReturn(aggregationSession);
     when(tensorflowPlanSessionFactory.createPhaseSessionV2(any())).thenReturn(phaseSessionV2);
@@ -295,7 +296,7 @@ public final class ModelUpdaterCoreImplTest {
     verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(PLAN_2));
     verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(CURRENT_MODEL1));
     verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(CURRENT_MODEL2));
-    verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(GRADIENT1));
+    verify(blobDao, times(3)).downloadAndDecompressIfNeeded(eq(GRADIENT1));
     verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(GRADIENT2));
     verify(tensorflowPlanSessionFactory, times(4)).createAggregationSession(any());
     verify(tensorflowPlanSessionFactory, times(4)).createPhaseSessionV2(any());
@@ -309,12 +310,12 @@ public final class ModelUpdaterCoreImplTest {
   @Test
   public void testProcess_FailedToUpload() throws Exception {
     // arange
-    when(blobDao.downloadAndDecompressIfNeeded(PLAN_1)).thenReturn(plan);
-    when(blobDao.downloadAndDecompressIfNeeded(PLAN_2)).thenReturn(plan);
-    when(blobDao.downloadAndDecompressIfNeeded(CURRENT_MODEL1)).thenReturn(checkpoint);
-    when(blobDao.downloadAndDecompressIfNeeded(CURRENT_MODEL2)).thenReturn(checkpoint);
-    when(blobDao.downloadAndDecompressIfNeeded(GRADIENT1)).thenReturn(gradient);
-    when(blobDao.downloadAndDecompressIfNeeded(GRADIENT2)).thenReturn(gradient);
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_1)).thenReturn(Optional.of(plan));
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_2)).thenReturn(Optional.of(plan));
+    when(blobDao.downloadAndDecompressIfNeeded(CURRENT_MODEL1)).thenReturn(Optional.of(checkpoint));
+    when(blobDao.downloadAndDecompressIfNeeded(CURRENT_MODEL2)).thenReturn(Optional.of(checkpoint));
+    when(blobDao.downloadAndDecompressIfNeeded(GRADIENT1)).thenReturn(Optional.of(gradient));
+    when(blobDao.downloadAndDecompressIfNeeded(GRADIENT2)).thenReturn(Optional.of(gradient));
     when(tensorflowPlanSessionFactory.createPlanSession(any())).thenReturn(tensorflowPlanSession);
     when(tensorflowPlanSession.createPhaseSession(any(), any())).thenReturn(phaseSession);
     doNothing().when(phaseSession).accumulateIntermediateUpdate(any());
@@ -325,6 +326,7 @@ public final class ModelUpdaterCoreImplTest {
     doThrow(new IOException()).when(blobDao).compressAndUpload(eq(NEW_MODEL1_1), any());
     when(decryptionKeyService.getDecrypter(any())).thenReturn(hybridDecrypt);
     when(hybridDecrypt.decrypt(any(), any())).thenReturn(Base64.decode(GZIP_GRADIENT));
+    when(phaseSession.toIntermediateUpdate()).thenReturn(ByteString.copyFrom(new byte[] {10}));
 
     // act
     assertThrows(RuntimeException.class, () -> core.process(MESSAGE1));
@@ -337,11 +339,11 @@ public final class ModelUpdaterCoreImplTest {
     verify(blobDao, times(0)).compressAndUpload(eq(NEW_CLIENT_CHECKPOINT1_1), eq(new byte[] {9}));
     verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(PLAN_1));
     verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(CURRENT_MODEL1));
-    verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(GRADIENT1));
-    verify(tensorflowPlanSessionFactory, times(1)).createPlanSession(any());
-    verify(tensorflowPlanSession, times(1)).createPhaseSession(any(), eq(Optional.of(appFiles)));
+    verify(blobDao, times(3)).downloadAndDecompressIfNeeded(eq(GRADIENT1));
+    verify(tensorflowPlanSessionFactory, times(3)).createPlanSession(any());
+    verify(tensorflowPlanSession, times(3)).createPhaseSession(any(), eq(Optional.of(appFiles)));
     verify(phaseSession, times(1)).applyAggregatedUpdates();
-    verify(phaseSession, times(1)).accumulateIntermediateUpdate(any());
+    verify(phaseSession, times(5)).accumulateIntermediateUpdate(any());
     verify(phaseSession, times(1)).toCheckpoint();
     verify(phaseSession, times(0)).getMetrics();
     verify(phaseSession, times(0)).getClientCheckpoint(any());
@@ -350,11 +352,11 @@ public final class ModelUpdaterCoreImplTest {
   @Test
   public void testProcess_FailOnTensorflowException() throws Exception {
     // arange
-    when(blobDao.downloadAndDecompressIfNeeded(PLAN_1)).thenReturn(plan);
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_1)).thenReturn(Optional.of(plan));
 
-    when(blobDao.downloadAndDecompressIfNeeded(CURRENT_MODEL1)).thenReturn(checkpoint);
+    when(blobDao.downloadAndDecompressIfNeeded(CURRENT_MODEL1)).thenReturn(Optional.of(checkpoint));
 
-    when(blobDao.downloadAndDecompressIfNeeded(GRADIENT1)).thenReturn(gradient);
+    when(blobDao.downloadAndDecompressIfNeeded(GRADIENT1)).thenReturn(Optional.of(gradient));
 
     when(tensorflowPlanSessionFactory.createPlanSession(any())).thenReturn(tensorflowPlanSession);
     when(tensorflowPlanSession.createPhaseSession(any(), any())).thenReturn(phaseSession);
@@ -375,12 +377,12 @@ public final class ModelUpdaterCoreImplTest {
   @Test
   public void testProcess_evalTask_skipUploadCheckpoint() throws Exception {
     // arange
-    when(blobDao.downloadAndDecompressIfNeeded(PLAN_1)).thenReturn(plan);
-    when(blobDao.downloadAndDecompressIfNeeded(PLAN_2)).thenReturn(plan);
-    when(blobDao.downloadAndDecompressIfNeeded(CURRENT_MODEL1)).thenReturn(checkpoint);
-    when(blobDao.downloadAndDecompressIfNeeded(CURRENT_MODEL2)).thenReturn(checkpoint);
-    when(blobDao.downloadAndDecompressIfNeeded(GRADIENT1)).thenReturn(gradient);
-    when(blobDao.downloadAndDecompressIfNeeded(GRADIENT2)).thenReturn(gradient);
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_1)).thenReturn(Optional.of(plan));
+    when(blobDao.downloadAndDecompressIfNeeded(PLAN_2)).thenReturn(Optional.of(plan));
+    when(blobDao.downloadAndDecompressIfNeeded(CURRENT_MODEL1)).thenReturn(Optional.of(checkpoint));
+    when(blobDao.downloadAndDecompressIfNeeded(CURRENT_MODEL2)).thenReturn(Optional.of(checkpoint));
+    when(blobDao.downloadAndDecompressIfNeeded(GRADIENT1)).thenReturn(Optional.of(gradient));
+    when(blobDao.downloadAndDecompressIfNeeded(GRADIENT2)).thenReturn(Optional.of(gradient));
     when(tensorflowPlanSessionFactory.createPlanSession(any())).thenReturn(tensorflowPlanSession);
     when(tensorflowPlanSession.createPhaseSession(any(), any())).thenReturn(phaseSession);
     doNothing().when(phaseSession).accumulateIntermediateUpdate(any());
@@ -390,6 +392,7 @@ public final class ModelUpdaterCoreImplTest {
     when(phaseSession.getClientCheckpoint(any())).thenReturn(ByteString.copyFrom(new byte[] {9}));
     when(decryptionKeyService.getDecrypter(any())).thenReturn(hybridDecrypt);
     when(hybridDecrypt.decrypt(any(), any())).thenReturn(Base64.decode(GZIP_GRADIENT));
+    when(phaseSession.toIntermediateUpdate()).thenReturn(ByteString.copyFrom(new byte[] {10}));
 
     // act
     core.process(MESSAGE1);
@@ -412,12 +415,12 @@ public final class ModelUpdaterCoreImplTest {
     verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(PLAN_2));
     verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(CURRENT_MODEL1));
     verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(CURRENT_MODEL2));
-    verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(GRADIENT1));
+    verify(blobDao, times(3)).downloadAndDecompressIfNeeded(eq(GRADIENT1));
     verify(blobDao, times(1)).downloadAndDecompressIfNeeded(eq(GRADIENT2));
-    verify(tensorflowPlanSessionFactory, times(2)).createPlanSession(any());
-    verify(tensorflowPlanSession, times(2)).createPhaseSession(any(), eq(Optional.of(appFiles)));
+    verify(tensorflowPlanSessionFactory, times(4)).createPlanSession(any());
+    verify(tensorflowPlanSession, times(4)).createPhaseSession(any(), eq(Optional.of(appFiles)));
     verify(phaseSession, times(2)).applyAggregatedUpdates();
-    verify(phaseSession, times(2)).accumulateIntermediateUpdate(gradientCaptor.capture());
+    verify(phaseSession, times(6)).accumulateIntermediateUpdate(gradientCaptor.capture());
     List<ByteString> capturedGradientResults = gradientCaptor.getAllValues();
     assertArrayEquals("HelloWorld".getBytes(), capturedGradientResults.get(0).toByteArray());
     verify(phaseSession, times(2)).getMetrics();

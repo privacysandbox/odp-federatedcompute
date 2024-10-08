@@ -19,6 +19,17 @@ set -e
 # Print commands
 set -x
 
+if [[ -n $1 ]]; then
+  echo "Updating image push repository locations to ${1}."
+  for file in shuffler/services/*/BUILD; do
+    sed -i "s~<registry>/<ORG>~${1}~g" "$file"
+    if [[ -n $2 ]]; then
+      sed -i "s~\[\"latest\"\]~\[\"latest\", \"${2}\"\]~g" "$file"
+    fi
+  done
+fi
+
+
 # Upload all new images.
 # This should be run within the dockerbuild file to ensure deterministic builds
 bazel run //shuffler/services/taskscheduler:task_scheduler_image_publish

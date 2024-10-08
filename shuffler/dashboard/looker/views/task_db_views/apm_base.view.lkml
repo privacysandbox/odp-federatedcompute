@@ -36,9 +36,9 @@ view: apm_base {
     END ;;
   }
 
-  dimension_group: created_time_minute {
+  dimension_group: created_time {
     type: time
-    timeframes: [raw, minute]
+    timeframes: [raw, minute, minute5]
     sql: TIMESTAMP_TRUNC(${TABLE}.CreatedTime, MINUTE) ;;
   }
 

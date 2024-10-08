@@ -2,10 +2,10 @@ include: "apm_base.view"
 view: apm_upload_completed {
   extends: [apm_base]
 
-  filter: assigned {
+ filter: assigned {
     type: yesno
-    sql: ${TABLE}.Status = 2 ;;
-  }
+    sql: ${TABLE}.Status = 2;;
+ }
 
   measure: count_per_minute {
     type: count_distinct

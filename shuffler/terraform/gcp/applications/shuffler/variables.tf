@@ -48,11 +48,6 @@ variable "cluster_deletion_protection" {
   type        = bool
 }
 
-variable "parent_domain_name" {
-  description = "Custom domain name to register and use for external APIs."
-  type        = string
-}
-
 # Service input variables
 variable "allowed_operator_service_accounts" {
   description = "The service accounts provided by coordinator for the worker to impersonate."
@@ -176,4 +171,34 @@ variable "task_builder_min_replicas" {
 variable "initial_deployment" {
   description = "Set true for first deployment to handle dependencies which rely on features that require dependencies determined after apply"
   type        = bool
+}
+
+variable "alarms_notification_email" {
+  description = "The email to send alarm notifications to"
+  type        = string
+}
+
+variable "aggregator_pub_sub_ack_latency_threshold_ms" {
+  description = "Aggregator pub/sub ack latency threshold"
+  type        = number
+}
+
+variable "model_updater_pub_sub_ack_latency_threshold_ms" {
+  description = "Model Updater pub/sub ack latency threshold"
+  type        = number
+}
+
+variable "enable_notification_alerts" {
+  description = "Whether or not to enable notification alerts."
+  type        = bool
+}
+
+variable "task_assignment_report_result_failures" {
+  description = "Num of Report Result failures to trigger alert"
+  type        = number
+}
+
+variable "task_assignment_no_task_available_failures" {
+  description = "Num of No_Task_Available failures to trigger alert"
+  type        = number
 }

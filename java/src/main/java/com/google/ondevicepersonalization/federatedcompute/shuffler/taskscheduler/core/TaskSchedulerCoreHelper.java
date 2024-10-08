@@ -169,8 +169,8 @@ public class TaskSchedulerCoreHelper {
     }
 
     ByteString checkpoint =
-        ByteString.copyFrom(blobDao.downloadAndDecompressIfNeeded(checkpointBlob));
-    ByteString plan = ByteString.copyFrom(blobDao.downloadAndDecompressIfNeeded(planBlob));
+        ByteString.copyFrom(blobDao.downloadAndDecompressIfNeeded(checkpointBlob).get());
+    ByteString plan = ByteString.copyFrom(blobDao.downloadAndDecompressIfNeeded(planBlob).get());
 
     if (!createAndUploadClientCheckpoint(checkpoint, plan, iteration)) {
       throw new IllegalStateException("Failed to upload client checkpoint.");
@@ -306,7 +306,8 @@ public class TaskSchedulerCoreHelper {
 
     String metricsStr =
         new String(
-            blobDao.downloadAndDecompressIfNeeded(metricsDescription), StandardCharsets.UTF_8);
+            blobDao.downloadAndDecompressIfNeeded(metricsDescription).get(),
+            StandardCharsets.UTF_8);
     Gson gson = new Gson();
     Type type = new TypeToken<Map<String, Double>>() {}.getType();
     Map<String, Double> metricsMap = gson.fromJson(metricsStr, type);

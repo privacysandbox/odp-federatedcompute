@@ -1,5 +1,5 @@
 view: iteration_status_base {
-  sql_table_name: iteration_status_history ;;
+  sql_table_name: IterationStatusHistory ;;
 
   dimension: population_name {
     type: string
@@ -23,13 +23,18 @@ view: iteration_status_base {
 
   dimension_group: created_time {
     type: time
-    timeframes: [time, date, week, month, raw]
+    timeframes: [time, date, week, month, minute, seconds, raw]
     sql: ${TABLE}.CreatedTime ;;
   }
 
-  dimension: duration_in_minutes {
+  measure: duration_in_seconds {
     type: number
-    sql:  (MAX(${created_time_epoch}) - MIN(${created_time_epoch})) / 60 ;;
+    sql:  (MAX(${created_time_epoch}) - MIN(${created_time_epoch})) ;;
+  }
+
+  measure: duration_in_minutes {
+    type: number
+    sql:  ${duration_in_seconds} / 60 ;;
   }
 
   measure: min_created_time {

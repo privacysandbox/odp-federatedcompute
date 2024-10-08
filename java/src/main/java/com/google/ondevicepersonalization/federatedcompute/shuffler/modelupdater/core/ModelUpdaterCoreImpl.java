@@ -110,6 +110,7 @@ public class ModelUpdaterCoreImpl implements ModelUpdaterCore {
                         message.getIntermediateGradientPrefix(),
                         gradient))
             .map(blobDao::downloadAndDecompressIfNeeded)
+            .map(Optional::get)
             .map((payload) -> Payload.parseAndDecryptPayload(payload, decryptionKeyService))
             .collect(Collectors.toList());
 
@@ -118,14 +119,14 @@ public class ModelUpdaterCoreImpl implements ModelUpdaterCore {
             .host(message.getCheckpointBucket())
             .resourceObject(message.getCheckpointObject())
             .build();
-    byte[] checkpoint = blobDao.downloadAndDecompressIfNeeded(checkpointBlob);
+    byte[] checkpoint = blobDao.downloadAndDecompressIfNeeded(checkpointBlob).get();
 
     BlobDescription planBlob =
         BlobDescription.builder()
             .host(message.getServerPlanBucket())
             .resourceObject(message.getServerPlanObject())
             .build();
-    byte[] plan = blobDao.downloadAndDecompressIfNeeded(planBlob);
+    byte[] plan = blobDao.downloadAndDecompressIfNeeded(planBlob).get();
 
     finalize(plan, checkpoint, gradients, message);
   }
@@ -152,7 +153,7 @@ public class ModelUpdaterCoreImpl implements ModelUpdaterCore {
     try {
       phaseSession = createPhaseSession(ByteString.copyFrom(checkpoint), ByteString.copyFrom(plan));
 
-      applyGradientsV1(gradients, phaseSession);
+      applyGradientsV1(gradients, phaseSession, plan);
 
       if (!Strings.isNullOrEmpty(message.getNewCheckpointOutputBucket())) {
         uploadCheckpointV1(
@@ -245,7 +246,19 @@ public class ModelUpdaterCoreImpl implements ModelUpdaterCore {
     return phaseSession;
   }
 
-  private void applyGradientsV1(List<byte[]> gradients, PhaseSession phaseSession) {
+  private void applyGradientsV1(List<byte[]> gradients, PhaseSession phaseSession, byte[] plan) {
+    // Take the sqrt to enforce two layers of in-memory tree aggregation.
+    int partitionSize = (int) Math.ceil(Math.sqrt(gradients.size()));
+
+    // Layer 1
+    List<List<byte[]>> partitionedGradients = Lists.partition(gradients, partitionSize);
+    if (partitionedGradients.size() > 1) {
+      gradients =
+          partitionedGradients.parallelStream()
+              .map(g -> aggregateV1(g, plan))
+              .collect(Collectors.toList());
+    }
+
     // Apply update
     gradients.stream()
         .map(ByteString::copyFrom)
@@ -259,10 +272,12 @@ public class ModelUpdaterCoreImpl implements ModelUpdaterCore {
 
     // Layer 1
     List<List<byte[]>> partitionedGradients = Lists.partition(encryptedGradients, partitionSize);
-    encryptedGradients =
-        partitionedGradients.parallelStream()
-            .map(gradients -> aggregateV2(gradients, plan))
-            .collect(Collectors.toList());
+    if (partitionedGradients.size() > 1) {
+      encryptedGradients =
+          partitionedGradients.parallelStream()
+              .map(gradients -> aggregateV2(gradients, plan))
+              .collect(Collectors.toList());
+    }
 
     // Layer 2
     try (AggregationSession aggregationSession =
@@ -277,6 +292,29 @@ public class ModelUpdaterCoreImpl implements ModelUpdaterCore {
         tensorflowPlanSessionFactory.createAggregationSession(plan)) {
       aggregationSession.mergeWith(encryptedGradients.toArray(byte[][]::new));
       return aggregationSession.serialize();
+    }
+  }
+
+  private byte[] aggregateV1(List<byte[]> encryptedGradients, byte[] plan) {
+    PhaseSession phaseSession = null;
+    try {
+      // Create tensorflow session
+      PlanSession planSession =
+          tensorflowPlanSessionFactory.createPlanSession(ByteString.copyFrom(plan));
+      phaseSession = planSession.createPhaseSession(Optional.empty(), Optional.of(appFiles));
+
+      // Perform aggregation with gradient
+      encryptedGradients.stream()
+          .map(ByteString::copyFrom)
+          .forEach(phaseSession::accumulateIntermediateUpdate);
+
+      // Finalize aggregation
+      ByteString result = phaseSession.toIntermediateUpdate();
+      return result.toByteArray();
+    } finally {
+      if (phaseSession != null) {
+        phaseSession.close();
+      }
     }
   }
 

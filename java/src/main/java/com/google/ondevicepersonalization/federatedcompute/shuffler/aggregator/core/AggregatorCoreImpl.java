@@ -30,6 +30,7 @@ import com.google.ondevicepersonalization.federatedcompute.shuffler.aggregator.c
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.CompressionUtils;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.Constants;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.Exceptions;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.common.NonRetryableException;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.crypto.Payload;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.crypto.PublicKeyEncryptionService;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.BlobDao;
@@ -150,16 +151,34 @@ public class AggregatorCoreImpl implements AggregatorCore {
                 gradient ->
                     getGradientFullPath(
                         message.getGradientBucket(), message.getGradientPrefix(), gradient))
-            .map(blobDao::downloadAndDecompressIfNeeded)
+            .map(
+                (gradient) ->
+                    blobDao
+                        .downloadAndDecompressIfNeeded(gradient)
+                        .orElseThrow(
+                            () ->
+                                new NonRetryableException(
+                                    String.format(
+                                        "Downloaded gradient for bucket %s and object %s is null or"
+                                            + " does not exist",
+                                        gradient.getHost(), gradient.getResourceObject()))))
             .map((payload) -> Payload.parseAndDecryptPayload(payload, decryptionKeyService))
             .collect(Collectors.toList());
 
     byte[] plan =
-        blobDao.downloadAndDecompressIfNeeded(
-            BlobDescription.builder()
-                .host(message.getServerPlanBucket())
-                .resourceObject(message.getServerPlanObject())
-                .build());
+        blobDao
+            .downloadAndDecompressIfNeeded(
+                BlobDescription.builder()
+                    .host(message.getServerPlanBucket())
+                    .resourceObject(message.getServerPlanObject())
+                    .build())
+            .orElseThrow(
+                () ->
+                    new NonRetryableException(
+                        String.format(
+                            "Downloaded plan for bucket %s and object %s is null or"
+                                + " does not exist",
+                            message.getServerPlanBucket(), message.getServerPlanObject())));
 
     byte[] aggregatedResult =
         aggregate(encryptedGradients, plan, message.isAccumulateIntermediateUpdates());
@@ -177,23 +196,28 @@ public class AggregatorCoreImpl implements AggregatorCore {
       throw new RuntimeException("Failed to compressAndUpload aggregated result", e);
     }
 
-    try {
-      AggregatorNotification notification =
-          AggregatorNotification.builder()
-              .messages(
-                  List.of(
-                      AggregatorNotification.Message.builder()
-                          .attributes(
-                              AggregatorNotification.Attributes.builder()
-                                  .requestId(message.getRequestId())
-                                  .status(AggregatorNotification.Status.OK)
-                                  .build())
-                          .build()))
-              .build();
-      httpMessageSender.sendMessage(notification, message.getNotificationEndpoint());
-    } catch (Exception e) {
-      logger.atError().setCause(e).log("Failed to send message to provided notification endpoint.");
-      throw new RuntimeException("Failed to send message to provided notification endpoint.", e);
+    if (!Strings.isNullOrEmpty(message.getNotificationEndpoint())) {
+      try {
+        AggregatorNotification notification =
+            AggregatorNotification.builder()
+                .messages(
+                    List.of(
+                        AggregatorNotification.Message.builder()
+                            .attributes(
+                                AggregatorNotification.Attributes.builder()
+                                    .requestId(message.getRequestId())
+                                    .status(AggregatorNotification.Status.OK)
+                                    .build())
+                            .build()))
+                .build();
+        httpMessageSender.sendMessage(notification, message.getNotificationEndpoint());
+      } catch (Exception e) {
+        logger
+            .atError()
+            .setCause(e)
+            .log("Failed to send message to provided notification endpoint.");
+        throw new RuntimeException("Failed to send message to provided notification endpoint.", e);
+      }
     }
   }
 
@@ -213,22 +237,38 @@ public class AggregatorCoreImpl implements AggregatorCore {
     } catch (InvalidProtocolBufferException e) {
       throw new IllegalStateException("Failed to decode plan");
     }
-    if (plan.getPhase(0).hasServerPhaseV2()) {
-      // Take the sqrt to enforce two layers of in-memory tree aggregation.
-      int partitionSize = (int) Math.ceil(Math.sqrt(encryptedGradients.size()));
+    // Take the sqrt to enforce two layers of in-memory tree aggregation.
+    int partitionSize = (int) Math.ceil(Math.sqrt(encryptedGradients.size()));
 
-      // Layer 1
-      List<List<byte[]>> partitionedGradients = Lists.partition(encryptedGradients, partitionSize);
-      encryptedGradients =
-          partitionedGradients.parallelStream()
-              .map(gradients -> aggregateV2(gradients, planBytes, accumulateIntermediateUpdates))
-              .collect(Collectors.toList());
+    // Layer 1
+    List<List<byte[]>> partitionedGradients = Lists.partition(encryptedGradients, partitionSize);
+    if (plan.getPhase(0).hasServerPhaseV2()) {
+      if (partitionedGradients.size() > 1) {
+        boolean finalAccumulateIntermediateUpdates = accumulateIntermediateUpdates;
+        encryptedGradients =
+            partitionedGradients.parallelStream()
+                .map(
+                    gradients ->
+                        aggregateV2(gradients, planBytes, finalAccumulateIntermediateUpdates))
+                .collect(Collectors.toList());
+        accumulateIntermediateUpdates = true;
+      }
 
       // Layer 2
-      return aggregateV2(encryptedGradients, planBytes, true);
+      return aggregateV2(encryptedGradients, planBytes, accumulateIntermediateUpdates);
     } else {
-      // TODO(b/295060730): Support parallel V1 aggregation. This is currently blocked by limited
-      // tmpfs volume size on supported TEEs.
+      if (partitionedGradients.size() > 1) {
+        boolean finalAccumulateIntermediateUpdates = accumulateIntermediateUpdates;
+        encryptedGradients =
+            partitionedGradients.parallelStream()
+                .map(
+                    gradients ->
+                        aggregateV1(gradients, planBytes, finalAccumulateIntermediateUpdates))
+                .collect(Collectors.toList());
+        accumulateIntermediateUpdates = true;
+      }
+
+      // Layer 2
       return aggregateV1(encryptedGradients, planBytes, accumulateIntermediateUpdates);
     }
   }

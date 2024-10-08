@@ -84,6 +84,16 @@ variable "aggregated_gradient_bucket_lifecycle_age_days" {
   type        = number
 }
 
+variable "model_bucket_location" {
+  description = "GCS bucket location (https://cloud.google.com/storage/docs/locations) for the model bucket."
+  type        = string
+}
+
+variable "client_gradient_bucket_location" {
+  description = "GCS bucket location (https://cloud.google.com/storage/docs/locations) for the client gradient bucket."
+  type        = string
+}
+
 # https://cloud.google.com/spanner/docs/pitr
 # Must be between 1 hour and 7 days. Can be specified in days, hours, minutes, or seconds.
 # eg: 1d, 24h, 1440m, and 86400s are equivalent.
@@ -222,3 +232,15 @@ variable "collector_batch_size" {
   description = "The size of aggregation batches created by the collector"
   type        = number
 }
+
+# Domain name
+variable "parent_domain_name" {
+  description = "Custom domain name to register and use for external APIs."
+  type        = string
+}
+
+variable "aggregation_batch_failure_threshold" {
+  description = "The number of aggregation batches failed for an iteration before moving the iteration to a failure state."
+  type        = number
+}
+

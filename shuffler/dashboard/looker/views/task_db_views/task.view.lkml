@@ -26,9 +26,21 @@ view: task {
     sql: ${TABLE}.MaxAggregationSize ;;
   }
 
-  dimension: status {
+  dimension: status_num {
     type: number
     sql: ${TABLE}.Status ;;
+  }
+
+  dimension: status {
+    type: string
+    sql: CASE
+      WHEN ${TABLE}.Status = 0 THEN 'OPEN'
+      WHEN ${TABLE}.Status = 1 THEN 'COMPLETED'
+      WHEN ${TABLE}.Status = 2 THEN 'CREATED'
+      WHEN ${TABLE}.Status = 101 THEN 'CANCELED'
+      WHEN ${TABLE}.Status = 102 THEN 'FAILED'
+      ELSE 'Unknown'
+    END ;;
   }
 
   dimension_group: created_time {

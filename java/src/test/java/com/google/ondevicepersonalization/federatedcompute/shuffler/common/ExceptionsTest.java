@@ -51,6 +51,12 @@ public final class ExceptionsTest {
   }
 
   @Test
+  public void testIsRetryableException_NonRetryableException() {
+    // act and assert
+    assertThat(Exceptions.isRetryableException(new NonRetryableException("tf"))).isFalse();
+  }
+
+  @Test
   public void testIsRetryableException_AggregationExceptionInIllegalState() {
     // act and assert
     assertThat(

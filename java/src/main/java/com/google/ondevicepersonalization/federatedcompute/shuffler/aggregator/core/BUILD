@@ -40,6 +40,7 @@ java_library(
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/aggregator/core/message:aggregator_notification",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:compression_utils",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:exceptions",
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:non_retryable_exception",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:constants",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/crypto:payload",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:blob_dao",

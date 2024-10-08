@@ -33,6 +33,7 @@ java_test(
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:task_entity",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:task_id",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao/gcp:task_spanner_dao",
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao/gcp:timestamp_instant_converter",
         "@maven//:com_google_cloud_google_cloud_core",
         "@maven//:com_google_cloud_google_cloud_spanner",
         "@maven//:com_google_testparameterinjector_test_parameter_injector",

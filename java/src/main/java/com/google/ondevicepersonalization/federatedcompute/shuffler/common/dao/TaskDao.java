@@ -16,6 +16,7 @@
 
 package com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -105,4 +106,9 @@ public interface TaskDao {
    */
   public List<Long> getIterationIdsPerEveryKHoursSelector(
       String populationName, long taskId, long intervalInHours, long withInHours);
+
+  /**
+   * Get the {@code CreatedTime} of a given {@code IterationEntity}
+   */
+  public Optional<Instant> getIterationCreatedTime(IterationEntity iterationEntity);
 }

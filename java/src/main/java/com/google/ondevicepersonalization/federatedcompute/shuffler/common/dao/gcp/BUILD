@@ -118,6 +118,7 @@ java_library(
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:partitioner",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:task_entity",
         "@maven//:com_google_cloud_google_cloud_storage",
+        "@maven//:com_google_guava_guava",
         "@maven//:org_slf4j_slf4j_api",
         "@maven//:org_springframework_spring_context",
     ],

@@ -30,6 +30,8 @@ module "shuffler" {
   client_gradient_bucket_versioning                      = var.client_gradient_bucket_versioning
   model_bucket_force_destroy                             = var.model_bucket_force_destroy
   model_bucket_versioning                                = var.model_bucket_versioning
+  client_gradient_bucket_location                        = var.client_gradient_bucket_location
+  model_bucket_location                                  = var.model_bucket_location
   spanner_database_deletion_protection                   = var.spanner_database_deletion_protection
   spanner_database_retention_period                      = var.spanner_database_retention_period
   spanner_instance_config                                = var.spanner_instance_config
@@ -59,4 +61,6 @@ module "shuffler" {
   allow_rooted_devices                                   = var.allow_rooted_devices
   client_gradient_bucket_lifecycle_age_days              = var.client_gradient_bucket_lifecycle_age_days
   model_bucket_lifecycle_age_days                        = var.model_bucket_lifecycle_age_days
+  parent_domain_name                                     = var.parent_domain_name
+  aggregation_batch_failure_threshold                    = var.aggregation_batch_failure_threshold
 }

@@ -44,4 +44,13 @@ public interface TaskAssignmentCore {
 
   public void reportLocalNotEligible(
       String populationName, long taskId, String aggregationId, String assignmentId);
+
+  public void reportLocalFailedExampleGeneration(
+      String populationName, long taskId, String aggregationId, String assignmentId);
+
+  public void reportLocalFailedModelComputation(
+      String populationName, long taskId, String aggregationId, String assignmentId);
+
+  public void reportLocalFailedOpsError(
+      String populationName, long taskId, String aggregationId, String assignmentId);
 }

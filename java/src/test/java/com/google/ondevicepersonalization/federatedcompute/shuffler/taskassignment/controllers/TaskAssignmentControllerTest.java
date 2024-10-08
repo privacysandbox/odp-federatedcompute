@@ -316,6 +316,78 @@ public final class TaskAssignmentControllerTest {
   }
 
   @Test
+  public void testReportResult_FailedExampleGeneration_Succeeded() {
+
+    // act
+    ReportResultResponse response =
+        controller.reportResult(
+            "us",
+            13,
+            "9",
+            "assignment-1",
+            ReportResultRequest.newBuilder().setResult(Result.FAILED_EXAMPLE_GENERATION).build());
+
+    // assert
+    assertThat(response).isEqualTo(ReportResultResponse.newBuilder().build());
+    verify(mockCore).reportLocalFailedExampleGeneration("us", 13, "9", "assignment-1");
+    verifyNoMoreInteractions(mockCore);
+
+    // assert metrics
+    Timer timer = meterRegistry.find(REPORT_RESULT_TIMER_NAME).timer();
+    assertThat(timer.count()).isEqualTo(1);
+    assertThat(timer.getId().getTag(POPULATION_TAG)).isEqualTo("us");
+    assertThat(timer.getId().getTag(RESULT_TAG)).isEqualTo("FAILED_EXAMPLE_GENERATION");
+  }
+
+  @Test
+  public void testReportResult_FailedModelComputation_Succeeded() {
+
+    // act
+    ReportResultResponse response =
+        controller.reportResult(
+            "us",
+            13,
+            "9",
+            "assignment-1",
+            ReportResultRequest.newBuilder().setResult(Result.FAILED_MODEL_COMPUTATION).build());
+
+    // assert
+    assertThat(response).isEqualTo(ReportResultResponse.newBuilder().build());
+    verify(mockCore).reportLocalFailedModelComputation("us", 13, "9", "assignment-1");
+    verifyNoMoreInteractions(mockCore);
+
+    // assert metrics
+    Timer timer = meterRegistry.find(REPORT_RESULT_TIMER_NAME).timer();
+    assertThat(timer.count()).isEqualTo(1);
+    assertThat(timer.getId().getTag(POPULATION_TAG)).isEqualTo("us");
+    assertThat(timer.getId().getTag(RESULT_TAG)).isEqualTo("FAILED_MODEL_COMPUTATION");
+  }
+
+  @Test
+  public void testReportResult_FailedOpsError_Succeeded() {
+
+    // act
+    ReportResultResponse response =
+        controller.reportResult(
+            "us",
+            13,
+            "9",
+            "assignment-1",
+            ReportResultRequest.newBuilder().setResult(Result.FAILED_OPS_ERROR).build());
+
+    // assert
+    assertThat(response).isEqualTo(ReportResultResponse.newBuilder().build());
+    verify(mockCore).reportLocalFailedOpsError("us", 13, "9", "assignment-1");
+    verifyNoMoreInteractions(mockCore);
+
+    // assert metrics
+    Timer timer = meterRegistry.find(REPORT_RESULT_TIMER_NAME).timer();
+    assertThat(timer.count()).isEqualTo(1);
+    assertThat(timer.getId().getTag(POPULATION_TAG)).isEqualTo("us");
+    assertThat(timer.getId().getTag(RESULT_TAG)).isEqualTo("FAILED_OPS_ERROR");
+  }
+
+  @Test
   public void testReportResult_Unknown_Succeeded() {
 
     // act

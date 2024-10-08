@@ -105,6 +105,15 @@ message ReportResultRequest {
 
     // Failed due to eligibility task is not qualified.
     NOT_ELIGIBLE = 3;
+
+    // Failed due to example generation failure
+    FAILED_EXAMPLE_GENERATION = 4;
+
+    // Failed due to model computation error
+    FAILED_MODEL_COMPUTATION = 5;
+
+    // Failed due to model ops error
+    FAILED_OPS_ERROR = 6;
   }
 
   Result result = 1;

@@ -193,3 +193,8 @@ output "task_builder_url" {
   description = "URL of the task builder service. The terraform may need to be re-run if blank to populate."
   value       = module.shuffler.task_builder_url
 }
+
+output "model_cdn_domain" {
+  description = "Domain hosting the CDN for model download"
+  value       = module.shuffler.model_cdn_domain
+}

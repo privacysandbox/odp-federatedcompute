@@ -17,13 +17,15 @@
 package com.google.ondevicepersonalization.federatedcompute.shuffler.common.config.gcp;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.hc.core5.http.HttpVersion.HTTP_1_1;
 
 import java.io.IOException;
 import java.util.Optional;
-import org.apache.http.HttpResponse;
-import org.apache.http.HttpStatus;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
+import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.core5.http.HttpEntity;
+import org.apache.hc.core5.http.HttpStatus;
+import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
@@ -39,18 +41,25 @@ public class GcpVMMetadataServiceClient {
       "http://metadata.google.internal/computeMetadata/v1/project/project-id";
   private static final String GCP_METADATA_ENDPOINT_PATTERN =
       "http://metadata.google.internal/computeMetadata/v1/instance/attributes/%s";
-  private final HttpClient httpClient;
+  private final CloseableHttpClient httpClient;
 
-  public GcpVMMetadataServiceClient(@Qualifier("httpClient") HttpClient httpClient) {
+  public GcpVMMetadataServiceClient(@Qualifier("httpClient") CloseableHttpClient httpClient) {
     this.httpClient = httpClient;
   }
 
   /** Returns the GCP project id retrieved from the Google metadata service. */
   public String getGcpProjectId() throws IOException {
     HttpGet request = new HttpGet(GCP_PROJECT_ID_ENDPOINT);
+    request.setVersion(HTTP_1_1);
     request.setHeader("Metadata-Flavor", "Google");
-    HttpResponse response = httpClient.execute(request);
-    return new String(response.getEntity().getContent().readAllBytes(), UTF_8);
+    return httpClient.execute(
+        request,
+        response -> {
+          final HttpEntity entity = response.getEntity();
+          String result = new String(entity.getContent().readAllBytes(), UTF_8);
+          EntityUtils.consume(entity);
+          return result;
+        });
   }
 
   /**
@@ -59,19 +68,24 @@ public class GcpVMMetadataServiceClient {
   public Optional<String> getMetadata(String key) throws IOException {
     String metadataEndpoint = String.format(GCP_METADATA_ENDPOINT_PATTERN, key);
     HttpGet request = new HttpGet(metadataEndpoint);
+    request.setVersion(HTTP_1_1);
     request.setHeader("Metadata-Flavor", "Google");
 
-    HttpResponse httpResponse = httpClient.execute(request);
+    return httpClient.execute(
+        request,
+        response -> {
+          int statusCode = response.getCode();
+          final HttpEntity entity = response.getEntity();
+          String body = new String(entity.getContent().readAllBytes(), UTF_8);
+          EntityUtils.consume(entity);
+          if (statusCode == HttpStatus.SC_OK) {
+            return Optional.of(body);
+          } else if (statusCode == HttpStatus.SC_NOT_FOUND) {
+            return Optional.empty();
+          }
 
-    int statusCode = httpResponse.getStatusLine().getStatusCode();
-    String body = new String(httpResponse.getEntity().getContent().readAllBytes(), UTF_8);
-    if (statusCode == HttpStatus.SC_OK) {
-      return Optional.of(body);
-    } else if (statusCode == HttpStatus.SC_NOT_FOUND) {
-      return Optional.empty();
-    }
-
-    throw new IOException(
-        String.format("Got unexpected status code '%s'. Response: %s", statusCode, body));
+          throw new IOException(
+              String.format("Got unexpected status code '%s'. Response: %s", statusCode, body));
+        });
   }
 }

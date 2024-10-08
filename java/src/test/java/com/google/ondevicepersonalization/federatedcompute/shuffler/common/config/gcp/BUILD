@@ -25,6 +25,8 @@ java_test(
         "@maven//:com_google_protobuf_protobuf_java",
         "@maven//:com_google_truth_truth",
         "@maven//:junit_junit",
+        "@maven//:org_apache_httpcomponents_client5_httpclient5",
+        "@maven//:org_apache_httpcomponents_core5_httpcore5",
         "@maven//:org_apache_httpcomponents_httpclient",
         "@maven//:org_apache_httpcomponents_httpcore",
         "@maven//:org_mockito_mockito_core",

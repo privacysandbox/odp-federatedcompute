@@ -27,12 +27,13 @@ import java.net.URI;
 import java.util.Base64;
 import java.util.Objects;
 import java.util.Optional;
-import org.apache.http.HttpStatus;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.util.EntityUtils;
+import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
+import org.apache.hc.core5.http.HttpStatus;
+import org.apache.hc.core5.http.HttpVersion;
+import org.apache.hc.core5.http.io.entity.EntityUtils;
+import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -80,6 +81,7 @@ public class KeyAttestationManager {
   public byte[] fetchChallenge() {
     URI fetchUri = URI.create(String.format("%s:generateChallenge", keyAttestationServiceBaseUrl));
     HttpPost request = new HttpPost(fetchUri);
+    request.setVersion(HttpVersion.HTTP_1_1);
     request.setHeader("Content-Type", "application/json; utf-8");
     request.setHeader("Accept", "application/json");
     request.setHeader("X-Goog-Api-Key", keyAttestationApiKey);
@@ -89,7 +91,7 @@ public class KeyAttestationManager {
       try {
         String responseBody = new String(response.getEntity().getContent().readAllBytes());
 
-        if (response.getStatusLine().getStatusCode() != HttpStatus.SC_OK) {
+        if (response.getCode() != HttpStatus.SC_OK) {
           var errorResponse = ErrorUtil.parseErrorResponse(responseBody);
           var exception = ErrorUtil.toServiceException(errorResponse);
 
@@ -122,6 +124,7 @@ public class KeyAttestationManager {
     URI verifyURI =
         URI.create(String.format("%s:verifyKeyAttestationRecord", keyAttestationServiceBaseUrl));
     HttpPost request = new HttpPost(verifyURI);
+    request.setVersion(HttpVersion.HTTP_1_1);
     request.setHeader("Content-Type", "application/json; utf-8");
     request.setHeader("Accept", "application/json");
     request.setHeader("X-Goog-Api-Key", keyAttestationApiKey);
@@ -139,7 +142,7 @@ public class KeyAttestationManager {
       try {
         String responseBody = new String(response.getEntity().getContent().readAllBytes());
 
-        if (response.getStatusLine().getStatusCode() != HttpStatus.SC_OK) {
+        if (response.getCode() != HttpStatus.SC_OK) {
           var errorResponse = ErrorUtil.parseErrorResponse(responseBody);
           var exception = ErrorUtil.toServiceException(errorResponse);
           String message = "Received error from KAVS when verifying challenge";

@@ -145,6 +145,18 @@ public class TaskAssignmentController {
       case NOT_ELIGIBLE:
         taskAssignment.reportLocalNotEligible(populationName, taskId, aggregationId, assignmentId);
         break;
+      case FAILED_EXAMPLE_GENERATION:
+        taskAssignment.reportLocalFailedExampleGeneration(
+            populationName, taskId, aggregationId, assignmentId);
+        break;
+      case FAILED_MODEL_COMPUTATION:
+        taskAssignment.reportLocalFailedModelComputation(
+            populationName, taskId, aggregationId, assignmentId);
+        break;
+      case FAILED_OPS_ERROR:
+        taskAssignment.reportLocalFailedOpsError(
+            populationName, taskId, aggregationId, assignmentId);
+        break;
       default:
         // do nothing
     }

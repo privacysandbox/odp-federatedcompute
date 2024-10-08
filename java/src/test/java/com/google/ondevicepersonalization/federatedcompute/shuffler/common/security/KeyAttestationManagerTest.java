@@ -31,11 +31,9 @@ import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
-import org.apache.http.StatusLine;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
+import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -68,13 +66,9 @@ public class KeyAttestationManagerTest {
 
   public static String ATTESTATION_RECORD = "[\"MIIDcjCCAxegAwIBAgIBAT\"]";
 
-  @Mock HttpClientBuilder mockClientBuilder;
-
   @Mock CloseableHttpClient mockClient;
 
   @Mock CloseableHttpResponse mockResponse;
-
-  @Mock StatusLine mockStatus;
 
   KeyAttestationManager kaMgr;
 
@@ -99,7 +93,6 @@ public class KeyAttestationManagerTest {
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
-    when(mockResponse.getStatusLine()).thenReturn(mockStatus);
     kaMgr =
         new KeyAttestationManager(Optional.of(URI), Optional.of(API_KEY), mockClient, true, false);
   }
@@ -108,7 +101,7 @@ public class KeyAttestationManagerTest {
   public void fetchChallenge_success() throws Exception {
     when(mockClient.execute(any())).thenReturn(mockResponse);
     when(mockResponse.getEntity()).thenReturn(new StringEntity(CHALLENGE_RESPONSE));
-    when(mockStatus.getStatusCode()).thenReturn(200);
+    when(mockResponse.getCode()).thenReturn(200);
 
     byte[] challenge = kaMgr.fetchChallenge();
     assertArrayEquals(challenge, Base64.getDecoder().decode(CHALLENGE));
@@ -119,7 +112,7 @@ public class KeyAttestationManagerTest {
   public void fetchChallenge_throws() throws Exception {
     when(mockClient.execute(any())).thenReturn(mockResponse);
     when(mockResponse.getEntity()).thenReturn(new StringEntity(""));
-    when(mockStatus.getStatusCode()).thenReturn(500);
+    when(mockResponse.getCode()).thenReturn(500);
 
     assertThrows(IllegalStateException.class, () -> kaMgr.fetchChallenge());
     verify(mockClient, times(1)).execute(any());
@@ -129,7 +122,7 @@ public class KeyAttestationManagerTest {
   public void verifyAttestationRecord_success() throws IOException {
     when(mockClient.execute(any())).thenReturn(mockResponse);
     when(mockResponse.getEntity()).thenReturn(new StringEntity(SUCCESS_VERIFICATION_RESPONSE));
-    when(mockStatus.getStatusCode()).thenReturn(200);
+    when(mockResponse.getCode()).thenReturn(200);
 
     boolean isVerified = kaMgr.isAttestationRecordVerified(ATTESTATION_RECORD);
 
@@ -147,7 +140,7 @@ public class KeyAttestationManagerTest {
     for (var response : responses) {
       when(mockClient.execute(any())).thenReturn(mockResponse);
       when(mockResponse.getEntity()).thenReturn(new StringEntity(response));
-      when(mockStatus.getStatusCode()).thenReturn(200);
+      when(mockResponse.getCode()).thenReturn(200);
 
       boolean isVerified = kaMgr.isAttestationRecordVerified(ATTESTATION_RECORD);
 
@@ -159,7 +152,7 @@ public class KeyAttestationManagerTest {
   public void verifyAttestationRecord_throws() throws IOException {
     when(mockClient.execute(any())).thenReturn(mockResponse);
     when(mockResponse.getEntity()).thenReturn(new StringEntity(""));
-    when(mockStatus.getStatusCode()).thenReturn(500);
+    when(mockResponse.getCode()).thenReturn(500);
 
     assertThrows(
         IllegalStateException.class, () -> kaMgr.isAttestationRecordVerified(ATTESTATION_RECORD));

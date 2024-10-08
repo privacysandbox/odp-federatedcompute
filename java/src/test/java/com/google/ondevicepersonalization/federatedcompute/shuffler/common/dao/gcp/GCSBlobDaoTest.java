@@ -145,13 +145,41 @@ public final class GCSBlobDaoTest {
 
     // act
     byte[] content =
-        blobDao.download(
-            BlobDescription.builder().host("test-bucket").resourceObject("path/file").build());
+        blobDao
+            .download(
+                BlobDescription.builder().host("test-bucket").resourceObject("path/file").build())
+            .get();
 
     // assert
     assertThat(content).isEqualTo(new byte[] {10, 20, 30});
     verify(mockStorage, times(1)).get(BlobId.of("test-bucket", "path/file"));
     verify(mockBlob1, times(1)).getContent();
+  }
+
+  @Test
+  public void testDownload_null() {
+    // arrange
+    when(mockStorage.get(isA(BlobId.class))).thenReturn(null);
+
+    // assert
+    assertTrue(
+        blobDao
+            .download(
+                BlobDescription.builder().host("test-bucket").resourceObject("path/file").build())
+            .isEmpty());
+  }
+
+  @Test
+  public void downloadAndDecompressIfNeeded_null() {
+    // arrange
+    when(mockStorage.get(isA(BlobId.class))).thenReturn(null);
+
+    // assert
+    assertTrue(
+        blobDao
+            .downloadAndDecompressIfNeeded(
+                BlobDescription.builder().host("test-bucket").resourceObject("path/file").build())
+            .isEmpty());
   }
 
   @Test
@@ -173,8 +201,10 @@ public final class GCSBlobDaoTest {
 
     // act
     byte[] content =
-        blobDao.downloadAndDecompressIfNeeded(
-            BlobDescription.builder().host("test-bucket").resourceObject("path/file").build());
+        blobDao
+            .downloadAndDecompressIfNeeded(
+                BlobDescription.builder().host("test-bucket").resourceObject("path/file").build())
+            .get();
 
     // assert
     assertThat(content).isEqualTo(originalData);
@@ -192,8 +222,10 @@ public final class GCSBlobDaoTest {
 
     // act
     byte[] content =
-        blobDao.downloadAndDecompressIfNeeded(
-            BlobDescription.builder().host("test-bucket").resourceObject("path/file").build());
+        blobDao
+            .downloadAndDecompressIfNeeded(
+                BlobDescription.builder().host("test-bucket").resourceObject("path/file").build())
+            .get();
 
     // assert
     assertThat(content).isEqualTo(new byte[] {10, 20, 30});
@@ -211,8 +243,10 @@ public final class GCSBlobDaoTest {
 
     // act
     byte[] content =
-        blobDao.downloadAndDecompressIfNeeded(
-            BlobDescription.builder().host("test-bucket").resourceObject("path/file").build());
+        blobDao
+            .downloadAndDecompressIfNeeded(
+                BlobDescription.builder().host("test-bucket").resourceObject("path/file").build())
+            .get();
 
     // assert
     assertThat(content).isEqualTo(new byte[] {10, 20, 30});
@@ -230,8 +264,10 @@ public final class GCSBlobDaoTest {
 
     // act
     byte[] content =
-        blobDao.downloadAndDecompressIfNeeded(
-            BlobDescription.builder().host("test-bucket").resourceObject("path/file").build());
+        blobDao
+            .downloadAndDecompressIfNeeded(
+                BlobDescription.builder().host("test-bucket").resourceObject("path/file").build())
+            .get();
 
     // assert
     assertThat(content).isEqualTo(new byte[] {10, 20, 30});
@@ -249,7 +285,7 @@ public final class GCSBlobDaoTest {
 
     // act
     byte[] content =
-        blobDao.download(BlobDescription.builder().url("gs://test-bucket/path/file").build());
+        blobDao.download(BlobDescription.builder().url("gs://test-bucket/path/file").build()).get();
 
     // assert
     assertThat(content).isEqualTo(new byte[] {10, 20, 30});

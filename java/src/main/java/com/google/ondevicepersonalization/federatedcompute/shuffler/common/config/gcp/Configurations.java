@@ -21,8 +21,8 @@ import com.beust.jcommander.defaultprovider.EnvironmentVariableDefaultProvider;
 import com.google.cloud.secretmanager.v1.SecretManagerServiceClient;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.Constants;
 import java.io.IOException;
-import org.apache.http.client.HttpClient;
-import org.apache.http.impl.client.HttpClients;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -57,7 +57,7 @@ public class Configurations {
 
   @Bean
   @Qualifier("httpClient")
-  HttpClient provideHttpClient() {
+  CloseableHttpClient provideHttpClient() {
     return HttpClients.createDefault();
   }
 

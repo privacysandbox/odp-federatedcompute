@@ -102,36 +102,50 @@ public class TaskAssignmentCoreImpl implements TaskAssignmentCore {
   // Report local succeeded.
   public void reportLocalCompleted(
       String populationName, long taskId, String aggregationId, String assignmentId) {
-    assignmentDao.updateAssignmentStatus(
-        AssignmentId.builder()
-            .populationName(populationName)
-            .taskId(taskId)
-            .iterationId(Long.parseLong(aggregationId))
-            .attemptId(0)
-            .assignmentId(assignmentId)
-            .build(),
-        Status.ASSIGNED,
-        Status.LOCAL_COMPLETED);
+    reportLocalResult(populationName, taskId, aggregationId, assignmentId, Status.LOCAL_COMPLETED);
   }
 
   // Report local failed.
   public void reportLocalFailed(
       String populationName, long taskId, String aggregationId, String assignmentId) {
-    assignmentDao.updateAssignmentStatus(
-        AssignmentId.builder()
-            .populationName(populationName)
-            .taskId(taskId)
-            .iterationId(Long.parseLong(aggregationId))
-            .attemptId(0)
-            .assignmentId(assignmentId)
-            .build(),
-        Status.ASSIGNED,
-        Status.LOCAL_FAILED);
+    reportLocalResult(populationName, taskId, aggregationId, assignmentId, Status.LOCAL_FAILED);
   }
 
   // Report local not eligible.
   public void reportLocalNotEligible(
       String populationName, long taskId, String aggregationId, String assignmentId) {
+    reportLocalResult(
+        populationName, taskId, aggregationId, assignmentId, Status.LOCAL_NOT_ELIGIBLE);
+  }
+
+  public void reportLocalFailedExampleGeneration(
+      String populationName, long taskId, String aggregationId, String assignmentId) {
+    reportLocalResult(
+        populationName,
+        taskId,
+        aggregationId,
+        assignmentId,
+        Status.LOCAL_FAILED_EXAMPLE_GENERATION);
+  }
+
+  public void reportLocalFailedModelComputation(
+      String populationName, long taskId, String aggregationId, String assignmentId) {
+    reportLocalResult(
+        populationName, taskId, aggregationId, assignmentId, Status.LOCAL_FAILED_MODEL_COMPUTATION);
+  }
+
+  public void reportLocalFailedOpsError(
+      String populationName, long taskId, String aggregationId, String assignmentId) {
+    reportLocalResult(
+        populationName, taskId, aggregationId, assignmentId, Status.LOCAL_FAILED_OPS_ERROR);
+  }
+
+  public void reportLocalResult(
+      String populationName,
+      long taskId,
+      String aggregationId,
+      String assignmentId,
+      Status newStatus) {
     assignmentDao.updateAssignmentStatus(
         AssignmentId.builder()
             .populationName(populationName)
@@ -141,7 +155,7 @@ public class TaskAssignmentCoreImpl implements TaskAssignmentCore {
             .assignmentId(assignmentId)
             .build(),
         Status.ASSIGNED,
-        Status.LOCAL_NOT_ELIGIBLE);
+        newStatus);
   }
 
   private UploadInstruction convertToUploadInstruction(BlobDescription blobDescription) {

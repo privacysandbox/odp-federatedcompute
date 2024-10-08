@@ -87,7 +87,7 @@ public class TaskSchedulerCoreImpl implements TaskSchedulerCore {
   public void processActiveTasks() {
     try {
       MDC.put(Constants.ACTIVITY_ID, UUID.randomUUID().toString());
-      taskDao.getActiveTasks().stream().forEach(task -> processActiveTask(task));
+      taskDao.getActiveTasks().stream().forEach(this::processActiveTask);
     } finally {
       MDC.clear();
     }
@@ -179,14 +179,27 @@ public class TaskSchedulerCoreImpl implements TaskSchedulerCore {
           taskDao.updateIterationStatus(
               iteration, iteration.toBuilder().status(Status.COMPLETED).build());
           handleCompletedIteration(task, iteration);
+        } else {
+          Optional<Instant> iterationCreatedTime = taskDao.getIterationCreatedTime(iteration);
+          Instant currentTime = instantSource.instant();
+          // If Iteration is in APPLYING stage for more than 5 min log as warning.
+          iterationCreatedTime
+              .filter(createdTime -> createdTime.isBefore(currentTime.minusSeconds(300)))
+              .ifPresent(createdTime -> logger.warn(
+                  "Iteration {} in APPLYING status for more than 5 min",
+                  iteration.getId()));
         }
         return;
       case COMPLETED:
         handleCompletedIteration(task, iteration);
         return;
       case AGGREGATING_FAILED:
+        taskDao.updateTaskStatus(task.getId(), task.getStatus(), TaskEntity.Status.FAILED);
+        logger.warn("Iteration {} in AGGREGATING_FAILED status", iteration.getId());
+        return;
       case APPLYING_FAILED:
         taskDao.updateTaskStatus(task.getId(), task.getStatus(), TaskEntity.Status.FAILED);
+        logger.warn("Iteration {} in APPLYING_FAILED status", iteration.getId());
         return;
       case STOPPED:
         throw new UnsupportedOperationException(

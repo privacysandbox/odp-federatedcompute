@@ -26,6 +26,8 @@ module "storage" {
   aggregated_gradient_bucket_lifecycle_age_days = var.aggregated_gradient_bucket_lifecycle_age_days
   client_gradient_bucket_lifecycle_age_days     = var.client_gradient_bucket_lifecycle_age_days
   model_bucket_lifecycle_age_days               = var.model_bucket_lifecycle_age_days
+  client_gradient_bucket_location               = var.client_gradient_bucket_location
+  model_bucket_location                         = var.model_bucket_location
   project_id                                    = var.project_id
   region                                        = var.region
   spanner_database_deletion_protection          = var.spanner_database_deletion_protection
@@ -40,6 +42,15 @@ module "pubsub" {
   environment = var.environment
   project_id  = var.project_id
   region      = var.region
+}
+
+
+module "model_cdn" {
+  source              = "../../modules/cdn"
+  environment         = var.environment
+  project_id          = var.project_id
+  backend_bucket_name = module.storage.model_bucket_name
+  parent_domain_name  = var.parent_domain_name
 }
 
 ######################
@@ -207,6 +218,7 @@ module "public_key_service_base_url" {
 }
 
 module "key_attestation_validation_url" {
+  count           = var.key_attestation_validation_url != null && var.key_attestation_validation_url != "" ? 1 : 0
   source          = "../../modules/parameters"
   environment     = var.environment
   parameter_name  = "KEY_ATTESTATION_VALIDATION_URL"
@@ -214,6 +226,7 @@ module "key_attestation_validation_url" {
 }
 
 module "key_attestation_api_key" {
+  count           = var.key_attestation_api_key != null && var.key_attestation_api_key != "" ? 1 : 0
   source          = "../../modules/parameters"
   environment     = var.environment
   parameter_name  = "KEY_ATTESTATION_API_KEY"
@@ -288,4 +301,44 @@ module "collector_batch_size" {
   environment     = var.environment
   parameter_name  = "COLLECTOR_BATCH_SIZE"
   parameter_value = var.collector_batch_size
+}
+
+module "model_cdn_signing_key_value_a" {
+  source          = "../../modules/parameters"
+  environment     = var.environment
+  parameter_name  = "MODEL_CDN_SIGNING_KEY_VALUE_A"
+  parameter_value = module.model_cdn.key_value_a
+}
+
+module "model_cdn_signing_key_value_b" {
+  source          = "../../modules/parameters"
+  environment     = var.environment
+  parameter_name  = "MODEL_CDN_SIGNING_KEY_VALUE_B"
+  parameter_value = module.model_cdn.key_value_b
+}
+
+// Points to the newest key. When key A rotates, the name will point to key A. When key B rotates, point to key B.
+module "model_cdn_signing_key_name" {
+  source          = "../../modules/parameters"
+  environment     = var.environment
+  parameter_name  = "MODEL_CDN_SIGNING_KEY_NAME"
+  parameter_value = module.model_cdn.key_name
+  // Update the key values first to avoid race-condition:
+  // Update key A -> Application pulls secrets -> Update name to A will still work using the old key B.
+  depends_on = [module.model_cdn_signing_key_value_a, module.model_cdn_signing_key_value_b]
+}
+
+module "model_cdn_endpoint" {
+  source          = "../../modules/parameters"
+  environment     = var.environment
+  parameter_name  = "MODEL_CDN_ENDPOINT"
+  parameter_value = module.model_cdn.cdn_domain
+}
+
+module "aggregation_batch_failure_threshold" {
+  count           = var.aggregation_batch_failure_threshold != null ? 1 : 0
+  source          = "../../modules/parameters"
+  environment     = var.environment
+  parameter_name  = "AGGREGATION_BATCH_FAILURE_THRESHOLD"
+  parameter_value = var.aggregation_batch_failure_threshold
 }

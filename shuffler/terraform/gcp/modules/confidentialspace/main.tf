@@ -33,6 +33,8 @@ resource "google_compute_instance_template" "instance_template" {
   machine_type = var.machine_type
 
   metadata = {
+    # Allocate 2GB to dev/shm
+    tee-dev-shm-size-kb              = 2000000
     tee-image-reference              = var.workload_image
     tee-container-log-redirect       = true
     tee-impersonate-service-accounts = var.allowed_operator_service_accounts

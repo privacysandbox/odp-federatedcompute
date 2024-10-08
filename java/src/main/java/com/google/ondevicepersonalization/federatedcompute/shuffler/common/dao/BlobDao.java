@@ -18,6 +18,7 @@ package com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 
 /** The Dao of Blob storage */
 public interface BlobDao {
@@ -37,10 +38,10 @@ public interface BlobDao {
   public List<String> listByPartition(BlobDescription folder, List<String> partitions);
 
   /** Download content from file. */
-  public byte[] download(BlobDescription file);
+  public Optional<byte[]> download(BlobDescription file);
 
   /** Download content from file and decompress if needed. */
-  public byte[] downloadAndDecompressIfNeeded(BlobDescription file);
+  public Optional<byte[]> downloadAndDecompressIfNeeded(BlobDescription file);
 
   /** Upload content to file. */
   public void upload(BlobDescription file, byte[] content) throws IOException;

@@ -22,6 +22,9 @@ environment = "demo-env"
 project_id  = "demo-project"
 region      = "us-central1"
 
+client_gradient_bucket_location = "us"
+model_bucket_location           = "us"
+
 parent_domain_name      = "demo-domain-xyz.com"
 spanner_instance_config = "regional-us-central1"
 

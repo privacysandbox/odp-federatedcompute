@@ -18,7 +18,7 @@
     limit: 5000
     column_limit: 50
     show_view_names: false
-    show_row_numbers: true
+    show_row_numbers: false
     transpose: false
     truncate_text: true
     hide_totals: false
@@ -60,12 +60,12 @@
     type: looker_grid
     fields: [iteration.population_name, iteration.task_id, iteration.iteration_id,
       iteration.status, iteration.report_goal, iteration.min_client_version, iteration.max_client_version,
-      iteration.max_aggregation_size]
+      iteration.max_aggregation_size, iteration_open.created_time_minute]
     sorts: [iteration.population_name, iteration.iteration_id desc]
     limit: 5000
     column_limit: 50
     show_view_names: false
-    show_row_numbers: true
+    show_row_numbers: false
     transpose: false
     truncate_text: true
     hide_totals: false
@@ -88,6 +88,7 @@
     listen:
       Population Name: iteration.population_name
       Task ID: iteration.task_id
+      Created Time: iteration_open.created_time_minute
     row: 6
     col: 0
     width: 24
@@ -97,9 +98,9 @@
     model: task
     explore: apm_assigned
     type: looker_line
-    fields: [apm_assigned.created_time_minute_minute, apm_assigned.count_per_minute]
-    fill_fields: [apm_assigned.created_time_minute_minute]
-    sorts: [apm_assigned.created_time_minute_minute desc]
+    fields: [apm_assigned.created_time_minute, apm_assigned.count_per_minute]
+    fill_fields: [apm_assigned.created_time_minute]
+    sorts: [apm_assigned.created_time_minute desc]
     limit: 5000
     column_limit: 50
     x_axis_label: Created Time Minute
@@ -136,7 +137,7 @@
     listen:
       Task ID: apm_assigned.task_id
       Population Name: apm_assigned.population_name
-      Created Time: apm_assigned.created_time_minute_minute
+      Created Time: apm_assigned.created_time_minute
     row: 12
     col: 0
     width: 24
@@ -146,9 +147,9 @@
     model: task
     explore: apm_local_completed
     type: looker_line
-    fields: [apm_local_completed.count_per_minute, apm_local_completed.created_time_minute_minute]
-    fill_fields: [apm_local_completed.created_time_minute_minute]
-    sorts: [apm_local_completed.created_time_minute_minute desc]
+    fields: [apm_local_completed.count_per_minute, apm_local_completed.created_time_minute]
+    fill_fields: [apm_local_completed.created_time_minute]
+    sorts: [apm_local_completed.created_time_minute desc]
     limit: 5000
     column_limit: 50
     x_axis_label: Created Time Minute
@@ -191,7 +192,7 @@
     listen:
       Task ID: apm_local_completed.task_id
       Population Name: apm_local_completed.population_name
-      Created Time: apm_local_completed.created_time_minute_minute
+      Created Time: apm_local_completed.created_time_minute
     row: 19
     col: 0
     width: 24
@@ -201,9 +202,9 @@
     model: task
     explore: apm_upload_completed
     type: looker_line
-    fields: [apm_upload_completed.count_per_minute, apm_upload_completed.created_time_minute_minute]
-    fill_fields: [apm_upload_completed.created_time_minute_minute]
-    sorts: [apm_upload_completed.created_time_minute_minute desc]
+    fields: [apm_upload_completed.count_per_minute, apm_upload_completed.created_time_minute]
+    fill_fields: [apm_upload_completed.created_time_minute]
+    sorts: [apm_upload_completed.created_time_minute desc]
     limit: 5000
     column_limit: 50
     x_axis_label: Created Time Minute
@@ -246,7 +247,7 @@
     listen:
       Task ID: apm_upload_completed.task_id
       Population Name: apm_upload_completed.population_name
-      Created Time: apm_upload_completed.created_time_minute_minute
+      Created Time: apm_upload_completed.created_time_minute
     row: 26
     col: 0
     width: 24
@@ -256,9 +257,9 @@
     model: task
     explore: apm_local_not_eligible
     type: looker_line
-    fields: [apm_local_not_eligible.count_per_minute, apm_local_not_eligible.created_time_minute_minute]
-    fill_fields: [apm_local_not_eligible.created_time_minute_minute]
-    sorts: [apm_local_not_eligible.created_time_minute_minute desc]
+    fields: [apm_local_not_eligible.count_per_minute, apm_local_not_eligible.created_time_minute]
+    fill_fields: [apm_local_not_eligible.created_time_minute]
+    sorts: [apm_local_not_eligible.created_time_minute desc]
     limit: 5000
     column_limit: 50
     x_axis_label: Created Time Minute
@@ -301,7 +302,7 @@
     listen:
       Task ID: apm_local_not_eligible.task_id
       Population Name: apm_local_not_eligible.population_name
-      Created Time: apm_local_not_eligible.created_time_minute_minute
+      Created Time: apm_local_not_eligible.created_time_minute
     row: 33
     col: 0
     width: 24
@@ -311,9 +312,9 @@
     model: task
     explore: apm_local_timeout
     type: looker_line
-    fields: [apm_local_timeout.count_per_minute, apm_local_timeout.created_time_minute_minute]
-    fill_fields: [apm_local_timeout.created_time_minute_minute]
-    sorts: [apm_local_timeout.created_time_minute_minute desc]
+    fields: [apm_local_timeout.count_per_minute, apm_local_timeout.created_time_minute]
+    fill_fields: [apm_local_timeout.created_time_minute]
+    sorts: [apm_local_timeout.created_time_minute desc]
     limit: 5000
     column_limit: 50
     x_axis_label: Created Time Minute
@@ -356,7 +357,7 @@
     listen:
       Task ID: apm_local_timeout.task_id
       Population Name: apm_local_timeout.population_name
-      Created Time: apm_local_timeout.created_time_minute_minute
+      Created Time: apm_local_timeout.created_time_minute
     row: 47
     col: 0
     width: 24
@@ -364,11 +365,11 @@
   - title: Local Failed Assignment Per Minute
     name: Local Failed Assignment Per Minute
     model: task
-    explore: apm_local_not_eligible
+    explore: apm_local_failed
     type: looker_line
-    fields: [apm_local_not_eligible.count_per_minute, apm_local_not_eligible.created_time_minute_minute]
-    fill_fields: [apm_local_not_eligible.created_time_minute_minute]
-    sorts: [apm_local_not_eligible.created_time_minute_minute desc]
+    fields: [apm_local_failed.count_per_minute, apm_local_failed.created_time_minute]
+    fill_fields: [apm_local_failed.created_time_minute]
+    sorts: [apm_local_failed.created_time_minute desc]
     limit: 5000
     column_limit: 50
     x_axis_label: Created Time Minute
@@ -409,9 +410,9 @@
     conditional_formatting_include_nulls: false
     defaults_version: 1
     listen:
-      Task ID: apm_local_not_eligible.task_id
-      Population Name: apm_local_not_eligible.population_name
-      Created Time: apm_local_not_eligible.created_time_minute_minute
+      Task ID: apm_local_failed.task_id
+      Population Name: apm_local_failed.population_name
+      Created Time: apm_local_failed.created_time_minute
     row: 54
     col: 0
     width: 24
@@ -421,9 +422,9 @@
     model: task
     explore: apm_canceled
     type: looker_line
-    fields: [apm_canceled.count_per_minute, apm_canceled.created_time_minute_minute]
-    fill_fields: [apm_canceled.created_time_minute_minute]
-    sorts: [apm_canceled.created_time_minute_minute desc]
+    fields: [apm_canceled.count_per_minute, apm_canceled.created_time_minute]
+    fill_fields: [apm_canceled.created_time_minute]
+    sorts: [apm_canceled.created_time_minute desc]
     limit: 5000
     column_limit: 50
     x_axis_label: Created Time Minute
@@ -466,7 +467,7 @@
     listen:
       Task ID: apm_canceled.task_id
       Population Name: apm_canceled.population_name
-      Created Time: apm_canceled.created_time_minute_minute
+      Created Time: apm_canceled.created_time_minute
     row: 63
     col: 0
     width: 24
@@ -476,9 +477,10 @@
     model: task
     explore: iteration_completion
     type: looker_line
+    pivots: [iteration_completion.population_name]
     fields: [iteration_completion.iteration_id, iteration_completion.duration_in_minutes]
     sorts: [iteration_completion.duration_in_minutes desc 0]
-    limit: 500
+    total: true
     column_limit: 50
     x_axis_gridlines: false
     y_axis_gridlines: true
@@ -504,9 +506,9 @@
     y_axis_combined: true
     show_null_points: true
     interpolation: linear
-    y_axes: [{label: '', orientation: left, series: [{axisId: iteration_completion.duration_in_minutes,
+    y_axes: [{label: Duration In Minutes, orientation: left, series: [{axisId: iteration_completion.duration_in_minutes,
             id: iteration_completion.duration_in_minutes, name: Duration In Minutes}],
-        showLabels: true, showValues: true, unpinAxis: false, tickDensity: default,
+        showLabels: true, showValues: true, unpinAxis: true, tickDensity: default,
         tickDensityCustom: 5, type: log}]
     x_axis_zoom: true
     y_axis_zoom: true
@@ -525,9 +527,72 @@
     conditional_formatting_include_nulls: false
     defaults_version: 1
     listen:
-    Task ID: iteration_completion.task_id
-    Population Name: iteration_completion.population_name
+      Task ID: iteration_completion.task_id
+      Population Name: iteration_completion.population_name
+      Created Time: iteration_completion.created_time_minute
     row: 70
+    col: 0
+    width: 24
+    height: 7
+  - title: Iteration Aggregation and Model Update Time
+    name: Iteration Aggregation and Model Update Time
+    model: task
+    explore: iteration_aggregating_to_complete
+    type: looker_line
+    pivots: [iteration_aggregating_to_complete.population_name]
+    fields: [iteration_aggregating_to_complete.iteration_id, iteration_aggregating_to_complete.duration_in_seconds]
+    sorts: [iteration_aggregating_to_complete.duration_in_seconds desc 0]
+    total: true
+    column_limit: 50
+    x_axis_gridlines: false
+    y_axis_gridlines: true
+    show_view_names: false
+    show_y_axis_labels: true
+    show_y_axis_ticks: true
+    y_axis_tick_density: default
+    y_axis_tick_density_custom: 5
+    show_x_axis_label: true
+    show_x_axis_ticks: true
+    y_axis_scale_mode: linear
+    x_axis_reversed: false
+    y_axis_reversed: false
+    plot_size_by_field: false
+    trellis: ''
+    stacking: ''
+    limit_displayed_rows: false
+    legend_position: center
+    point_style: none
+    show_value_labels: false
+    label_density: 25
+    x_axis_scale: auto
+    y_axis_combined: true
+    show_null_points: true
+    interpolation: linear
+    y_axes: [{label: Duration In Seconds, orientation: left, series: [{axisId: iteration_aggregating_to_complete.duration_in_seconds,
+            id: iteration_aggregating_to_complete.duration_in_seconds, name: Duration In Seconds}],
+        showLabels: true, showValues: true, unpinAxis: true, tickDensity: default,
+        tickDensityCustom: 5, type: log}]
+    x_axis_zoom: true
+    y_axis_zoom: true
+    show_row_numbers: true
+    transpose: false
+    truncate_text: true
+    hide_totals: false
+    hide_row_totals: false
+    size_to_fit: true
+    table_theme: white
+    enable_conditional_formatting: false
+    header_text_alignment: left
+    header_font_size: 12
+    rows_font_size: 12
+    conditional_formatting_include_totals: false
+    conditional_formatting_include_nulls: false
+    defaults_version: 1
+    listen:
+      Task ID: iteration_aggregating_to_complete.task_id
+      Population Name: iteration_aggregating_to_complete.population_name
+      Created Time: iteration_aggregating_to_complete.created_time_minute
+    row: 77
     col: 0
     width: 24
     height: 7
@@ -548,7 +613,7 @@
   - name: Created Time
     title: Created Time
     type: field_filter
-    default_value: 1 week
+    default_value: 7 days
     allow_multiple_values: true
     required: false
     ui_config:
@@ -558,7 +623,7 @@
     model: task
     explore: apm_assigned
     listens_to_filters: []
-    field: apm_assigned.created_time_minute_minute
+    field: apm_assigned.created_time_minute
   - name: Task ID
     title: Task ID
     type: field_filter

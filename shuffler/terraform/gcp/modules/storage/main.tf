@@ -18,7 +18,7 @@
 # Note: name max length = 63
 resource "google_storage_bucket" "model_bucket" {
   name                        = "fcp-${var.environment}-m-0"
-  location                    = var.region
+  location                    = var.model_bucket_location
   force_destroy               = var.model_bucket_force_destroy
   project                     = var.project_id
   public_access_prevention    = "enforced"
@@ -49,7 +49,7 @@ resource "google_storage_bucket" "model_bucket" {
 
 resource "google_storage_bucket" "client_gradient_bucket" {
   name                        = "fcp-${var.environment}-g-0"
-  location                    = var.region
+  location                    = var.client_gradient_bucket_location
   project                     = var.project_id
   force_destroy               = var.client_gradient_bucket_force_destroy
   public_access_prevention    = "enforced"

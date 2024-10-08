@@ -103,24 +103,31 @@ public class GCSBlobDao implements BlobDao {
     return result.build();
   }
 
-  public byte[] download(BlobDescription file) {
+  public Optional<byte[]> download(BlobDescription file) {
     Blob blob = storage.get(getBlobId(file));
-    return blob.getContent();
+    if (blob == null) {
+      return Optional.empty();
+    }
+    return Optional.of(blob.getContent());
   }
 
-  public byte[] downloadAndDecompressIfNeeded(BlobDescription file) {
+  public Optional<byte[]> downloadAndDecompressIfNeeded(BlobDescription file) {
     BlobId blobId = getBlobId(file);
     Blob blob = storage.get(getBlobId(file));
+    if (blob == null) {
+      return Optional.empty();
+    }
 
     if (Strings.isNullOrEmpty(blob.getContentEncoding())) {
-      return blob.getContent();
+      return Optional.of(blob.getContent());
     }
 
     return switch (blob.getContentEncoding().toLowerCase()) {
-      case COMPRESSION_FORMAT_GZIP -> CompressionUtils.uncompressWithGzip(downloadRaw(blobId));
+      case COMPRESSION_FORMAT_GZIP ->
+          Optional.of(CompressionUtils.uncompressWithGzip(downloadRaw(blobId)));
       default -> {
         logger.warn("Unsupported compression format: {}", blob.getContentEncoding());
-        yield blob.getContent();
+        yield Optional.of(blob.getContent());
       }
     };
   }

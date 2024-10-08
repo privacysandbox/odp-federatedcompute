@@ -80,3 +80,7 @@ output "model_updater_subscription_name" {
   value       = module.pubsub.model_updater_subscription_name
   description = "Name of the model_updater pubsub subscription."
 }
+
+output "model_cdn_domain" {
+  value = module.model_cdn.cdn_domain
+}

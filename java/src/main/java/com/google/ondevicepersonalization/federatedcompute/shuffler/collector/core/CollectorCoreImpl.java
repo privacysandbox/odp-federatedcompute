@@ -45,6 +45,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -77,6 +78,7 @@ public class CollectorCoreImpl implements CollectorCore {
   private final int localComputeTimeoutMinutes;
   private final int uploadTimeoutMinutes;
   private final int batchSize;
+  private final Optional<Long> aggregationBatchFailureThreshold;
 
   public CollectorCoreImpl(
       TaskDao taskDao,
@@ -93,7 +95,8 @@ public class CollectorCoreImpl implements CollectorCore {
       LockRegistry lockRegistry,
       int localComputeTimeoutMinutes,
       int uploadTimeoutMinutes,
-      int collectorBatchSize) {
+      int collectorBatchSize,
+      Optional<Long> aggregationBatchFailureThreshold) {
     this.taskDao = taskDao;
     this.blobDao = blobDao;
     this.blobManager = blobManager;
@@ -109,6 +112,7 @@ public class CollectorCoreImpl implements CollectorCore {
     this.localComputeTimeoutMinutes = localComputeTimeoutMinutes;
     this.uploadTimeoutMinutes = uploadTimeoutMinutes;
     this.batchSize = collectorBatchSize;
+    this.aggregationBatchFailureThreshold = aggregationBatchFailureThreshold;
   }
 
   private static String trimSlash(String folderName) {
@@ -214,28 +218,62 @@ public class CollectorCoreImpl implements CollectorCore {
           }
         }
 
-        // If iteration is AGGREGATING and total batches sent/completed < reportGoal update status.
-        IterationEntity iteration = taskDao.getIterationById(iterationId).get();
-        if (iteration.getStatus() == Status.AGGREGATING) {
-          if (aggregationBatchDao.querySumOfAggregationBatchesOfStatus(
-                  iteration,
-                  iteration.getAggregationLevel() - 1,
-                  List.of(
-                      AggregationBatchEntity.Status.PUBLISH_COMPLETED,
-                      AggregationBatchEntity.Status.UPLOAD_COMPLETED))
-              < iteration.getReportGoal()) {
-            if (!taskDao.updateIterationStatus(
-                iteration,
-                iteration.toBuilder().status(Status.COLLECTING).aggregationLevel(0).build())) {
-              logger.error(
-                  "Failed to update iteration {} from {} to {}",
-                  iteration.getId().toString(),
-                  iteration.getStatus(),
-                  Status.COLLECTING);
-              // Throw exception to nack the message and retry
-              throw new IllegalStateException("Failed to update iteration.");
+        // Obtain lock before updating the iteration
+        String partition = iterationId.toString();
+        Lock lock = lockRegistry.obtain(LOCK_PREFIX + partition);
+        if (lock.tryLock(30, TimeUnit.SECONDS)) {
+          try {
+            // If iteration failure count is above threshold, fail the iteration.
+            IterationEntity iteration = taskDao.getIterationById(iterationId).get();
+            if (aggregationBatchFailureThreshold.isPresent()) {
+              long totalFailed =
+                      aggregationBatchDao.querySumOfAggregationBatchesOfStatus(
+                              iteration,
+                              /* AggregationLevel */ 0,
+                              List.of(AggregationBatchEntity.Status.FAILED));
+              if (totalFailed > aggregationBatchFailureThreshold.get() * batchSize) {
+                if (!taskDao.updateIterationStatus(
+                        iteration, iteration.toBuilder().status(Status.AGGREGATING_FAILED).build())) {
+                  logger.error(
+                          "Failed to update iteration {} from {} to {}",
+                          iteration.getId().toString(),
+                          iteration.getStatus(),
+                          Status.AGGREGATING_FAILED);
+                  // Throw exception to nack the message and retry
+                  throw new IllegalStateException("Failed to update iteration.");
+                }
+                return;
+              }
             }
+
+            // If iteration is AGGREGATING and total batches sent/completed < reportGoal update status.
+            if (iteration.getStatus() == Status.AGGREGATING) {
+              if (aggregationBatchDao.querySumOfAggregationBatchesOfStatus(
+                      iteration,
+                      iteration.getAggregationLevel() - 1,
+                      List.of(
+                              AggregationBatchEntity.Status.PUBLISH_COMPLETED,
+                              AggregationBatchEntity.Status.UPLOAD_COMPLETED))
+                      < iteration.getReportGoal()) {
+                if (!taskDao.updateIterationStatus(
+                        iteration,
+                        iteration.toBuilder().status(Status.COLLECTING).aggregationLevel(0).build())) {
+                  logger.error(
+                          "Failed to update iteration {} from {} to {}",
+                          iteration.getId().toString(),
+                          iteration.getStatus(),
+                          Status.COLLECTING);
+                  // Throw exception to nack the message and retry
+                  throw new IllegalStateException("Failed to update iteration.");
+                }
+              }
+            }
+          } finally {
+            lock.unlock();
           }
+        } else {
+          logger.error("Failed to obtain lock during processAggregatorNotifications");
+          throw new IllegalStateException("Failed to obtain lock during processAggregatorNotifications");
         }
       } catch (Exception e) {
         logger.error("Failed to process message", e);
@@ -286,6 +324,8 @@ public class CollectorCoreImpl implements CollectorCore {
       if (lock.tryLock()) {
         try {
           MDC.put(Constants.ITERATION_ID, iteration.getId().toString());
+          // Retrieve the latest status after locking.
+          iteration = taskDao.getIterationById(iteration.getId()).get();
           if (Status.COLLECTING == iteration.getStatus()) {
             processCollectingIterationImp(iteration, partition);
           } else if (Status.AGGREGATING == iteration.getStatus()) {

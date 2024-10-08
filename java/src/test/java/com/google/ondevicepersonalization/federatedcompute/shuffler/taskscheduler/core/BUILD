@@ -21,6 +21,7 @@ java_test(
     test_class = "com.google.ondevicepersonalization.federatedcompute.shuffler.taskscheduler.core.TaskSchedulerCoreImplTest",
     deps = [
         "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:org_slf4j_slf4j_api",
         "@maven//:org_springframework_integration_spring_integration_core",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:task_entities",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:compression_utils",
@@ -36,6 +37,8 @@ java_test(
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/taskscheduler/core:task_scheduler_core_helper",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/taskscheduler/core:task_scheduler_core_impl",
         "//shuffler/proto:task_java_proto",
+        "@maven//:ch_qos_logback_logback_classic",
+        "@maven//:ch_qos_logback_logback_core",
         "@maven//:com_google_cloud_google_cloud_spanner",
         "@maven//:com_google_guava_guava",
         "@maven//:com_google_testparameterinjector_test_parameter_injector",
