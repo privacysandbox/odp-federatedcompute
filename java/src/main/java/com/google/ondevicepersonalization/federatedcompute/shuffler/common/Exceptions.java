@@ -17,6 +17,7 @@
 package com.google.ondevicepersonalization.federatedcompute.shuffler.common;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.Iterables;
 import com.google.fcp.aggregation.AggregationException;
 import com.google.fcp.tensorflow.TensorflowException;
 import com.google.scp.operator.cpio.cryptoclient.DecryptionKeyService.KeyFetchException;
@@ -52,15 +53,13 @@ public class Exceptions {
   }
 
   public static boolean isNonRetryableKeyFetchException(Exception e) {
-    if (e instanceof KeyFetchException) {
-      // https://github.com/privacysandbox/coordinator-services-and-shared-libraries/blob/main/java/com/google/scp/operator/cpio/cryptoclient/MultiPartyDecryptionKeyServiceImpl.java#L238
-      return ((KeyFetchException) e).reason == ErrorReason.KEY_NOT_FOUND;
-    }
-    if (e.getCause() instanceof KeyFetchException) {
-      return ((KeyFetchException) e.getCause()).reason == ErrorReason.KEY_NOT_FOUND;
-    }
-    if (Throwables.getRootCause(e) instanceof KeyFetchException) {
-      return ((KeyFetchException) Throwables.getRootCause(e)).reason == ErrorReason.KEY_NOT_FOUND;
+    Iterable<KeyFetchException> keyFetchExceptions =
+        Iterables.filter(Throwables.getCausalChain(e), KeyFetchException.class);
+    for (KeyFetchException kfe : keyFetchExceptions) {
+      if (kfe.reason == ErrorReason.KEY_NOT_FOUND) {
+        // https://github.com/privacysandbox/coordinator-services-and-shared-libraries/blob/main/java/com/google/scp/operator/cpio/cryptoclient/MultiPartyDecryptionKeyServiceImpl.java#L238
+        return true;
+      }
     }
     return false;
   }

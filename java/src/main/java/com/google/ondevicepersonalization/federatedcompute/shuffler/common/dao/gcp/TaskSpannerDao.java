@@ -942,8 +942,10 @@ public class TaskSpannerDao implements TaskDao {
             .singleUse() // Execute a single read or query against Cloud Spanner.
             .executeQuery(statement)) {
       while (resultSet.next()) {
-        createdTime = Optional.of(TimestampInstantConverter.TO_INSTANT.convert(
-            resultSet.getTimestamp("CreatedTime")));
+        createdTime =
+            Optional.of(
+                TimestampInstantConverter.TO_INSTANT.convert(
+                    resultSet.getTimestamp("CreatedTime")));
       }
     }
     return createdTime;

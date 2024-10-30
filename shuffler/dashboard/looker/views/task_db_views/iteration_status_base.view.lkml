@@ -23,7 +23,7 @@ view: iteration_status_base {
 
   dimension_group: created_time {
     type: time
-    timeframes: [time, date, week, month, minute, seconds, raw]
+    timeframes: [time, date, week, month, minute, second, raw]
     sql: ${TABLE}.CreatedTime ;;
   }
 

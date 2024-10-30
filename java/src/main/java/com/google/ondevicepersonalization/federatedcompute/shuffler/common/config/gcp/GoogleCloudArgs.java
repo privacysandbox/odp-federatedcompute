@@ -156,11 +156,6 @@ public final class GoogleCloudArgs {
   private String serviceAccountB;
 
   @Parameter(
-      names = "--public_key_service_base_url",
-      description = "The base url of the public key service.")
-  private String publicKeyServiceBaseUrl;
-
-  @Parameter(
       names = "--model_updater_subscriber_max_outstanding_element_count",
       description =
           "The maximum number of messages for the model updater which have not received"

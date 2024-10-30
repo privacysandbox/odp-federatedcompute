@@ -33,7 +33,7 @@ resource "google_pubsub_subscription" "aggregator-subscription" {
   message_retention_duration = "604800s"
   retain_acked_messages      = true
 
-  ack_deadline_seconds = 60
+  ack_deadline_seconds = 10
 
   expiration_policy {
     # Dont expire
@@ -45,7 +45,7 @@ resource "google_pubsub_subscription" "aggregator-subscription" {
     max_delivery_attempts = 10
   }
 
-  enable_exactly_once_delivery = true
+  enable_exactly_once_delivery = var.enable_exactly_once_delivery
   provider                     = google
 }
 
@@ -57,14 +57,14 @@ resource "google_pubsub_subscription" "aggregator-dlq-subscription" {
   message_retention_duration = "604800s"
   retain_acked_messages      = true
 
-  ack_deadline_seconds = 60
+  ack_deadline_seconds = 10
 
   expiration_policy {
     # Dont expire
     ttl = ""
   }
 
-  enable_exactly_once_delivery = true
+  enable_exactly_once_delivery = var.enable_exactly_once_delivery
   provider                     = google
 }
 
@@ -86,7 +86,7 @@ resource "google_pubsub_subscription" "aggregator-notifications-subscription" {
   message_retention_duration = "604800s"
   retain_acked_messages      = true
 
-  ack_deadline_seconds = 60
+  ack_deadline_seconds = 10
 
   expiration_policy {
     # Dont expire
@@ -98,7 +98,7 @@ resource "google_pubsub_subscription" "aggregator-notifications-subscription" {
     max_delivery_attempts = 10
   }
 
-  enable_exactly_once_delivery = true
+  enable_exactly_once_delivery = var.enable_exactly_once_delivery
   provider                     = google
 }
 
@@ -110,14 +110,14 @@ resource "google_pubsub_subscription" "aggregator-notifications-dlq-subscription
   message_retention_duration = "604800s"
   retain_acked_messages      = true
 
-  ack_deadline_seconds = 60
+  ack_deadline_seconds = 10
 
   expiration_policy {
     # Dont expire
     ttl = ""
   }
 
-  enable_exactly_once_delivery = true
+  enable_exactly_once_delivery = var.enable_exactly_once_delivery
   provider                     = google
 }
 
@@ -139,7 +139,7 @@ resource "google_pubsub_subscription" "model-updater-subscription" {
   message_retention_duration = "604800s"
   retain_acked_messages      = true
 
-  ack_deadline_seconds = 60
+  ack_deadline_seconds = 10
 
   expiration_policy {
     # Dont expire
@@ -151,7 +151,7 @@ resource "google_pubsub_subscription" "model-updater-subscription" {
     max_delivery_attempts = 10
   }
 
-  enable_exactly_once_delivery = true
+  enable_exactly_once_delivery = var.enable_exactly_once_delivery
   provider                     = google
 }
 
@@ -163,14 +163,14 @@ resource "google_pubsub_subscription" "model-updater-dlq-subscription" {
   message_retention_duration = "604800s"
   retain_acked_messages      = true
 
-  ack_deadline_seconds = 60
+  ack_deadline_seconds = 10
 
   expiration_policy {
     # Dont expire
     ttl = ""
   }
 
-  enable_exactly_once_delivery = true
+  enable_exactly_once_delivery = var.enable_exactly_once_delivery
   provider                     = google
 }
 

@@ -4,7 +4,7 @@ Services can be deployed locally using [Docker Compose](https://docs.docker.com/
 
 ## Pre-requisites
 
-The local services will depend on GCP resources. The `environment` should be set in the [docker-compose.yml](docker-compose.yml) for each service to reference the deployed resources.
+The local services will depend on GCP resources. The `environment` and `ENCRYPTION_OPTS` should be set in the [docker-compose.yml](docker-compose.yml) for each service to reference the deployed resources.
 
 A resource-only stack can be deployed using [resources-only/shuffler.tf](../../shuffler/terraform/gcp/environments/resources-only/shuffler.tf). If using an existing deployment, note that there may be contention of resources between locally running services and cloud deployed services.
 

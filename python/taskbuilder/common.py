@@ -98,6 +98,11 @@ E2E_TEST_POPULATION_NAME = flags.DEFINE_string(
     default=None,
     help='Population name for task builder e2e test.',
 )
+API_KEY = flags.DEFINE_string(
+    name='api_key',
+    default=None,
+    help='API Key for task builder access.',
+)
 GCS_PREFIX = 'gs://'
 TEST_BLOB_PATH = 'gs://mock-bucket/mock_blob'
 

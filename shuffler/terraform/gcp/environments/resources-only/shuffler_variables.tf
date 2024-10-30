@@ -143,11 +143,6 @@ variable "service_account_b" {
   type        = string
 }
 
-variable "public_key_service_base_url" {
-  description = "The base url of the public key service B.."
-  type        = string
-}
-
 variable "key_attestation_validation_url" {
   description = "The base url of key attestation validation service"
   type        = string
@@ -257,5 +252,11 @@ variable "aggregation_batch_failure_threshold" {
   description = "The number of aggregation batches failed for an iteration before moving the iteration to a failure state."
   type        = number
   default     = null
+}
+
+variable "enable_exactly_once_delivery" {
+  description = "Enable exactly once delivery on pubsub subscriptions. Consider disabling for improved performance at the cost of potentially redelivered messages. https://cloud.google.com/pubsub/docs/exactly-once-delivery"
+  type        = bool
+  default     = true
 }
 

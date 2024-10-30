@@ -63,7 +63,7 @@ maven_install(
     name = "maven",
     artifacts = [
         # common
-        "org.projectlombok:lombok:1.18.28",
+        "org.projectlombok:lombok:1.18.34",
         "com.google.protobuf:protobuf-java-util:3.24.3",
         "com.google.protobuf:protobuf-java:3.24.3",
         "com.google.guava:guava:32.1.2-jre",
@@ -88,20 +88,20 @@ maven_install(
         "org.slf4j:slf4j-api:2.0.7",
         "com.google.cloud:google-cloud-logging-logback:0.131.8-alpha",
         # spring
-        "org.springframework.boot:spring-boot-autoconfigure:3.1.1",
-        "org.springframework.boot:spring-boot-starter-actuator:3.1.1",
-        "org.springframework.boot:spring-boot-starter-web:3.1.1",
-        "org.springframework.boot:spring-boot-starter:3.1.1",
-        "org.springframework.boot:spring-boot:3.1.1",
-        "org.springframework.boot:spring-boot-loader:3.1.1",
-        "org.springframework.boot:spring-boot-starter-jdbc:3.2.3",
-        "org.springframework:spring-beans:6.0.10",
-        "org.springframework:spring-web:6.0.10",
-        "org.springframework:spring-context:6.0.10",
-        "org.springframework:spring-webmvc:6.0.10",
+        "org.springframework.boot:spring-boot-autoconfigure:3.3.4",
+        "org.springframework.boot:spring-boot-starter-actuator:3.3.4",
+        "org.springframework.boot:spring-boot-starter-web:3.3.4",
+        "org.springframework.boot:spring-boot-starter:3.3.4",
+        "org.springframework.boot:spring-boot:3.3.4",
+        "org.springframework.boot:spring-boot-loader:3.3.4",
+        "org.springframework.boot:spring-boot-starter-jdbc:3.3.4",
+        "org.springframework:spring-beans:6.1.13",
+        "org.springframework:spring-web:6.1.13",
+        "org.springframework:spring-context:6.1.13",
+        "org.springframework:spring-webmvc:6.1.13",
         "org.springframework.integration:spring-integration-jdbc:6.1.3",
-        "jakarta.servlet:jakarta.servlet-api:6.0.0",
-        "org.springframework.integration:spring-integration-core:6.1.4",
+        "jakarta.servlet:jakarta.servlet-api:6.1.0",
+        "org.springframework.integration:spring-integration-core:6.3.4",
         # micrometer
         "io.micrometer:micrometer-core:1.12.1",
         "io.micrometer:micrometer-registry-prometheus:1.12.1",
@@ -139,9 +139,9 @@ http_archive(
         "//patches:rules_spring.patch",
         "//patches:rules_spring_manifest.patch",
     ],
-    sha256 = "01426d0a67c32ba0de0b0f3baa2b0810087789c6260c0c06741c1733956158a3",
+    sha256 = "87b337f95f9c09a2e5875f0bca533b050c9ccb8b0d2c92915e290520b79d0912",
     urls = [
-        "https://github.com/salesforce/rules_spring/releases/download/2.2.4/rules-spring-2.2.4.zip",
+        "https://github.com/salesforce/rules_spring/releases/download/2.3.2/rules-spring-2.3.2.zip",
     ],
 )
 
@@ -193,6 +193,15 @@ http_archive(
     sha256 = "2bb1e641a84f05bc1776eefc98eb108454807071ae0bed45ee5e8bee896511be",
     strip_prefix = "tensorflow-federated-9c5a51af41fccc8e720a63aa754465767113877d",
     url = "https://github.com/tensorflow/federated/archive/9c5a51af41fccc8e720a63aa754465767113877d.tar.gz",
+)
+
+http_archive(
+    name = "platforms",
+    urls = [
+        "https://mirror.bazel.build/github.com/bazelbuild/platforms/releases/download/0.0.7/platforms-0.0.7.tar.gz",
+        "https://github.com/bazelbuild/platforms/releases/download/0.0.7/platforms-0.0.7.tar.gz",
+    ],
+    sha256 = "3a561c99e7bdbe9173aa653fd579fe849f1d8d67395780ab4770b1f381431d51",
 )
 
 # Tensorflow v2.14.0
@@ -340,9 +349,9 @@ toolchain_provided_tf(
 # Add bazel-lib to support python image creation
 http_archive(
     name = "aspect_bazel_lib",
-    sha256 = "f5ea76682b209cc0bd90d0f5a3b26d2f7a6a2885f0c5f615e72913f4805dbb0d",
-    strip_prefix = "bazel-lib-2.5.0",
-    url = "https://github.com/aspect-build/bazel-lib/releases/download/v2.5.0/bazel-lib-v2.5.0.tar.gz",
+    sha256 = "0e31778f1fd574d2c05d238bfc4c785fa4b7e50a5ef38b506e01cfd8ec2fccb3",
+    strip_prefix = "bazel-lib-2.9.2",
+    url = "https://github.com/bazel-contrib/bazel-lib/releases/download/v2.9.2/bazel-lib-v2.9.2.tar.gz",
 )
 
 load("@aspect_bazel_lib//lib:repositories.bzl", "aspect_bazel_lib_dependencies", "aspect_bazel_lib_register_toolchains")
@@ -383,9 +392,10 @@ oci_pull(
 # Distroless image for running Java.
 oci_pull(
     name = "java_base",
-    # Using SHA-256 for reproducibility. The tag is latest-amd64 debug image.
-    digest = "sha256:d5f1a71ddb989a270ddc6c9ea08244098786fbb9a43e41fd84e3f2747a8a3e2c",
+    # Using SHA-256 for reproducibility. The tag is nonroot.
+    digest = "sha256:fb33b0098b86d965a1ef64ec49b8ff0a28ae8be939f0df736c4af9251180a896",
     image = "gcr.io/distroless/java17-debian11",
+    platforms = ["linux/amd64"],
 )
 
 # Pull individual deb packages to support Tensorflow JNI.

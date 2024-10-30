@@ -21,5 +21,10 @@ output "task_builder_name" {
 
 output "task_builder_url" {
   description = "URL of the task builder service. The terraform may need to be re-run if blank to populate."
-  value       = google_cloud_run_v2_service.taskbuilder.uri
+  value       = "https://${google_api_gateway_gateway.api_gw.default_hostname}"
+}
+
+output "task_builder_managed_service_name" {
+  description = "Task builder API managed service name"
+  value       = google_api_gateway_api.api_gw.managed_service
 }

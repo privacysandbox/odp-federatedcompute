@@ -33,6 +33,7 @@ java_test(
     test_class = "com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.TaskEntityStatusTest",
     deps = [
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:task_entity",
+        "@maven//:com_google_guava_guava",
         "@maven//:com_google_testparameterinjector_test_parameter_injector",
         "@maven//:com_google_truth_truth",
         "@maven//:junit_junit",

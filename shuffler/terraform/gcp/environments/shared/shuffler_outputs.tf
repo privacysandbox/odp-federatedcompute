@@ -194,6 +194,11 @@ output "task_builder_url" {
   value       = module.shuffler.task_builder_url
 }
 
+output "task_builder_managed_service_name" {
+  description = "Task builder API managed service name"
+  value       = module.shuffler.task_builder_managed_service_name
+}
+
 output "model_cdn_domain" {
   description = "Domain hosting the CDN for model download"
   value       = module.shuffler.model_cdn_domain

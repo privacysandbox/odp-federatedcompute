@@ -398,8 +398,12 @@ public final class TaskSchedulerCoreImplTest {
     verify(mockTaskDao, times(1)).getLastIterationOfTask("us", 13);
     List<ILoggingEvent> logsList = listAppender.list;
     assertThat(logsList.size()).isEqualTo(1);
-    assertThat(logsList.get(0).getFormattedMessage().contains(
-        "Iteration us/13/3/0 in APPLYING status for more than 5 min")).isTrue();
+    assertThat(
+            logsList
+                .get(0)
+                .getFormattedMessage()
+                .contains("Iteration us/13/3/0 in APPLYING status for more than 5 min"))
+        .isTrue();
   }
 
   @Test
@@ -434,6 +438,7 @@ public final class TaskSchedulerCoreImplTest {
     List<ILoggingEvent> logsList = listAppender.list;
     assertThat(logsList.size()).isEqualTo(0);
   }
+
   @Test
   public void process_hasEnoughCompletedIteration_noCreation() {
     // arrange
@@ -517,16 +522,17 @@ public final class TaskSchedulerCoreImplTest {
   public void process_lastIterationFailed_updateFailure(IterationEntity.Status status) {
     // arrange
     ListAppender<ILoggingEvent> listAppender = prepairListAppender();
-    IterationEntity iteration = IterationEntity.builder()
-        .populationName("us")
-        .taskId(13)
-        .iterationId(1)
-        .reportGoal(333)
-        .status(status)
-        .baseIterationId(0)
-        .baseOnResultId(0)
-        .resultId(1)
-        .build();
+    IterationEntity iteration =
+        IterationEntity.builder()
+            .populationName("us")
+            .taskId(13)
+            .iterationId(1)
+            .reportGoal(333)
+            .status(status)
+            .baseIterationId(0)
+            .baseOnResultId(0)
+            .resultId(1)
+            .build();
     when(mockTaskDao.getActiveTasks()).thenReturn(ImmutableList.of(DEFAULT_TASK));
     when(mockTaskDao.getLastIterationOfTask(anyString(), anyLong()))
         .thenReturn(Optional.of(iteration));
@@ -543,9 +549,13 @@ public final class TaskSchedulerCoreImplTest {
             eq(DEFAULT_TASK.getId()), eq(DEFAULT_TASK.getStatus()), eq(TaskEntity.Status.FAILED));
     List<ILoggingEvent> logsList = listAppender.list;
     assertThat(logsList.size()).isEqualTo(1);
-    assertThat(logsList.get(0).getFormattedMessage().contains(
-        String.format("Iteration %s in %s status", iteration.getId(),
-            status.name()))).isTrue();
+    assertThat(
+            logsList
+                .get(0)
+                .getFormattedMessage()
+                .contains(
+                    String.format("Iteration %s in %s status", iteration.getId(), status.name())))
+        .isTrue();
   }
 
   @Test

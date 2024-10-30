@@ -14,6 +14,11 @@
  * limitations under the License.
  */
 
+provider "google-beta" {
+  project = var.project_id
+  region  = var.region
+}
+
 resource "google_cloud_run_v2_service" "taskbuilder" {
   name     = "${var.environment}-task-builder-service"
   location = var.region
@@ -75,4 +80,84 @@ resource "google_cloud_run_v2_service" "taskbuilder" {
     type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
     percent = 100
   }
+}
+
+resource "google_api_gateway_api" "api_gw" {
+  provider = google-beta
+  api_id   = "${var.environment}-tb-api-gw"
+}
+
+resource "google_api_gateway_api_config" "api_gw" {
+  provider             = google-beta
+  api                  = google_api_gateway_api.api_gw.api_id
+  api_config_id_prefix = "${var.environment}-tb-api-config"
+
+  gateway_config {
+    backend_config {
+      google_service_account = var.task_builder_service_account
+    }
+  }
+
+  openapi_documents {
+    document {
+      path = "spec.yaml"
+      contents = base64encode(<<-EOF
+        # openapi2-functions.yaml
+        swagger: '2.0'
+        info:
+          title: ${var.environment}-tb-api
+          description: API for Task Builder
+          version: 1.0.0
+        schemes:
+          - https
+        produces:
+          - application/x-protobuf
+        paths:
+          "/taskbuilder/v1:build-task-group":
+            post:
+              summary: Creates tasks and artifacts based on SavedModel and TaskConfig input in BuildTaskRequest.
+              operationId: build-task-group
+              x-google-backend:
+                address: "${google_cloud_run_v2_service.taskbuilder.uri}/taskbuilder/v1:build-task-group"
+                deadline: 600.0
+              security:
+              - api_key: []
+              responses:
+                '200':
+                  description: A successful response
+                  schema:
+                    type: string
+          "/taskbuilder/v1:build-artifacts":
+            post:
+              summary: Creates artifacts only without tasks.
+              operationId: build-artifacts
+              x-google-backend:
+                address: "${google_cloud_run_v2_service.taskbuilder.uri}/taskbuilder/v1:build-artifacts"
+                deadline: 600.0
+              security:
+              - api_key: []
+              responses:
+                '200':
+                  description: A successful response
+                  schema:
+                    type: string
+        securityDefinitions:
+          # This section configures basic authentication with an API key.
+          api_key:
+            type: "apiKey"
+            name: "key"
+            in: "query"
+    EOF
+      )
+    }
+  }
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "google_api_gateway_gateway" "api_gw" {
+  provider   = google-beta
+  api_config = google_api_gateway_api_config.api_gw.id
+  gateway_id = "${var.environment}-tb-api-gw"
 }

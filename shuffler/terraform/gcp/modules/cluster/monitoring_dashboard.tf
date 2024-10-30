@@ -26,7 +26,7 @@ resource "google_monitoring_dashboard" "create_ta_api_result_by_population" {
           "width": 48,
           "height": 23,
           "widget": {
-            "title": "Result: NO_Task_Available rate per population",
+            "title": "Result: No_Task_Available rate per population",
             "xyChart": {
               "dataSets": [
                 {
@@ -41,31 +41,20 @@ resource "google_monitoring_dashboard" "create_ta_api_result_by_population" {
                           "metric.label.\"population\""
                         ]
                       }
-                    },
-                    "unitOverride": "",
-                    "outputFullDuration": false
+                    }
                   },
                   "plotType": "LINE",
-                  "legendTemplate": "",
                   "minAlignmentPeriod": "60s",
-                  "targetAxis": "Y1",
-                  "dimensions": [],
-                  "measures": [],
-                  "breakdowns": []
+                  "targetAxis": "Y1"
                 }
               ],
-              "thresholds": [],
               "yAxis": {
-                "label": "",
                 "scale": "LINEAR"
               },
               "chartOptions": {
-                "mode": "COLOR",
-                "showLegend": false,
-                "displayHorizontal": false
+                "mode": "COLOR"
               }
-            },
-            "id": ""
+            }
           }
         },
         {
@@ -87,46 +76,58 @@ resource "google_monitoring_dashboard" "create_ta_api_result_by_population" {
                           "metric.label.\"population\""
                         ]
                       }
-                    },
-                    "unitOverride": "",
-                    "outputFullDuration": false
+                    }
                   },
                   "plotType": "LINE",
-                  "legendTemplate": "",
                   "minAlignmentPeriod": "60s",
-                  "targetAxis": "Y1",
-                  "dimensions": [],
-                  "measures": [],
-                  "breakdowns": []
+                  "targetAxis": "Y1"
                 }
               ],
-              "thresholds": [],
               "yAxis": {
-                "label": "",
                 "scale": "LINEAR"
               },
               "chartOptions": {
-                "mode": "COLOR",
-                "showLegend": false,
-                "displayHorizontal": false
+                "mode": "COLOR"
               }
-            },
-            "id": ""
+            }
+          }
+        },
+        {
+          "yPos": 46,
+          "width": 48,
+          "height": 23,
+          "widget": {
+            "title": "Result: Outcomes per population",
+            "xyChart": {
+              "chartOptions": {
+                "mode": "COLOR"
+              },
+              "dataSets": [
+                {
+                  "plotType": "STACKED_AREA",
+                  "targetAxis": "Y1",
+                  "timeSeriesQuery": {
+                    "prometheusQuery": "sum by (population,result)(increase(create_task_assignment_seconds_count[60s]))"
+                  }
+                }
+              ],
+              "yAxis": {
+                "label": "Count",
+                "scale": "LINEAR"
+              }
+            }
           }
         }
       ]
     },
     "dashboardFilters": [
-      {
+        {
           "filterType": "RESOURCE_LABEL",
           "labelKey": "cluster",
-          "stringValue": "${var.environment}-cluster",
-          "templateVariable": ""
+          "stringValue": "${var.environment}-cluster"
         }
-      ],
-    "labels": {}
+      ]
   }
-
 EOF
 }
 
@@ -157,31 +158,20 @@ resource "google_monitoring_dashboard" "report_result_api_result_by_population" 
                           "metric.label.\"population\""
                         ]
                       }
-                    },
-                    "unitOverride": "",
-                    "outputFullDuration": false
+                    }
                   },
                   "plotType": "LINE",
-                  "legendTemplate": "",
                   "minAlignmentPeriod": "60s",
-                  "targetAxis": "Y1",
-                  "dimensions": [],
-                  "measures": [],
-                  "breakdowns": []
+                  "targetAxis": "Y1"
                 }
               ],
-              "thresholds": [],
               "yAxis": {
-                "label": "",
                 "scale": "LINEAR"
               },
               "chartOptions": {
-                "mode": "COLOR",
-                "showLegend": false,
-                "displayHorizontal": false
+                "mode": "COLOR"
               }
-            },
-            "id": ""
+            }
           }
         },
         {
@@ -203,31 +193,20 @@ resource "google_monitoring_dashboard" "report_result_api_result_by_population" 
                           "metric.label.\"population\""
                         ]
                       }
-                    },
-                    "unitOverride": "",
-                    "outputFullDuration": false
+                    }
                   },
                   "plotType": "LINE",
-                  "legendTemplate": "",
                   "minAlignmentPeriod": "60s",
-                  "targetAxis": "Y1",
-                  "dimensions": [],
-                  "measures": [],
-                  "breakdowns": []
+                  "targetAxis": "Y1"
                 }
               ],
-              "thresholds": [],
               "yAxis": {
-                "label": "",
                 "scale": "LINEAR"
               },
               "chartOptions": {
-                "mode": "COLOR",
-                "showLegend": false,
-                "displayHorizontal": false
+                "mode": "COLOR"
               }
-            },
-            "id": ""
+            }
           }
         },
         {
@@ -250,31 +229,20 @@ resource "google_monitoring_dashboard" "report_result_api_result_by_population" 
                           "metric.label.\"population\""
                         ]
                       }
-                    },
-                    "unitOverride": "",
-                    "outputFullDuration": false
+                    }
                   },
                   "plotType": "LINE",
-                  "legendTemplate": "",
                   "minAlignmentPeriod": "60s",
-                  "targetAxis": "Y1",
-                  "dimensions": [],
-                  "measures": [],
-                  "breakdowns": []
+                  "targetAxis": "Y1"
                 }
               ],
-              "thresholds": [],
               "yAxis": {
-                "label": "",
                 "scale": "LINEAR"
               },
               "chartOptions": {
-                "mode": "COLOR",
-                "showLegend": false,
-                "displayHorizontal": false
+                "mode": "COLOR"
               }
-            },
-            "id": ""
+            }
           }
         },
         {
@@ -297,31 +265,20 @@ resource "google_monitoring_dashboard" "report_result_api_result_by_population" 
                           "metric.label.\"population\""
                         ]
                       }
-                    },
-                    "unitOverride": "",
-                    "outputFullDuration": false
+                    }
                   },
                   "plotType": "LINE",
-                  "legendTemplate": "",
                   "minAlignmentPeriod": "60s",
-                  "targetAxis": "Y1",
-                  "dimensions": [],
-                  "measures": [],
-                  "breakdowns": []
+                  "targetAxis": "Y1"
                 }
               ],
-              "thresholds": [],
               "yAxis": {
-                "label": "",
                 "scale": "LINEAR"
               },
               "chartOptions": {
-                "mode": "COLOR",
-                "showLegend": false,
-                "displayHorizontal": false
+                "mode": "COLOR"
               }
-            },
-            "id": ""
+            }
           }
         },
         {
@@ -344,31 +301,20 @@ resource "google_monitoring_dashboard" "report_result_api_result_by_population" 
                           "metric.label.\"population\""
                         ]
                       }
-                    },
-                    "unitOverride": "",
-                    "outputFullDuration": false
+                    }
                   },
                   "plotType": "LINE",
-                  "legendTemplate": "",
                   "minAlignmentPeriod": "60s",
-                  "targetAxis": "Y1",
-                  "dimensions": [],
-                  "measures": [],
-                  "breakdowns": []
+                  "targetAxis": "Y1"
                 }
               ],
-              "thresholds": [],
               "yAxis": {
-                "label": "",
                 "scale": "LINEAR"
               },
               "chartOptions": {
-                "mode": "COLOR",
-                "showLegend": false,
-                "displayHorizontal": false
+                "mode": "COLOR"
               }
-            },
-            "id": ""
+            }
           }
         },
         {
@@ -391,31 +337,46 @@ resource "google_monitoring_dashboard" "report_result_api_result_by_population" 
                           "metric.label.\"population\""
                         ]
                       }
-                    },
-                    "unitOverride": "",
-                    "outputFullDuration": false
+                    }
                   },
                   "plotType": "LINE",
-                  "legendTemplate": "",
                   "minAlignmentPeriod": "60s",
-                  "targetAxis": "Y1",
-                  "dimensions": [],
-                  "measures": [],
-                  "breakdowns": []
+                  "targetAxis": "Y1"
                 }
               ],
-              "thresholds": [],
               "yAxis": {
-                "label": "",
                 "scale": "LINEAR"
               },
               "chartOptions": {
-                "mode": "COLOR",
-                "showLegend": false,
-                "displayHorizontal": false
+                "mode": "COLOR"
               }
-            },
-            "id": ""
+            }
+          }
+        },
+        {
+          "yPos": 138,
+          "width": 48,
+          "height": 23,
+          "widget": {
+            "title": "Result: Outcomes per population",
+            "xyChart": {
+              "dataSets": [
+                {
+                  "timeSeriesQuery": {
+                    "prometheusQuery": "sum by (population,result)(increase(report_result_seconds_count[60s]))"
+                  },
+                  "plotType": "STACKED_AREA",
+                  "targetAxis": "Y1"
+                }
+              ],
+              "yAxis": {
+                "label": "Count",
+                "scale": "LINEAR"
+              },
+              "chartOptions": {
+                "mode": "COLOR"
+              }
+            }
           }
         }
       ]
@@ -424,11 +385,9 @@ resource "google_monitoring_dashboard" "report_result_api_result_by_population" 
         {
           "filterType": "RESOURCE_LABEL",
           "labelKey": "cluster",
-          "stringValue": "${var.environment}-cluster",
-          "templateVariable": ""
+          "stringValue": "${var.environment}-cluster"
         }
-      ],
-    "labels": {}
+      ]
   }
 
 EOF
@@ -449,31 +408,20 @@ resource "google_monitoring_dashboard" "ta_apis_status" {
               "dataSets": [
                 {
                   "timeSeriesQuery": {
-                    "prometheusQuery": "sum by (uri)(rate(http_server_requests_seconds_count{uri=\"/taskassignment/v1/population/{populationName}:create-task-assignment\"}[$${__interval}]))",
-                    "unitOverride": "",
-                    "outputFullDuration": false
+                    "prometheusQuery": "sum by (uri)(rate(http_server_requests_seconds_count{uri=\"/taskassignment/v1/population/{populationName}:create-task-assignment\"}[$${__interval}]))"
                   },
                   "plotType": "LINE",
-                  "legendTemplate": "",
-                  "targetAxis": "Y1",
-                  "dimensions": [],
-                  "measures": [],
-                  "breakdowns": []
+                  "targetAxis": "Y1"
                 }
               ],
-              "thresholds": [],
               "yAxis": {
-                "label": "",
                 "scale": "LINEAR"
               },
               "chartOptions": {
-                "mode": "COLOR",
-                "showLegend": false,
-                "displayHorizontal": false
+                "mode": "COLOR"
               }
             },
-            "title": "CreateTaskAssignment QPS",
-            "id": ""
+            "title": "CreateTaskAssignment QPS"
           }
         },
         {
@@ -490,35 +438,23 @@ resource "google_monitoring_dashboard" "ta_apis_status" {
                       "aggregation": {
                         "alignmentPeriod": "60s",
                         "perSeriesAligner": "ALIGN_DELTA",
-                        "crossSeriesReducer": "REDUCE_PERCENTILE_50",
-                        "groupByFields": []
+                        "crossSeriesReducer": "REDUCE_PERCENTILE_50"
                       }
-                    },
-                    "unitOverride": "",
-                    "outputFullDuration": false
+                    }
                   },
                   "plotType": "LINE",
-                  "legendTemplate": "",
                   "minAlignmentPeriod": "60s",
-                  "targetAxis": "Y1",
-                  "dimensions": [],
-                  "measures": [],
-                  "breakdowns": []
+                  "targetAxis": "Y1"
                 }
               ],
-              "thresholds": [],
               "yAxis": {
-                "label": "",
                 "scale": "LINEAR"
               },
               "chartOptions": {
-                "mode": "COLOR",
-                "showLegend": false,
-                "displayHorizontal": false
+                "mode": "COLOR"
               }
             },
-            "title": "CreateTaskAssignment Latency 50th percentile",
-            "id": ""
+            "title": "CreateTaskAssignment Latency 50th percentile"
           }
         },
         {
@@ -535,35 +471,23 @@ resource "google_monitoring_dashboard" "ta_apis_status" {
                       "aggregation": {
                         "alignmentPeriod": "60s",
                         "perSeriesAligner": "ALIGN_DELTA",
-                        "crossSeriesReducer": "REDUCE_PERCENTILE_99",
-                        "groupByFields": []
+                        "crossSeriesReducer": "REDUCE_PERCENTILE_99"
                       }
-                    },
-                    "unitOverride": "",
-                    "outputFullDuration": false
+                    }
                   },
                   "plotType": "LINE",
-                  "legendTemplate": "",
                   "minAlignmentPeriod": "60s",
-                  "targetAxis": "Y1",
-                  "dimensions": [],
-                  "measures": [],
-                  "breakdowns": []
+                  "targetAxis": "Y1"
                 }
               ],
-              "thresholds": [],
               "yAxis": {
-                "label": "",
                 "scale": "LINEAR"
               },
               "chartOptions": {
-                "mode": "COLOR",
-                "showLegend": false,
-                "displayHorizontal": false
+                "mode": "COLOR"
               }
             },
-            "title": "CreateTaskAssignment Latency 99th percentile",
-            "id": ""
+            "title": "CreateTaskAssignment Latency 99th percentile"
           }
         },
         {
@@ -581,14 +505,11 @@ resource "google_monitoring_dashboard" "ta_apis_status" {
                   "plotType": "LINE",
                   "targetAxis": "Y1",
                   "timeSeriesQuery": {
-                    "prometheusQuery": "sum by (uri)(rate(http_server_requests_seconds_count{uri=\"/taskassignment/v1/population/{populationName}/task/{taskId}/aggregation/{aggregationId}/task-assignment/{assignmentId}:report-result\"}[$${__interval}]))",
-                    "unitOverride": ""
+                    "prometheusQuery": "sum by (uri)(rate(http_server_requests_seconds_count{uri=\"/taskassignment/v1/population/{populationName}/task/{taskId}/aggregation/{aggregationId}/task-assignment/{assignmentId}:report-result\"}[$${__interval}]))"
                   }
                 }
               ],
-              "thresholds": [],
               "yAxis": {
-                "label": "",
                 "scale": "LINEAR"
               }
             }
@@ -608,35 +529,23 @@ resource "google_monitoring_dashboard" "ta_apis_status" {
                       "aggregation": {
                         "alignmentPeriod": "60s",
                         "perSeriesAligner": "ALIGN_DELTA",
-                        "crossSeriesReducer": "REDUCE_PERCENTILE_50",
-                        "groupByFields": []
+                        "crossSeriesReducer": "REDUCE_PERCENTILE_50"
                       }
-                    },
-                    "unitOverride": "",
-                    "outputFullDuration": false
+                    }
                   },
                   "plotType": "LINE",
-                  "legendTemplate": "",
                   "minAlignmentPeriod": "60s",
-                  "targetAxis": "Y1",
-                  "dimensions": [],
-                  "measures": [],
-                  "breakdowns": []
+                  "targetAxis": "Y1"
                 }
               ],
-              "thresholds": [],
               "yAxis": {
-                "label": "",
                 "scale": "LINEAR"
               },
               "chartOptions": {
-                "mode": "COLOR",
-                "showLegend": false,
-                "displayHorizontal": false
+                "mode": "COLOR"
               }
             },
-            "title": "ReportResult Latency 50th percentile",
-            "id": ""
+            "title": "ReportResult Latency 50th percentile"
           }
         },
         {
@@ -653,41 +562,27 @@ resource "google_monitoring_dashboard" "ta_apis_status" {
                       "aggregation": {
                         "alignmentPeriod": "60s",
                         "perSeriesAligner": "ALIGN_DELTA",
-                        "crossSeriesReducer": "REDUCE_PERCENTILE_99",
-                        "groupByFields": []
+                        "crossSeriesReducer": "REDUCE_PERCENTILE_99"
                       }
-                    },
-                    "unitOverride": "",
-                    "outputFullDuration": false
+                    }
                   },
                   "plotType": "LINE",
-                  "legendTemplate": "",
                   "minAlignmentPeriod": "60s",
-                  "targetAxis": "Y1",
-                  "dimensions": [],
-                  "measures": [],
-                  "breakdowns": []
+                  "targetAxis": "Y1"
                 }
               ],
-              "thresholds": [],
               "yAxis": {
-                "label": "",
                 "scale": "LINEAR"
               },
               "chartOptions": {
-                "mode": "COLOR",
-                "showLegend": false,
-                "displayHorizontal": false
+                "mode": "COLOR"
               }
             },
-            "title": "ReportResult Latency 99th percentile",
-            "id": ""
+            "title": "ReportResult Latency 99th percentile"
           }
         }
       ]
-    },
-    "dashboardFilters": [],
-    "labels": {}
+    }
   }
 EOF
 }

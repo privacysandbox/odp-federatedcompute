@@ -29,8 +29,8 @@ resource "google_compute_instance_template" "instance_template" {
     mode         = "READ_WRITE"
   }
 
-  // 32GB memory.
-  machine_type = var.machine_type
+  machine_type     = var.machine_type
+  min_cpu_platform = "AMD Milan"
 
   metadata = {
     # Allocate 2GB to dev/shm
@@ -55,10 +55,13 @@ resource "google_compute_instance_template" "instance_template" {
   }
 
   scheduling {
-    automatic_restart   = true
-    on_host_maintenance = "TERMINATE"
-    preemptible         = false
-    provisioning_model  = "STANDARD"
+    # Confidential compute can be set to "MIGRATE" only when
+    # confidential_instance_type = "SEV" and min_cpu_platform = "AMD Milan"
+    on_host_maintenance = "MIGRATE"
+  }
+
+  confidential_instance_config {
+    confidential_instance_type = "SEV"
   }
 
   service_account {
@@ -74,10 +77,6 @@ resource "google_compute_instance_template" "instance_template" {
 
   lifecycle {
     create_before_destroy = true
-  }
-
-  confidential_instance_config {
-    enable_confidential_compute = true
   }
 }
 

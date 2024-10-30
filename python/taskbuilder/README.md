@@ -36,6 +36,7 @@ Run the Python client: `bazel run //python/taskbuilder:task_builder_client -- --
 - `--task_builder_server`: the task builder server endpoint. Local host (`http://localhost:5000`) will be used as default if not provided.
 - `--population_name`: an updated population name for the task. If provided, the original [`population_name` in `TaskConfig`](../../shuffler/proto/task_builder.proto#L239) will be overriden. This is helpful if you want to reuse the same `--task_config` but with a different population name for testing purpose.
 - `--impersonate_service_account`: a service account to impersonate which has permission to access the task builder server endpoint.
+- `--api_key`: an API key which has permission to access the task builder API.
 
 ### Workflow 2: create artifacts only
 Run the Python client: `bazel run //python/taskbuilder:task_builder_client -- --saved_model=gs://<resource_uri> --task_config=gs://<resource_uri> --task_builder_server=https://<task_builder_server> --build_artifact_only=true`

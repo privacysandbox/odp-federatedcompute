@@ -100,6 +100,19 @@ public final class ExceptionsTest {
   }
 
   @Test
+  public void testIsRetryableException_KeyFetchExceptionInDoubleIllegalStateNotRetryable() {
+    // act and assert
+    assertThat(
+            Exceptions.isRetryableException(
+                new IllegalStateException(
+                    new IllegalArgumentException(
+                        new KeyFetchException(
+                            new IllegalArgumentException(new IllegalArgumentException()),
+                            ErrorReason.KEY_NOT_FOUND)))))
+        .isFalse();
+  }
+
+  @Test
   public void testIsRetryableException_NoCause() {
     // act and assert
     assertThat(Exceptions.isRetryableException(new IllegalStateException("no reason."))).isTrue();

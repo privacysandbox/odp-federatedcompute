@@ -35,11 +35,14 @@ public class GcpParameterConfig {
   private final GoogleCloudArgs googleCloudArgs;
   private final SecurityArgs securityArgs;
   private final GcpParameterClient gcpParameterClient;
+  private final EncryptionArgs encryptionArgs;
 
   public GcpParameterConfig(
+      EncryptionArgs encryptionArgs,
       GoogleCloudArgs googleCloudArgs,
       SecurityArgs securityArgs,
       GcpParameterClient gcpParameterClient) {
+    this.encryptionArgs = encryptionArgs;
     this.googleCloudArgs = googleCloudArgs;
     this.securityArgs = securityArgs;
     this.gcpParameterClient = gcpParameterClient;
@@ -296,11 +299,12 @@ public class GcpParameterConfig {
   @Bean
   @Qualifier("publicKeyServiceBaseUrl")
   public String publicKeyServiceBaseUrl() {
-    String publicKeyServiceBaseUrl = googleCloudArgs.getPublicKeyServiceBaseUrl();
-    if (Strings.isNullOrEmpty(publicKeyServiceBaseUrl)) {
-      publicKeyServiceBaseUrl =
-          gcpParameterClient.getParameter("PUBLIC_KEY_SERVICE_BASE_URL").orElse(null);
-    }
+    // The publicKeyServiceBaseUrl must be provided via environment args and can not be fetched at
+    // runtime to enforce
+    // the URL used can be attested as part of the built image. Environment image overrides can be
+    // used in non-confidential space
+    // images to modify the value.
+    String publicKeyServiceBaseUrl = encryptionArgs.getPublicKeyServiceBaseUrl();
     logger.info("Registering publicKeyServiceBaseUrl parameter as: " + publicKeyServiceBaseUrl);
     return publicKeyServiceBaseUrl;
   }

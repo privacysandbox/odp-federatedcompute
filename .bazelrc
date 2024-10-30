@@ -1,3 +1,7 @@
+# Disable bzlmod until migration
+common --enable_workspace=true
+common --enable_bzlmod=false
+
 # Bazel default to java 17
 build --java_language_version=17
 build --java_runtime_version=remotejdk_17

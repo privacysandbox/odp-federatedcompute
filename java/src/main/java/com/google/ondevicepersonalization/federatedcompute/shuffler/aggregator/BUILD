@@ -20,6 +20,8 @@ package(default_visibility = ["//visibility:public"])
 springboot(
     name = "aggregator_application",
     boot_app_class = "com.google.ondevicepersonalization.federatedcompute.shuffler.aggregator.AggregatorApplication",
+    # use the spring boot 3 launcher
+    boot_launcher_class = 'org.springframework.boot.loader.launch.JarLauncher',
     java_library = ":aggregator",
 )
 

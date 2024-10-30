@@ -55,7 +55,6 @@ module "shuffler" {
   wip_provider_b                                         = var.wip_provider_b
   service_account_a                                      = var.service_account_a
   service_account_b                                      = var.service_account_b
-  public_key_service_base_url                            = var.public_key_service_base_url
   allowed_operator_service_accounts                      = var.allowed_operator_service_accounts
   key_attestation_api_key                                = var.key_attestation_api_key
   key_attestation_validation_url                         = var.key_attestation_validation_url
@@ -99,4 +98,5 @@ module "shuffler" {
   task_assignment_report_result_failures                 = var.task_assignment_report_result_failures
   task_assignment_no_task_available_failures             = var.task_assignment_no_task_available_failures
   aggregation_batch_failure_threshold                    = var.aggregation_batch_failure_threshold
+  enable_exactly_once_delivery                           = var.enable_exactly_once_delivery
 }

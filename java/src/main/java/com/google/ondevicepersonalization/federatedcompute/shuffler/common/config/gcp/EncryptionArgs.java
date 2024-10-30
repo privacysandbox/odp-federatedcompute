@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,11 +13,16 @@
 // limitations under the License.
 //
 ////////////////////////////////////////////////////////////////////////////////
+package com.google.ondevicepersonalization.federatedcompute.shuffler.common.config.gcp;
 
-package com.google.ondevicepersonalization.federatedcompute.shuffler.common;
+import com.beust.jcommander.Parameter;
+import lombok.Getter;
 
-public final class NonRetryableException extends RuntimeException {
-  public NonRetryableException(String s) {
-    super(s);
-  }
+/** Encryption args for encrypting payloads passed from command line */
+@Getter
+public class EncryptionArgs {
+  @Parameter(
+      names = "--public_key_service_base_url",
+      description = "The base url of the public key service.")
+  private String publicKeyServiceBaseUrl;
 }

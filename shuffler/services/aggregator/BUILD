@@ -51,13 +51,14 @@ oci_image(
     base = "@java_base",
     entrypoint = [
         "java",
-        "-Djava.library.path=.",
+        "-Djava.library.path=/",
         "-Dspring.profiles.active=gcp",
         "-XX:InitialRAMPercentage=70.0",
         "-XX:MaxRAMPercentage=70.0",
         "-jar",
-        "aggregator_application.jar",
+        "/aggregator_application.jar",
     ],
+    env = {"ENCRYPTION_OPTS": "--public_key_service_base_url 'https://publickeyservice.odp.gcp.privacysandboxservices.com/.well-known/odp/v1/public-keys'"},
     exposed_ports = ["8082/tcp"],
     labels = {
         "tee.launch_policy.allow_env_override": "FCP_OPTS",
@@ -73,6 +74,7 @@ oci_image(
         "gcc-13-base_amd64.tar",
         ":binary_tar",
     ],
+    user = "root"
 )
 
 oci_push(

@@ -43,6 +43,15 @@ explore: apm_upload_timeout {
   sql_always_where: Status = 152 ;;
 }
 
+explore: apm_assigned_to_upload_completed{
+  sql_always_where: apm_assigned_to_upload_completed.Status = 0 or apm_assigned_to_upload_completed.Status = 2 ;;
+  join: iteration_completion {
+    type: inner
+    relationship: one_to_one
+    sql_on: ${apm_assigned_to_upload_completed.population_name} = ${iteration_completion.population_name} AND ${apm_assigned_to_upload_completed.task_id} = ${iteration_completion.task_id} AND ${apm_assigned_to_upload_completed.iteration_id} = ${iteration_completion.iteration_id};;
+  }
+}
+
 explore: task {
 }
 

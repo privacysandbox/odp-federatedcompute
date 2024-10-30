@@ -38,7 +38,7 @@
     label_density: 25
     x_axis_scale: linear
     y_axis_combined: true
-    show_null_points: true
+    show_null_points: false
     interpolation: linear
     x_axis_zoom: true
     y_axis_zoom: true

@@ -20,6 +20,8 @@ package(default_visibility = ["//visibility:public"])
 springboot(
     name = "task_assignment_application",
     boot_app_class = "com.google.ondevicepersonalization.federatedcompute.shuffler.taskassignment.TaskAssignmentApplication",
+    # use the spring boot 3 launcher
+    boot_launcher_class = 'org.springframework.boot.loader.launch.JarLauncher',
     java_library = ":task_assignment",
 )
 

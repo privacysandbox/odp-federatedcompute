@@ -2171,7 +2171,7 @@ public final class TaskSpannerDaoTest {
   }
 
   @Test
-  public void getIterationCreatedTime_returnExpected(){
+  public void getIterationCreatedTime_returnExpected() {
     dbClient
         .readWriteTransaction()
         .run(
@@ -2215,26 +2215,28 @@ public final class TaskSpannerDaoTest {
 
     // act and assert
     Optional<Instant> iterationCreatedTime = dao.getIterationCreatedTime(DEFAULT_ITERATION);
-    Optional<Instant> emptyIterationCreatedTime = dao.getIterationCreatedTime(
-        IterationEntity.builder()
-            .populationName("none")
-            .taskId(111)
-            .iterationId(10)
-            .attemptId(0)
-            .reportGoal(300)
-            .status(IterationEntity.Status.fromCode(0))
-            .baseIterationId(9)
-            .baseOnResultId(9)
-            .resultId(10)
-            .info(ITERATION_INFO)
-            .aggregationLevel(0)
-            .maxAggregationSize(301)
-            .minClientVersion(MIN_CLIENT_VERSION)
-            .maxClientVersion(MAX_CLIENT_VERSION)
-            .build());
+    Optional<Instant> emptyIterationCreatedTime =
+        dao.getIterationCreatedTime(
+            IterationEntity.builder()
+                .populationName("none")
+                .taskId(111)
+                .iterationId(10)
+                .attemptId(0)
+                .reportGoal(300)
+                .status(IterationEntity.Status.fromCode(0))
+                .baseIterationId(9)
+                .baseOnResultId(9)
+                .resultId(10)
+                .info(ITERATION_INFO)
+                .aggregationLevel(0)
+                .maxAggregationSize(301)
+                .minClientVersion(MIN_CLIENT_VERSION)
+                .maxClientVersion(MAX_CLIENT_VERSION)
+                .build());
     assertTrue(emptyIterationCreatedTime.isEmpty());
     assertTrue(iterationCreatedTime.isPresent());
-    assertTrue(iterationCreatedTime.get().equals(TimestampInstantConverter.TO_INSTANT.convert(TS_NOW)));
+    assertTrue(
+        iterationCreatedTime.get().equals(TimestampInstantConverter.TO_INSTANT.convert(TS_NOW)));
   }
 
   private ImmutableMap<Long, Timestamp> buildIterationIdTimestampMap(

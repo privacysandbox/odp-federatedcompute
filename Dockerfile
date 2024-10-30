@@ -30,12 +30,12 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     jq
 
 # Install bazel.
-RUN wget -q https://github.com/bazelbuild/bazel/releases/download/6.4.0/bazel-6.4.0-installer-linux-x86_64.sh && \
-    chmod +x bazel-6.4.0-installer-linux-x86_64.sh && \
-    ./bazel-6.4.0-installer-linux-x86_64.sh && \
+RUN wget -q https://github.com/bazelbuild/bazel/releases/download/7.3.2/bazel-7.3.2-installer-linux-x86_64.sh && \
+    chmod +x bazel-7.3.2-installer-linux-x86_64.sh && \
+    ./bazel-7.3.2-installer-linux-x86_64.sh && \
     cd "/usr/local/lib/bazel/bin" && \
-    wget -q https://releases.bazel.build/6.4.0/release/bazel-6.4.0-linux-x86_64 && \
-    chmod +x bazel-6.4.0-linux-x86_64
+    wget -q https://releases.bazel.build/7.3.2/release/bazel-7.3.2-linux-x86_64 && \
+    chmod +x bazel-7.3.2-linux-x86_64
 ENV PATH="/usr/local/bin:$PATH"
 
 # Install clang+llvm.

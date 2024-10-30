@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_push", "oci_tarball")
 load("@aspect_bazel_lib//lib:tar.bzl", "mtree_spec", "tar")
 

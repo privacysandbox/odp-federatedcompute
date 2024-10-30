@@ -119,7 +119,7 @@ public class AggregatorCoreImpl implements AggregatorCore {
   }
 
   private void handleNonRetryableException(Exception e, AggregatorMessage message) {
-    logger.info("Processing non-retryable exception {}", Throwables.getRootCause(e));
+    logger.info("Processing non-retryable exception: ", Throwables.getRootCause(e));
     AggregatorNotification.ErrorReason errorReason =
         AggregatorNotification.ErrorReason.UNKNOWN_ERROR;
     if (Exceptions.isAggregationException(e) || Exceptions.isTensorflowException(e)) {

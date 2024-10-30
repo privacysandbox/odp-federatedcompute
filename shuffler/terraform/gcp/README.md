@@ -24,7 +24,10 @@ gcloud services enable \
     certificatemanager.googleapis.com \
     compute.googleapis.com \
     logging.googleapis.com \
-    secretmanager.googleapis.com
+    secretmanager.googleapis.com \
+    apigateway.googleapis.com \
+    servicemanagement.googleapis.com \
+    servicecontrol.googleapis.com
  ```
 4. Setup a managed public zone using Cloud DNS for your domain. The name of the zone should match the domain name with `-`'s replacing any `.` in the name. The terraform will use the DNS Zone for the domain for the external load balancer's IP.
    - https://cloud.google.com/dns/docs/set-up-dns-records-domain-name
@@ -78,11 +81,12 @@ Note that the deployment requires two separate terraform applies. One for initia
      - `static_ip_name`
      - `gke_cluster_ca_certificate`
      - `gke_host`
-   - Database:
+   - Shuffler:
      - `spanner_database_name`
      - `spanner_instance_name`
      - `metrics_spanner_database_name`
      - `metrics_spanner_instance_name`
+     - `task_builder_managed_service_name`
 ```bash
 terraform output -json
 ```
@@ -125,3 +129,11 @@ gcloud compute ssl-certificates describe <environment>-cert
 gcloud spanner databases ddl update <spanner_database_name> --instance=<spanner_instance_name> --ddl-file=shuffler/spanner/task_database.sdl
 gcloud spanner databases ddl update <metrics_spanner_database_name> --instance=<metrics_spanner_instance_name> --ddl-file=shuffler/spanner/metrics_database.sdl
 ```
+
+### Enable Task Builder API
+1. Enable the created task builder API
+```bash
+gcloud services enable <task_builder_managed_service_name>
+```
+2. Generate API keys to interact with the API:
+- https://cloud.google.com/docs/authentication/api-keys#create

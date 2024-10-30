@@ -36,10 +36,20 @@ java_library(
 )
 
 java_library(
+    name = "encryption_args",
+    srcs = ["EncryptionArgs.java"],
+    deps = [
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:lombok_java",
+        "@maven//:com_beust_jcommander",
+    ],
+)
+
+java_library(
     name = "configurations",
     srcs = ["Configurations.java"],
     deps = [
         "google_cloud_args",
+        "encryption_args",
         "security_args",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:constants",
         "@maven//:com_beust_jcommander",
@@ -98,6 +108,7 @@ java_library(
     name = "gcp_parameter_config",
     srcs = ["GcpParameterConfig.java"],
     deps = [
+        ":encryption_args",
         ":gcp_parameter_client",
         ":google_cloud_args",
         ":security_args",

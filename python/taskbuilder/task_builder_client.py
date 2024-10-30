@@ -37,6 +37,8 @@ def task_builder_request_handler(
     endpoint = http_utils.get_task_builder_endpoint(
         request_type=common.RequestType.BUILD_ARTIFACT_ONLY
     )
+  if common.API_KEY.value is not None:
+    endpoint = endpoint + '?key=' + common.API_KEY.value
   logging.log(logging.INFO, 'Send HTTP request to: ' + endpoint)
   try:
     headers = common.PROROBUF_HEADERS

@@ -119,3 +119,8 @@ output "task_builder_url" {
   description = "URL of the task builder service. The terraform may need to be re-run if blank to populate."
   value       = module.task_builder.task_builder_url
 }
+
+output "task_builder_managed_service_name" {
+  description = "Task builder API managed service name"
+  value       = module.task_builder.task_builder_managed_service_name
+}

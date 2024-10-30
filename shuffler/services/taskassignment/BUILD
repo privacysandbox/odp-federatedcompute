@@ -32,7 +32,7 @@ oci_image(
         "-XX:InitialRAMPercentage=70.0",
         "-XX:MaxRAMPercentage=70.0",
         "-jar",
-        "task_assignment_application.jar",
+        "/task_assignment_application.jar",
     ],
     tars = [
         ":binary_tar",

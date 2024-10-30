@@ -185,9 +185,11 @@ public class TaskSchedulerCoreImpl implements TaskSchedulerCore {
           // If Iteration is in APPLYING stage for more than 5 min log as warning.
           iterationCreatedTime
               .filter(createdTime -> createdTime.isBefore(currentTime.minusSeconds(300)))
-              .ifPresent(createdTime -> logger.warn(
-                  "Iteration {} in APPLYING status for more than 5 min",
-                  iteration.getId()));
+              .ifPresent(
+                  createdTime ->
+                      logger.warn(
+                          "Iteration {} in APPLYING status for more than 5 min",
+                          iteration.getId()));
         }
         return;
       case COMPLETED:

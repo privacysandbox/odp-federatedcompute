@@ -53,10 +53,10 @@ public class GcpHttpMessageSenderConfig {
                     .build())
             .build();
     return HttpClients.custom()
-            .setConnectionManager(connectionManager)
-            .setDefaultRequestConfig(
-                    RequestConfig.custom().setCookieSpec(StandardCookieSpec.STRICT).build())
-            .build();
+        .setConnectionManager(connectionManager)
+        .setDefaultRequestConfig(
+            RequestConfig.custom().setCookieSpec(StandardCookieSpec.STRICT).build())
+        .build();
   }
 
   @Bean

@@ -2,12 +2,12 @@ diff --git springboot/springboot_pkg.sh springboot/springboot_pkg.sh
 index c76fcf9..2291f0f 100755
 --- springboot/springboot_pkg.sh
 +++ springboot/springboot_pkg.sh
-@@ -306,7 +306,7 @@ cd $working_dir
+@@ -311,7 +311,7 @@ cd $working_dir
  # note that it does not use the manifest from the jar file, which is a bummer
  # so we have to respecify the manifest data
  # TODO we should rewrite write_manfiest.sh to produce inputs compatible for singlejar (Issue #27)
 -singlejar_options="--normalize --dont_change_compression" # add in --verbose for more details from command
 +singlejar_options="--normalize --dont_change_compression --build_target $outputjar"  # add in --verbose for more details from command
- singlejar_mainclass="--main_class org.springframework.boot.loader.JarLauncher"
+ singlejar_mainclass="--main_class $spring_boot_launcher_class"
  $singlejar_cmd $singlejar_options $singlejar_mainclass \
      --deploy_manifest_lines "Start-Class: $mainclass" \

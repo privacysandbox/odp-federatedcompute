@@ -227,18 +227,18 @@ public class CollectorCoreImpl implements CollectorCore {
             IterationEntity iteration = taskDao.getIterationById(iterationId).get();
             if (aggregationBatchFailureThreshold.isPresent()) {
               long totalFailed =
-                      aggregationBatchDao.querySumOfAggregationBatchesOfStatus(
-                              iteration,
-                              /* AggregationLevel */ 0,
-                              List.of(AggregationBatchEntity.Status.FAILED));
+                  aggregationBatchDao.querySumOfAggregationBatchesOfStatus(
+                      iteration,
+                      /* AggregationLevel */ 0,
+                      List.of(AggregationBatchEntity.Status.FAILED));
               if (totalFailed > aggregationBatchFailureThreshold.get() * batchSize) {
                 if (!taskDao.updateIterationStatus(
-                        iteration, iteration.toBuilder().status(Status.AGGREGATING_FAILED).build())) {
-                  logger.error(
-                          "Failed to update iteration {} from {} to {}",
-                          iteration.getId().toString(),
-                          iteration.getStatus(),
-                          Status.AGGREGATING_FAILED);
+                    iteration, iteration.toBuilder().status(Status.AGGREGATING_FAILED).build())) {
+                  logger.warn(
+                      "Failed to update iteration {} from {} to {}",
+                      iteration.getId().toString(),
+                      iteration.getStatus(),
+                      Status.AGGREGATING_FAILED);
                   // Throw exception to nack the message and retry
                   throw new IllegalStateException("Failed to update iteration.");
                 }
@@ -246,23 +246,24 @@ public class CollectorCoreImpl implements CollectorCore {
               }
             }
 
-            // If iteration is AGGREGATING and total batches sent/completed < reportGoal update status.
+            // If iteration is AGGREGATING and total batches sent/completed < reportGoal update
+            // status.
             if (iteration.getStatus() == Status.AGGREGATING) {
               if (aggregationBatchDao.querySumOfAggregationBatchesOfStatus(
                       iteration,
                       iteration.getAggregationLevel() - 1,
                       List.of(
-                              AggregationBatchEntity.Status.PUBLISH_COMPLETED,
-                              AggregationBatchEntity.Status.UPLOAD_COMPLETED))
-                      < iteration.getReportGoal()) {
+                          AggregationBatchEntity.Status.PUBLISH_COMPLETED,
+                          AggregationBatchEntity.Status.UPLOAD_COMPLETED))
+                  < iteration.getReportGoal()) {
                 if (!taskDao.updateIterationStatus(
-                        iteration,
-                        iteration.toBuilder().status(Status.COLLECTING).aggregationLevel(0).build())) {
-                  logger.error(
-                          "Failed to update iteration {} from {} to {}",
-                          iteration.getId().toString(),
-                          iteration.getStatus(),
-                          Status.COLLECTING);
+                    iteration,
+                    iteration.toBuilder().status(Status.COLLECTING).aggregationLevel(0).build())) {
+                  logger.warn(
+                      "Failed to update iteration {} from {} to {}",
+                      iteration.getId().toString(),
+                      iteration.getStatus(),
+                      Status.COLLECTING);
                   // Throw exception to nack the message and retry
                   throw new IllegalStateException("Failed to update iteration.");
                 }
@@ -273,7 +274,8 @@ public class CollectorCoreImpl implements CollectorCore {
           }
         } else {
           logger.error("Failed to obtain lock during processAggregatorNotifications");
-          throw new IllegalStateException("Failed to obtain lock during processAggregatorNotifications");
+          throw new IllegalStateException(
+              "Failed to obtain lock during processAggregatorNotifications");
         }
       } catch (Exception e) {
         logger.error("Failed to process message", e);
@@ -422,11 +424,11 @@ public class CollectorCoreImpl implements CollectorCore {
       // Update iteration state
       if (!taskDao.updateIterationStatus(
           iteration, iteration.toBuilder().status(Status.APPLYING).aggregationLevel(2).build())) {
-        logger.error(
+        logger.warn(
             "Failed to update iteration {} from {} to {}",
             iteration.getId().toString(),
             iteration.getStatus(),
-            Status.AGGREGATING);
+            Status.APPLYING);
       }
     }
   }
@@ -592,12 +594,14 @@ public class CollectorCoreImpl implements CollectorCore {
 
   private long countContributionsAndTriggerAggregation(
       IterationEntity iteration, List<String> leftoverAssignments, String partition) {
-    // Count all publish_completed.
+    // Count all publish_completed and upload_completed.
     long publishedAssignments =
         aggregationBatchDao.querySumOfAggregationBatchesOfStatus(
             iteration,
             iteration.getAggregationLevel(),
-            List.of(AggregationBatchEntity.Status.PUBLISH_COMPLETED));
+            List.of(
+                AggregationBatchEntity.Status.PUBLISH_COMPLETED,
+                AggregationBatchEntity.Status.UPLOAD_COMPLETED));
 
     // Check if report goal is met with leftovers.
     // Batch remaining leftovers if applicable and updated total published assignments.
@@ -613,7 +617,7 @@ public class CollectorCoreImpl implements CollectorCore {
       if (!taskDao.updateIterationStatus(
           iteration,
           iteration.toBuilder().status(Status.AGGREGATING).aggregationLevel(1).build())) {
-        logger.error(
+        logger.warn(
             "Failed to update iteration {} from {} to {}",
             iteration.getId().toString(),
             iteration.getStatus(),

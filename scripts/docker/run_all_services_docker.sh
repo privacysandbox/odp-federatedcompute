@@ -37,4 +37,4 @@ fi
 export COMPOSE_FILE="scripts/docker/docker-compose.yml"
 
 # Run all containers
-docker-compose up ${@}
+docker compose up ${@}

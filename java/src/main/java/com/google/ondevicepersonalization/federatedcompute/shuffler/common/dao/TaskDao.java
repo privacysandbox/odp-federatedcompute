@@ -107,8 +107,6 @@ public interface TaskDao {
   public List<Long> getIterationIdsPerEveryKHoursSelector(
       String populationName, long taskId, long intervalInHours, long withInHours);
 
-  /**
-   * Get the {@code CreatedTime} of a given {@code IterationEntity}
-   */
+  /** Get the {@code CreatedTime} of a given {@code IterationEntity} */
   public Optional<Instant> getIterationCreatedTime(IterationEntity iterationEntity);
 }

@@ -97,7 +97,6 @@ module "aggregator" {
     module.wip_provider_b,
     module.service_account_a,
     module.service_account_b,
-    module.public_key_service_base_url,
     module.aggregator_subscriber_max_outstanding_element_count
   ]
 }

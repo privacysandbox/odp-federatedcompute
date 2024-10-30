@@ -20,6 +20,8 @@ package(default_visibility = ["//visibility:public"])
 springboot(
     name = "task_management_application",
     boot_app_class = "com.google.ondevicepersonalization.federatedcompute.shuffler.taskmanagement.TaskManagementApplication",
+    # use the spring boot 3 launcher
+    boot_launcher_class = 'org.springframework.boot.loader.launch.JarLauncher',
     java_library = ":task_management",
 )
 

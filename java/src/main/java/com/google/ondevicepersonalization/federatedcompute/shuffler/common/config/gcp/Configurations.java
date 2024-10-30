@@ -56,6 +56,19 @@ public class Configurations {
   }
 
   @Bean
+  EncryptionArgs provideEncryptionArgs() {
+    EncryptionArgs encryptionArgs = new EncryptionArgs();
+    JCommander command =
+        JCommander.newBuilder()
+            .addObject(encryptionArgs)
+            .defaultProvider(
+                new EnvironmentVariableDefaultProvider(Constants.ENCRYPTION_OPTS, "--/"))
+            .build();
+    command.parse();
+    return encryptionArgs;
+  }
+
+  @Bean
   @Qualifier("httpClient")
   CloseableHttpClient provideHttpClient() {
     return HttpClients.createDefault();

@@ -82,7 +82,6 @@ public class AuthenticationFilterTest {
     when(mockIdGenerator.generate()).thenReturn(RANDOM_ID);
     doNothing().when(mockResponse).setStatus(anyInt());
     when(mockResponse.getOutputStream()).thenReturn(mockWriter);
-    doNothing().when(mockWriter).write(any());
   }
 
   @Test

@@ -38,10 +38,11 @@ module "storage" {
 }
 
 module "pubsub" {
-  source      = "../../modules/pubsub"
-  environment = var.environment
-  project_id  = var.project_id
-  region      = var.region
+  source                       = "../../modules/pubsub"
+  environment                  = var.environment
+  project_id                   = var.project_id
+  region                       = var.region
+  enable_exactly_once_delivery = var.enable_exactly_once_delivery
 }
 
 
@@ -208,13 +209,6 @@ module "service_account_b" {
   environment     = var.environment
   parameter_name  = "SERVICE_ACCOUNT_B"
   parameter_value = var.service_account_b
-}
-
-module "public_key_service_base_url" {
-  source          = "../../modules/parameters"
-  environment     = var.environment
-  parameter_name  = "PUBLIC_KEY_SERVICE_BASE_URL"
-  parameter_value = var.public_key_service_base_url
 }
 
 module "key_attestation_validation_url" {

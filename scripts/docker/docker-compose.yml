@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-version: '3.8'
 services:
   aggregator:
     image: aggregator_image:latest
@@ -26,6 +25,7 @@ services:
       # environment and project_id are used to reference GCP resources such as Spanner, PubSub, and SecretsManager.
       FCP_OPTS: "--project_id '${GOOGLE_CLOUD_PROJECT}' 
         --environment 'local'"
+      ENCRYPTION_OPTS: "--public_key_service_base_url '<url>'"
     volumes:
     - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/keys/adc.json:ro
   collector:
@@ -39,6 +39,7 @@ services:
       GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT}
       FCP_OPTS: "--project_id '${GOOGLE_CLOUD_PROJECT}' 
       --environment 'local'"
+    user: root
     volumes:
     - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/keys/adc.json:ro
   modelupdater:
@@ -65,6 +66,7 @@ services:
       GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT}
       FCP_OPTS: "--project_id '${GOOGLE_CLOUD_PROJECT}'
       --environment 'local'"
+    user: root
     volumes:
     - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/keys/adc.json:ro
   taskmanagement:
@@ -77,6 +79,7 @@ services:
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/keys/adc.json
       GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT}
       FCP_OPTS: "--project_id '${GOOGLE_CLOUD_PROJECT}' --environment 'local'"
+    user: root
     volumes:
     - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/keys/adc.json:ro
   taskscheduler:
@@ -89,6 +92,7 @@ services:
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/keys/adc.json
       GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT}
       FCP_OPTS: "--project_id '${GOOGLE_CLOUD_PROJECT}' --environment 'local'"
+    user: root
     volumes:
     - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/keys/adc.json:ro
   taskbuilder:
@@ -100,6 +104,7 @@ services:
       GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT}
       ENV: "local"
       TASK_MANAGEMENT_SERVER_URL: http://localhost:8082
+    user: root
     volumes:
       - ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/keys/adc.json:ro
     network_mode: host

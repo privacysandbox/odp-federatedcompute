@@ -50,12 +50,12 @@ oci_image(
     base = "@java_base",
     entrypoint = [
         "java",
-        "-Djava.library.path=.",
+        "-Djava.library.path=/",
         "-Dspring.profiles.active=gcp",
         "-XX:InitialRAMPercentage=70.0",
         "-XX:MaxRAMPercentage=70.0",
         "-jar",
-        "task_scheduler_application.jar",
+        "/task_scheduler_application.jar",
     ],
     tars = [
         "libcc1-16_amd64.tar",

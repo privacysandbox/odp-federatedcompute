@@ -56,6 +56,9 @@ public final class Constants {
   // Name of environment variable to set for security params.
   public static final String SECURITY_OPTS = "SECURITY_OPTS";
 
+  // Name of environment variable to set for encryption params.
+  public static final String ENCRYPTION_OPTS = "ENCRYPTION_OPTS";
+
   /** Initial interval before the first retry. */
   public static final Duration COORDINATOR_HTTPCLIENT_RETRY_INITIAL_INTERVAL =
       Duration.ofSeconds(5);

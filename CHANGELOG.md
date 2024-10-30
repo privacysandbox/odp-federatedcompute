@@ -1,5 +1,16 @@
 # Changelog
 
+## [v0.6.0]
+
+### Changes
+
+- Moved public key url for aggregator into image environment from terraform configuration
+- Upgrade to Bazel 7.3.2 and Spring 3.3.4
+- Updated base java image to `gcr.io/distroless/java17-debian11:nonroot`
+- Minor updates to terraform configuration for PubSub and Confidential Space
+- Added API Gateway support to TaskBuilder to support API key-based auth
+- Minor Looker dashboard improvements
+
 ## [v0.5.0]
 
 ### Changes

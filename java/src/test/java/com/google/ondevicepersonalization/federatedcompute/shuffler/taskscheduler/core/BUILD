@@ -57,6 +57,7 @@ java_test(
     resources = ["//java/src/test/java/resources:plans"],
     test_class = "com.google.ondevicepersonalization.federatedcompute.shuffler.taskscheduler.core.TaskSchedulerCoreHelperTest",
     deps = [
+        "@maven//:com_google_guava_guava",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:compression_utils",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:proto_parser",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:random_generator",

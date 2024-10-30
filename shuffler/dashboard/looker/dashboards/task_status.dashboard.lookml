@@ -472,14 +472,64 @@
     col: 0
     width: 24
     height: 7
+  - title: Average Assignment Duration per Iteration
+    name: Average Assignment Duration per Iteration
+    model: task
+    explore: apm_assigned_to_upload_completed
+    type: looker_line
+    fields: [apm_assigned_to_upload_completed.average_duration, apm_assigned_to_upload_completed.population_name,
+      apm_assigned_to_upload_completed.task_id, apm_assigned_to_upload_completed.iteration_id]
+    pivots: [apm_assigned_to_upload_completed.population_name, apm_assigned_to_upload_completed.task_id]
+    sorts: [apm_assigned_to_upload_completed.iteration_id desc]
+    column_limit: 50
+    x_axis_gridlines: false
+    y_axis_gridlines: true
+    show_view_names: false
+    show_y_axis_labels: true
+    show_y_axis_ticks: true
+    y_axis_tick_density: default
+    y_axis_tick_density_custom: 5
+    show_x_axis_label: true
+    show_x_axis_ticks: true
+    y_axis_scale_mode: linear
+    x_axis_reversed: false
+    y_axis_reversed: false
+    plot_size_by_field: false
+    trellis: ''
+    stacking: ''
+    limit_displayed_rows: false
+    legend_position: center
+    point_style: none
+    show_value_labels: false
+    label_density: 25
+    size_to_fit: true
+    x_axis_scale: auto
+    y_axis_combined: true
+    show_null_points: false
+    interpolation: linear
+    y_axes: [{label: Duration In Minutes, orientation: left, series: [{axisId: apm_assigned_to_upload_completed.average_duration,
+            id: apm_assigned_to_upload_completed.average_duration, name: Duration In Minutes}],
+        showLabels: true, showValues: true, unpinAxis: true, tickDensity: default,
+        tickDensityCustom: 5, type: linear}]
+    x_axis_zoom: true
+    y_axis_zoom: true
+    defaults_version: 1
+    listen:
+      Task ID: apm_assigned_to_upload_completed.task_id
+      Population Name: apm_assigned_to_upload_completed.population_name
+      Created Time: iteration_completion.created_time_minute
+    row: 70
+    col: 0
+    width: 24
+    height: 7
   - title: Iteration Completion Time
     name: Iteration Completion Time
     model: task
     explore: iteration_completion
     type: looker_line
-    pivots: [iteration_completion.population_name]
+    pivots: [iteration_completion.population_name, iteration_completion.task_id]
     fields: [iteration_completion.iteration_id, iteration_completion.duration_in_minutes]
-    sorts: [iteration_completion.duration_in_minutes desc 0]
+    sorts: [iteration_completion.iteration_id desc 0]
     total: true
     column_limit: 50
     x_axis_gridlines: false
@@ -530,7 +580,7 @@
       Task ID: iteration_completion.task_id
       Population Name: iteration_completion.population_name
       Created Time: iteration_completion.created_time_minute
-    row: 70
+    row: 77
     col: 0
     width: 24
     height: 7
@@ -539,9 +589,9 @@
     model: task
     explore: iteration_aggregating_to_complete
     type: looker_line
-    pivots: [iteration_aggregating_to_complete.population_name]
+    pivots: [iteration_aggregating_to_complete.population_name, iteration_aggregating_to_complete.task_id]
     fields: [iteration_aggregating_to_complete.iteration_id, iteration_aggregating_to_complete.duration_in_seconds]
-    sorts: [iteration_aggregating_to_complete.duration_in_seconds desc 0]
+    sorts: [iteration_aggregating_to_complete.iteration_id desc]
     total: true
     column_limit: 50
     x_axis_gridlines: false
@@ -592,7 +642,7 @@
       Task ID: iteration_aggregating_to_complete.task_id
       Population Name: iteration_aggregating_to_complete.population_name
       Created Time: iteration_aggregating_to_complete.created_time_minute
-    row: 77
+    row: 84
     col: 0
     width: 24
     height: 7

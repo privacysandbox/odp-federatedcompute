@@ -210,11 +210,6 @@ variable "service_account_b" {
   type        = string
 }
 
-variable "public_key_service_base_url" {
-  description = "The base url of the public key service B.."
-  type        = string
-}
-
 variable "allowed_operator_service_accounts" {
   description = "The service accounts provided by coordinator for the worker to impersonate."
   type        = string
@@ -308,7 +303,7 @@ variable "aggregator_min_replicas" {
 variable "aggregator_cooldown_period" {
   description = "The number of seconds that the autoscaler should wait before it starts collecting information from a aggregator new instance."
   type        = number
-  default     = 120
+  default     = 180
 }
 
 variable "aggregator_subscriber_max_outstanding_element_count" {
@@ -474,4 +469,10 @@ variable "aggregation_batch_failure_threshold" {
   description = "The number of aggregation batches failed for an iteration before moving the iteration to a failure state."
   type        = number
   default     = null
+}
+
+variable "enable_exactly_once_delivery" {
+  description = "Enable exactly once delivery on pubsub subscriptions. Consider disabling for improved performance at the cost of potentially redelivered messages. https://cloud.google.com/pubsub/docs/exactly-once-delivery"
+  type        = bool
+  default     = false
 }

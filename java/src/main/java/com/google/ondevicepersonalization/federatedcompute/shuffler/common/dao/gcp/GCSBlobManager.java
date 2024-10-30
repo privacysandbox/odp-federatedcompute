@@ -34,7 +34,6 @@ import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.I
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.Partitioner;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.TaskEntity;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.Key;
 import java.security.NoSuchAlgorithmException;

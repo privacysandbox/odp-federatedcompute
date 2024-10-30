@@ -45,7 +45,6 @@ module "shuffler" {
   wip_provider_b                                         = var.wip_provider_b
   service_account_a                                      = var.service_account_a
   service_account_b                                      = var.service_account_b
-  public_key_service_base_url                            = var.public_key_service_base_url
   key_attestation_api_key                                = var.key_attestation_api_key
   key_attestation_validation_url                         = var.key_attestation_validation_url
   is_authentication_enabled                              = var.is_authentication_enabled
@@ -63,4 +62,5 @@ module "shuffler" {
   model_bucket_lifecycle_age_days                        = var.model_bucket_lifecycle_age_days
   parent_domain_name                                     = var.parent_domain_name
   aggregation_batch_failure_threshold                    = var.aggregation_batch_failure_threshold
+  enable_exactly_once_delivery                           = var.enable_exactly_once_delivery
 }
