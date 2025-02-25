@@ -33,7 +33,7 @@ def compose_iterative_processes(
     Optional[tff.templates.IterativeProcess],
     task_builder_pb2.TaskReport,
 ]:
-  """Composes the training iterative process and the evaluation iterative process..
+  """Composes the training iterative process and the evaluation iterative process.
 
   Args:
     model: A 'tff.learning.models.FunctionalModel' model.
@@ -129,18 +129,13 @@ def compose_iterative_processes(
   )
 
   # Inject DP parameters to the learning process.
-  # Only Fixed Gaussian is supported.
-  fixed_gaussian_dp_aggregator = None
+  dp_aggregator = None
   if not flags.skip_dp_aggregator:
-    fixed_gaussian_dp_aggregator = (
-        tff.aggregators.DifferentiallyPrivateFactory.gaussian_fixed(
-            noise_multiplier=dp_parameters.noise_multiplier,
-            clip=dp_parameters.dp_clip_norm,
-            clients_per_round=training_report_goal,
-        )
-    )
     task_report.applied_algorithms.dp_aggregator = (
-        task_builder_pb2.DpAggregator.FIXED_GAUSSIAN
+        dp_parameters.dp_aggregator_type
+    )
+    dp_aggregator = _get_dp_aggregator(
+        model, dp_parameters, training_report_goal
     )
 
   def compose_training_iterative_process() -> tff.templates.IterativeProcess:
@@ -148,13 +143,13 @@ def compose_iterative_processes(
       return tff.learning.algorithms.build_fed_sgd(
           model_fn=model,
           server_optimizer_fn=tff_server_optimizer,
-          model_aggregator=fixed_gaussian_dp_aggregator,
+          model_aggregator=dp_aggregator,
       )
     return tff.learning.algorithms.build_unweighted_fed_avg(
         model_fn=model,
         client_optimizer_fn=tff_client_optimizer,
         server_optimizer_fn=tff_server_optimizer,
-        model_aggregator=fixed_gaussian_dp_aggregator,
+        model_aggregator=dp_aggregator,
     )
 
   training_iterative_process = compose_training_iterative_process()
@@ -199,3 +194,77 @@ def _compose_model_with_metrics(
   ) = metrics_utils.create_metrics_fns(metric_constructors=metrics_constructors)
 
   return model
+
+
+def _get_dp_aggregator(
+    model: tff.learning.models.FunctionalModel,
+    dp_parameters: common.DpParameter,
+    training_report_goal: int,
+) -> tff.aggregators.UnweightedAggregationFactory:
+  if (
+      dp_parameters.dp_aggregator_type
+      == task_builder_pb2.DpAggregator.TREE_AGGREGATION
+  ):
+    # For DP-FTRL, replace client updates with L-infinity norm greater than this
+    # value times the clip norm with a zero update.
+    # In https://arxiv.org/abs/2211.06530, setting this to 100
+    # increased stability and allowed a larger server learning rate.
+    zeroing_multiplier = 100.0
+    trainable_weights, _ = model.initial_weights
+    record_specs = tf.nest.map_structure(
+        lambda weight: tf.TensorSpec(shape=weight.shape, dtype=weight.dtype),
+        trainable_weights,
+    )
+
+    dp_aggregator = (
+        tff.aggregators.DifferentiallyPrivateFactory.tree_aggregation(
+            noise_multiplier=dp_parameters.noise_multiplier,
+            l2_norm_clip=dp_parameters.dp_clip_norm,
+            record_specs=record_specs,
+            clients_per_round=training_report_goal,
+        )
+    )
+
+    return tff.aggregators.zeroing_factory(
+        zeroing_multiplier * dp_parameters.dp_clip_norm, dp_aggregator
+    )
+  elif (
+      dp_parameters.dp_aggregator_type
+      == task_builder_pb2.DpAggregator.ADAPTIVE_GAUSSIAN
+  ):
+    return tff.aggregators.DifferentiallyPrivateFactory.gaussian_adaptive(
+        noise_multiplier=dp_parameters.noise_multiplier,
+        clients_per_round=training_report_goal,
+        initial_l2_norm_clip=dp_parameters.dp_clip_norm,
+    )
+  elif (
+      dp_parameters.dp_aggregator_type
+      == task_builder_pb2.DpAggregator.ADAPTIVE_TREE
+  ):
+    # For DP-FTRL, replace client updates with L-infinity norm greater than this
+    # value times the clip norm with a zero update.
+    # In https://arxiv.org/abs/2211.06530, setting this to 100
+    # increased stability and allowed a larger server learning rate.
+    zeroing_multiplier = 100.0
+    trainable_weights, _ = model.initial_weights
+    record_specs = tf.nest.map_structure(
+        lambda weight: tf.TensorSpec(shape=weight.shape, dtype=weight.dtype),
+        trainable_weights,
+    )
+
+    dp_aggregator = tff.aggregators.DifferentiallyPrivateFactory.tree_adaptive(
+        noise_multiplier=dp_parameters.noise_multiplier,
+        clients_per_round=training_report_goal,
+        record_specs=record_specs,
+        initial_l2_norm_clip=dp_parameters.dp_clip_norm,
+    )
+
+    return tff.aggregators.zeroing_factory(
+        zeroing_multiplier * dp_parameters.dp_clip_norm, dp_aggregator
+    )
+  else:
+    return tff.aggregators.DifferentiallyPrivateFactory.gaussian_fixed(
+        noise_multiplier=dp_parameters.noise_multiplier,
+        clip=dp_parameters.dp_clip_norm,
+        clients_per_round=training_report_goal,
+    )

@@ -16,7 +16,13 @@
 
 package com.google.ondevicepersonalization.federatedcompute.shuffler.taskassignment.core;
 
+import static com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.CheckInResult.ITERATION_NOT_ACTIVE;
+
+import com.google.internal.federatedcompute.v1.RejectionInfo;
+import com.google.internal.federatedcompute.v1.RejectionReason;
 import com.google.internal.federatedcompute.v1.ResourceCompressionFormat;
+import com.google.internal.federatedcompute.v1.RetryWindow;
+import com.google.ondevicepersonalization.federatedcompute.proto.CreateTaskAssignmentResponse;
 import com.google.ondevicepersonalization.federatedcompute.proto.TaskAssignment;
 import com.google.ondevicepersonalization.federatedcompute.proto.UploadInstruction;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.CompressionUtils.CompressionFormat;
@@ -26,9 +32,12 @@ import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.A
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AssignmentId;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.BlobDescription;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.BlobManager;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.CheckInResult;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.IterationEntity;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.TaskDao;
+import com.google.protobuf.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,22 +68,92 @@ public class TaskAssignmentCoreImpl implements TaskAssignmentCore {
     this.taskAssignmentCoreHelper = taskAssignmentCoreHelper;
   }
 
-  public Optional<TaskAssignment> createTaskAssignment(
+  public CreateTaskAssignmentResponse createTaskAssignment(
       String populationName, String clientVersion, String correlationId, CompressionFormat format) {
-    List<IterationEntity> openIterations = taskDao.getOpenIterations(populationName, clientVersion);
+    // Check which tasks with the given population name are available for check in
+    Map<IterationEntity, CheckInResult> activeIterations =
+        taskDao.getAvailableCheckInsForPopulation(populationName, clientVersion);
+    // Get the result of the check in. The lowest CheckInResult should be the one that matters.
+    CheckInResult checkInResult =
+        CheckInResult.fromCode(
+            activeIterations.values().stream()
+                .map(CheckInResult::code)
+                .min(Long::compare)
+                .orElse(ITERATION_NOT_ACTIVE.code()));
+    if (checkInResult != CheckInResult.SUCCESS) {
+      return createTaskAssignmentResponseWithRejectionInfo(checkInResult);
+    }
+    // Handle traffic selection for iterations with possible check in success.
+    List<IterationEntity> openIterations =
+        activeIterations.entrySet().stream()
+            .filter(entry -> entry.getValue() == CheckInResult.SUCCESS)
+            .map(Map.Entry::getKey)
+            .toList();
     Optional<IterationEntity> selectIterationEntity =
         taskAssignmentCoreHelper.selectIterationEntity(openIterations);
 
     if (selectIterationEntity.isEmpty()) {
-      return Optional.empty();
+      // The SUCCESS entries contains only tasks with zero weight
+      // Consider tasks with zero weight to be NOT_ACTIVE for now.
+      return createTaskAssignmentResponseWithRejectionInfo(ITERATION_NOT_ACTIVE);
     }
 
-    return assignmentDao
-        .createAssignment(selectIterationEntity.get(), correlationId, idGenerator.generate())
-        .flatMap(
-            assignmentEntity ->
-                taskAssignmentCoreHelper.createTaskAssignment(
-                    selectIterationEntity.get(), assignmentEntity, format));
+    Optional<TaskAssignment> ta =
+        assignmentDao
+            .createAssignment(selectIterationEntity.get(), correlationId, idGenerator.generate())
+            .flatMap(
+                assignmentEntity ->
+                    taskAssignmentCoreHelper.createTaskAssignment(
+                        selectIterationEntity.get(), assignmentEntity, format));
+
+    if (ta.isPresent()) {
+      return CreateTaskAssignmentResponse.newBuilder().setTaskAssignment(ta.get()).build();
+    } else {
+      throw new IllegalStateException("Failed to create task assignment");
+    }
+  }
+
+  private CreateTaskAssignmentResponse createTaskAssignmentResponseWithRejectionInfo(
+      CheckInResult checkInResult) {
+    CreateTaskAssignmentResponse.Builder builder = CreateTaskAssignmentResponse.newBuilder();
+    logger.info("CreateTaskAssignment rejection due to check in result {}", checkInResult);
+    switch (checkInResult) {
+      case ITERATION_FULL ->
+          builder.setRejectionInfo(
+              RejectionInfo.newBuilder()
+                  .setReason(RejectionReason.Enum.NO_TASK_AVAILABLE)
+                  .setRetryWindow(
+                      RetryWindow.newBuilder()
+                          .setDelayMin(Duration.newBuilder().setSeconds(60))
+                          .setDelayMax(Duration.newBuilder().setSeconds(300))));
+      case ITERATION_NOT_OPEN ->
+          builder.setRejectionInfo(
+              RejectionInfo.newBuilder()
+                  .setReason(RejectionReason.Enum.NO_TASK_AVAILABLE)
+                  .setRetryWindow(
+                      RetryWindow.newBuilder()
+                          .setDelayMin(Duration.newBuilder().setSeconds(60))
+                          .setDelayMax(Duration.newBuilder().setSeconds(300))));
+      case CLIENT_VERSION_MISMATCH ->
+          builder.setRejectionInfo(
+              RejectionInfo.newBuilder()
+                  .setReason(RejectionReason.Enum.CLIENT_VERSION_MISMATCH)
+                  .setRetryWindow(
+                      RetryWindow.newBuilder()
+                          .setDelayMin(Duration.newBuilder().setSeconds(86400)) // 1 Day
+                          .setDelayMax(Duration.newBuilder().setSeconds(86400 * 2))));
+      case ITERATION_NOT_ACTIVE ->
+          builder.setRejectionInfo(
+              RejectionInfo.newBuilder()
+                  .setReason(RejectionReason.Enum.NO_ACTIVE_TASK_EXISTS)
+                  .setRetryWindow(
+                      RetryWindow.newBuilder()
+                          .setDelayMin(Duration.newBuilder().setSeconds(86400))
+                          .setDelayMax(Duration.newBuilder().setSeconds(86400 * 2))));
+      default ->
+          throw new IllegalStateException("Invalid check in result " + checkInResult + " found.");
+    }
+    return builder.build();
   }
 
   public Optional<UploadInstruction> getUploadInstruction(

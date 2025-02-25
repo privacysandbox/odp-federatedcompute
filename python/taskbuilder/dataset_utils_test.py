@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Tuple
 from absl.testing import absltest
 import dataset_utils
 from shuffler.proto import task_builder_pb2

@@ -175,6 +175,9 @@ message DpAggregator {
   enum Enum {
     UNKNOWN = 0;
     FIXED_GAUSSIAN = 1;
+    TREE_AGGREGATION = 2;
+    ADAPTIVE_GAUSSIAN = 3;
+    ADAPTIVE_TREE = 4;
   }
 }
 
@@ -240,6 +243,9 @@ message DifferentialPrivacy {
   DpAggregator.Enum type = 1;
   double noise_multiplier = 2;
   double clip_norm = 3;
+  // If using ADAPTIVE_GAUSSIAN or ADAPTIVE_TREE DpAggregator, use
+  // init_clip_norm to initialize clipping norm or leave empty
+  double init_clip_norm = 4;
 }
 
 // Task configuration schema

@@ -29,12 +29,12 @@ import tensorflow_federated as tff
 def load_functional_model(
     model_path: str, client: storage.Client
 ) -> Optional[tff.learning.models.FunctionalModel]:
-  """Load a TFF functional model as `tff.learning.models.FunctionalModel` from a GCS `model_path`."""
-  functional_model = None
+  """Load a TFF functional model as `tff.learning.models.FunctionalModel`
+
+  from a GCS `model_path`.
+  """
   try:
-    blob_id = parse_gcs_uri(
-        client=client, uri=model_path, allow_empty_blob=True
-    )
+    blob_id = parse_gcs_uri(uri=model_path, allow_empty_blob=True)
     bucket_name = blob_id.bucket
     model_dir = blob_id.name
     bucket = client.bucket(bucket_name)
@@ -62,10 +62,12 @@ def load_functional_model(
 def load_task_config(
     task_config_path: str, client: storage.Client
 ) -> Optional[task_builder_pb2.TaskConfig]:
-  """Load task configurations as `task_builder_pb2.TaskConfig` from a pbtxt file on GCS."""
-  task_config = None
+  """Load task configurations as `task_builder_pb2.TaskConfig` from a pbtxt
+
+  file on GCS.
+  """
   try:
-    blob_id = parse_gcs_uri(client=client, uri=task_config_path)
+    blob_id = parse_gcs_uri(uri=task_config_path)
     bucket_name = blob_id.bucket
     object_name = blob_id.name
     bucket = client.bucket(bucket_name)
@@ -81,7 +83,7 @@ def load_task_config(
 
 
 def parse_gcs_uri(
-    client: storage.Client, uri: str, allow_empty_blob: Optional[bool] = False
+    uri: str, allow_empty_blob: Optional[bool] = False
 ) -> common.BlobId:
   # Check URI format
   if not uri:
@@ -156,7 +158,6 @@ def create_build_task_request_from_resource_path(
     flags: task_builder_pb2.ExperimentFlags,
 ) -> task_builder_pb2.BuildTaskRequest:
   """Create a BuildTaskRequest from provided resource path."""
-  task_config = None
   try:
     logging.info(f'Loading task config from {task_config_path}...')
     task_config = load_task_config(

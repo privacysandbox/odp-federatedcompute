@@ -1,5 +1,20 @@
 # Changelog
 
+## [v0.7.0]
+
+### Changes
+
+- Moved IterationEntity COMPLETED and POST_PROCESSED states from 2 and 5 to 50 and 51 respectively. **This is not a backwards compatible change. We recommend either starting from a clean Spanner database or for migration updating Status within the Iteration table from 2 and 5 to 50 and 51 respectively.**
+  - ```UPDATE Iteration SET Status=50 WHERE Status=2; UPDATE Iteration SET Status=51 WHERE Status=5;```
+- Add more granular rejection info for CreateTaskAssignment rejections.
+- Added flag to Aggregator to disable output encryption for testing without coordinators.
+  - To enable add: `--should_encrypt_aggregator_output 'false'` to the [input params of the aggregator](shuffler/services/aggregator/BUILD#L42)
+  - Resulting line should look like: `    env = {"ENCRYPTION_OPTS": "--public_key_service_base_url 'https://publickeyservice.odp.gcp.privacysandboxservices.com/.well-known/odp/v1/public-keys' --should_encrypt_aggregator_output 'false'"},`
+- Add support for [rules_distroless](https://github.com/GoogleContainerTools/rules_distroless) to build images
+- Add [cloudbuild.yaml](cloudbuild.yaml) to support building images remotely with GCP Cloud Build
+- Added flag to enable/disable success notifications in the aggregator.
+- Updated python requirements and bazel version
+
 ## [v0.6.0]
 
 ### Changes

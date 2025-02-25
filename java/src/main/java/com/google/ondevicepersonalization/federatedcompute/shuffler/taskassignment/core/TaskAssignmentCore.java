@@ -16,14 +16,14 @@
 
 package com.google.ondevicepersonalization.federatedcompute.shuffler.taskassignment.core;
 
-import com.google.ondevicepersonalization.federatedcompute.proto.TaskAssignment;
+import com.google.ondevicepersonalization.federatedcompute.proto.CreateTaskAssignmentResponse;
 import com.google.ondevicepersonalization.federatedcompute.proto.UploadInstruction;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.CompressionUtils.CompressionFormat;
 import java.util.Optional;
 
 /** The task assignment service core. */
 public interface TaskAssignmentCore {
-  public Optional<TaskAssignment> createTaskAssignment(
+  public CreateTaskAssignmentResponse createTaskAssignment(
       String populationName, String clientVersion, String correlationId, CompressionFormat format);
 
   // Get result upload instruction.

@@ -227,7 +227,7 @@ resource "google_monitoring_alert_policy" "task_assignment_report_result_alert_p
       filter = "resource.type = \"prometheus_target\" AND metric.type = \"prometheus.googleapis.com/report_result_seconds_count/summary\" AND metric.labels.result != \"COMPLETED\" AND resource.labels.cluster = \"${var.cluster_name}\""
       aggregations {
         alignment_period     = "3600s" # 1 hour
-        cross_series_reducer = "REDUCE_MAX"
+        cross_series_reducer = "REDUCE_SUM"
         group_by_fields = [
           "metric.label.result",
           "metric.label.population"
@@ -255,7 +255,7 @@ resource "google_monitoring_alert_policy" "task_assignment_no_task_available_ale
       filter = "resource.type = \"prometheus_target\" AND metric.type = \"prometheus.googleapis.com/create_task_assignment_seconds_count/summary\" AND metric.labels.result = \"NO_TASK_AVAILABLE\" AND resource.labels.cluster = \"${var.cluster_name}\""
       aggregations {
         alignment_period     = "3600s" # 1 hour
-        cross_series_reducer = "REDUCE_MAX"
+        cross_series_reducer = "REDUCE_SUM"
         group_by_fields = [
           "metric.label.result",
           "metric.label.population"

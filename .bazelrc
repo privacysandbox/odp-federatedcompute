@@ -2,11 +2,11 @@
 common --enable_workspace=true
 common --enable_bzlmod=false
 
-# Bazel default to java 17
-build --java_language_version=17
-build --java_runtime_version=remotejdk_17
-build --tool_java_language_version=17
-build --tool_java_runtime_version=remotejdk_17
+# Bazel default to java 21
+build --java_language_version=21
+build --java_runtime_version=remotejdk_21
+build --tool_java_language_version=21
+build --tool_java_runtime_version=remotejdk_21
 
 build --strategy=CopyFile=sandboxed,standalone
 build --strategy=CopyToDirectory=sandboxed,standalone

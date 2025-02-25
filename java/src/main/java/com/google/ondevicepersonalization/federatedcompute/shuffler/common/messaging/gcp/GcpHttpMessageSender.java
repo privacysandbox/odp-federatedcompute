@@ -19,7 +19,6 @@ package com.google.ondevicepersonalization.federatedcompute.shuffler.common.mess
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.gson.Gson;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.messaging.HttpMessageSender;
-import com.google.scp.shared.api.util.ErrorUtil;
 import java.io.IOException;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
@@ -66,12 +65,10 @@ public class GcpHttpMessageSender implements HttpMessageSender {
         String responseBody = new String(response.getEntity().getContent().readAllBytes());
 
         if (response.getCode() != HttpStatus.SC_OK) {
-          var errorResponse = ErrorUtil.parseErrorResponse(responseBody);
-          var exception = ErrorUtil.toServiceException(errorResponse);
-
-          var errMessage = "Received error from endpoint when sending message";
-          logger.error(errMessage, exception);
-          throw new IllegalStateException(errMessage, exception);
+          var errMessage =
+              String.format("Received error from endpoint when sending message:\n%s", responseBody);
+          logger.error(errMessage);
+          throw new IllegalStateException(errMessage);
         }
       } finally {
         EntityUtils.consumeQuietly(response.getEntity());

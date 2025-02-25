@@ -15,27 +15,6 @@
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_push", "oci_tarball")
 load("@aspect_bazel_lib//lib:tar.bzl", "mtree_spec", "tar")
 
-_DEBS = [
-    "libcc1-16_amd64",
-    "libccabi1-16_amd64",
-    "libc6_amd64",
-    "libunwind-16_amd64",
-    "libgcc-s1_amd64",
-    "gcc-13-base_amd64",
-]
-
-[
-    genrule(
-        name = "decompress_" + deb,
-        srcs = [
-            "@{}//:layer".format(deb),
-        ],
-        outs = ["{}.tar".format(deb)],
-        cmd = "xz --decompress --stdout $< >$@",
-    )
-    for deb in _DEBS
-]
-
 # Produce the manifest for a tar file of our py_binary, but don't tar it up yet, so we can split
 # into fine-grained layers for better docker performance.
 mtree_spec(
@@ -98,12 +77,7 @@ oci_image(
     base = "@python_base",
     entrypoint = ["/python/taskbuilder/task_builder"],
     tars = [
-        "libcc1-16_amd64.tar",
-        "libccabi1-16_amd64.tar",
-        "libc6_amd64.tar",
-        "libunwind-16_amd64.tar",
-        "libgcc-s1_amd64.tar",
-        "gcc-13-base_amd64.tar",
+        "@bookworm//:bookworm",
         ":interpreter_layer",
         ":packages_layer",
         ":app_layer",

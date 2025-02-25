@@ -1,0 +1,85 @@
+{
+	"packages": [
+		{
+			"arch": "amd64",
+			"dependencies": [
+				{
+					"key": "libunwind-16_1-16.0.6-15_deb12u1_amd64",
+					"name": "libunwind-16",
+					"version": "1:16.0.6-15~deb12u1"
+				},
+				{
+					"key": "libc6_2.36-9-p-deb12u4_amd64",
+					"name": "libc6",
+					"version": "2.36-9+deb12u4"
+				},
+				{
+					"key": "libgcc-s1_12.2.0-14_amd64",
+					"name": "libgcc-s1",
+					"version": "12.2.0-14"
+				},
+				{
+					"key": "gcc-12-base_12.2.0-14_amd64",
+					"name": "gcc-12-base",
+					"version": "12.2.0-14"
+				},
+				{
+					"key": "libc-p--p-abi1-16_1-16.0.6-15_deb12u1_amd64",
+					"name": "libc++abi1-16",
+					"version": "1:16.0.6-15~deb12u1"
+				}
+			],
+			"key": "libc-p--p-1-16_1-16.0.6-15_deb12u1_amd64",
+			"name": "libc++1-16",
+			"sha256": "a45d671c8fcdce1ec04c6f73496448b1819717d7a306bc174bea62af5692a8ea",
+			"url": "https://snapshot.debian.org/archive/debian/20240210T223313Z/pool/main/l/llvm-toolchain-16/libc++1-16_16.0.6-15~deb12u1_amd64.deb",
+			"version": "1:16.0.6-15~deb12u1"
+		},
+		{
+			"arch": "amd64",
+			"dependencies": [],
+			"key": "libunwind-16_1-16.0.6-15_deb12u1_amd64",
+			"name": "libunwind-16",
+			"sha256": "eb8db0ebd48a8e48783da7e9b3e94653a736b66b7619da4bc82571622254a6cb",
+			"url": "https://snapshot.debian.org/archive/debian/20240210T223313Z/pool/main/l/llvm-toolchain-16/libunwind-16_16.0.6-15~deb12u1_amd64.deb",
+			"version": "1:16.0.6-15~deb12u1"
+		},
+		{
+			"arch": "amd64",
+			"dependencies": [],
+			"key": "libc6_2.36-9-p-deb12u4_amd64",
+			"name": "libc6",
+			"sha256": "0a84833f2f0e6b41e97d8e89917252af83630603e878b8f1202fd9f4ff96cd9f",
+			"url": "https://snapshot.debian.org/archive/debian-security/20240210T223313Z/pool/updates/main/g/glibc/libc6_2.36-9+deb12u4_amd64.deb",
+			"version": "2.36-9+deb12u4"
+		},
+		{
+			"arch": "amd64",
+			"dependencies": [],
+			"key": "libgcc-s1_12.2.0-14_amd64",
+			"name": "libgcc-s1",
+			"sha256": "f3d1d48c0599aea85b7f2077a01d285badc42998c1a1e7473935d5cf995c8141",
+			"url": "https://snapshot.debian.org/archive/debian/20240210T223313Z/pool/main/g/gcc-12/libgcc-s1_12.2.0-14_amd64.deb",
+			"version": "12.2.0-14"
+		},
+		{
+			"arch": "amd64",
+			"dependencies": [],
+			"key": "gcc-12-base_12.2.0-14_amd64",
+			"name": "gcc-12-base",
+			"sha256": "1a03df5a57833d65b5bb08cfa19d50e76f29088dc9e64fb934af42d9023a0807",
+			"url": "https://snapshot.debian.org/archive/debian/20240210T223313Z/pool/main/g/gcc-12/gcc-12-base_12.2.0-14_amd64.deb",
+			"version": "12.2.0-14"
+		},
+		{
+			"arch": "amd64",
+			"dependencies": [],
+			"key": "libc-p--p-abi1-16_1-16.0.6-15_deb12u1_amd64",
+			"name": "libc++abi1-16",
+			"sha256": "7589c729be5287adfd6802dbc86f60942a2ef9212400d36db1d65fb4ae8f1413",
+			"url": "https://snapshot.debian.org/archive/debian/20240210T223313Z/pool/main/l/llvm-toolchain-16/libc++abi1-16_16.0.6-15~deb12u1_amd64.deb",
+			"version": "1:16.0.6-15~deb12u1"
+		}
+	],
+	"version": 1
+}

@@ -42,7 +42,7 @@ def validate_flex_ops(plan: plan_pb2.Plan) -> str:
           max_version = version
   finally:
     os.remove(model_temp_file)
-  if len(unsupported_ops) > 0:
+  if unsupported_ops:
     raise common.TaskBuilderException(
         common.CLIENT_PLAN_BUILDING_ERROR_MESSAGE
         + "Please contact Google to register these ops: "
@@ -58,9 +58,9 @@ def validate_flex_ops(plan: plan_pb2.Plan) -> str:
 def load_supported_ops():
   logging.log(logging.INFO, "Loading supported flex ops from file...")
   result_map = {}
-  # support_ops.csv stores {OnDevicePersonalization mainline release version, TF ops} that
-  # android Tensorflow Lite library supports. The list will keep up to date with android
-  # mainline release.
+  # support_ops.csv stores {OnDevicePersonalization mainline release version,
+  # TF ops} that android Tensorflow Lite library supports. The list will keep
+  # up to date with android mainline release.
   op_path = pkg_resources.resource_filename(
       "support_ops_utils", "support_ops.csv"
   )

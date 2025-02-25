@@ -336,3 +336,11 @@ module "aggregation_batch_failure_threshold" {
   parameter_name  = "AGGREGATION_BATCH_FAILURE_THRESHOLD"
   parameter_value = var.aggregation_batch_failure_threshold
 }
+
+module "enable_aggregation_success_notifications" {
+  source          = "../../modules/parameters"
+  environment     = var.environment
+  parameter_name  = "ENABLE_AGGREGATION_SUCCESS_NOTIFICATIONS"
+  parameter_value = var.enable_aggregation_success_notifications
+}
+

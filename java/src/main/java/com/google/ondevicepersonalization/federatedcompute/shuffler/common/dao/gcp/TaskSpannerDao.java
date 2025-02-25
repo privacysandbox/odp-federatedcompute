@@ -31,7 +31,9 @@ import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.Constants;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.CheckInResult;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.IterationEntity;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.IterationId;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.TaskDao;
@@ -42,6 +44,7 @@ import java.time.Instant;
 import java.time.InstantSource;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -339,6 +342,97 @@ public class TaskSpannerDao implements TaskDao {
     }
   }
 
+  public Map<IterationEntity, CheckInResult> getAvailableCheckInsForPopulation(
+      String populationName, String clientVersion) {
+    Statement statement =
+        Statement.newBuilder(
+                SELECT_ITERATIONS
+                    + "@{FORCE_INDEX=IterationPopulationNameStatusClientVersionIndex}\n"
+                    + "WHERE PopulationName = @populationName\n"
+                    + "  AND Status <= @status\n")
+            .bind("status")
+            .to(Constants.MAX_ACTIVE_ITERATION_STATUS_CODE)
+            .bind("populationName")
+            .to(populationName)
+            .build();
+
+    ImmutableMap.Builder<IterationEntity, CheckInResult> builder = ImmutableMap.builder();
+    try (ReadOnlyTransaction transaction = dbClient.readOnlyTransaction()) {
+      ResultSet resultSet = transaction.executeQuery(statement);
+      while (resultSet.next()) {
+        IterationEntity iterationEntity =
+            IterationEntity.builder()
+                .populationName(resultSet.getString("PopulationName"))
+                .taskId(resultSet.getLong("TaskId"))
+                .iterationId(resultSet.getLong("IterationId"))
+                .attemptId(resultSet.getLong("AttemptId"))
+                .reportGoal(resultSet.getLong("ReportGoal"))
+                .status(IterationEntity.Status.fromCode(resultSet.getLong("Status")))
+                .baseIterationId(resultSet.getLong("BaseIterationId"))
+                .baseOnResultId(resultSet.getLong("BaseOnResultId"))
+                .resultId(resultSet.getLong("ResultId"))
+                .info(resultSet.getJson("Info"))
+                .maxAggregationSize(resultSet.getLong("MaxAggregationSize"))
+                .minClientVersion(resultSet.getString("MinClientVersion"))
+                .maxClientVersion(resultSet.getString("MaxClientVersion"))
+                .build();
+        if (iterationEntity.getStatus() != IterationEntity.Status.COLLECTING) {
+          builder.put(iterationEntity, CheckInResult.ITERATION_NOT_OPEN);
+          continue;
+        }
+        long clientVersionLong = Long.parseLong(clientVersion);
+        if (clientVersionLong < Long.parseLong(iterationEntity.getMinClientVersion())
+            || clientVersionLong > Long.parseLong(iterationEntity.getMaxClientVersion())) {
+          builder.put(iterationEntity, CheckInResult.CLIENT_VERSION_MISMATCH);
+          continue;
+        }
+
+        // If recently rejected a request for this population due to too many active assignments,
+        // cache and
+        // reject again to reduce running this query.
+        if (cache.getIfPresent(iterationEntity.getId().toString()) == null) {
+          logger.debug("Cache miss for iteration. Querying.");
+          // TODO(b/391697402): Consider adding sharding to improve performance for larger report
+          // goals.
+          ResultSet countResult =
+              transaction.executeQuery(
+                  Statement.newBuilder(
+                          "SELECT COUNT(*) as assigned FROM Assignment WHERE\n"
+                              + "    PopulationName = @populationName\n"
+                              + "    AND TaskId = @taskId\n"
+                              + "    AND IterationId = @iterationId\n"
+                              + "    AND AttemptId = @attemptId\n"
+                              + "    AND Status <= @maxActiveStatus\n"
+                              + "    HAVING assigned < @maxAggregationSize;")
+                      .bind("populationName")
+                      .to(iterationEntity.getPopulationName())
+                      .bind("taskId")
+                      .to(iterationEntity.getTaskId())
+                      .bind("iterationId")
+                      .to(iterationEntity.getIterationId())
+                      .bind("attemptId")
+                      .to(iterationEntity.getAttemptId())
+                      .bind("maxActiveStatus")
+                      .to(Constants.MAX_ACTIVE_ASSIGNMENT_STATUS_CODE)
+                      .bind("maxAggregationSize")
+                      .to(iterationEntity.getMaxAggregationSize())
+                      .build());
+          if (countResult.next()) {
+            // there should be only one
+            builder.put(iterationEntity, CheckInResult.SUCCESS);
+          } else {
+            // Cache the result of activeAssignments > maxAggregationSize
+            cache.put(iterationEntity.getId().toString(), iterationEntity.getMaxAggregationSize());
+            builder.put(iterationEntity, CheckInResult.ITERATION_FULL);
+          }
+        } else {
+          builder.put(iterationEntity, CheckInResult.ITERATION_FULL);
+        }
+      }
+    }
+    return builder.build();
+  }
+
   public List<IterationEntity> getOpenIterations(String populationName, String clientVersion) {
     Statement statement =
         Statement.newBuilder(
@@ -381,6 +475,8 @@ public class TaskSpannerDao implements TaskDao {
         // reject again to reduce running this query.
         if (cache.getIfPresent(iterationEntity.getId().toString()) == null) {
           logger.debug("Cache miss for iteration. Querying.");
+          // TODO(b/391697402): Consider adding sharding to improve performance for larger report
+          // goals.
           ResultSet countResult =
               transaction.executeQuery(
                   Statement.newBuilder(
@@ -439,6 +535,46 @@ public class TaskSpannerDao implements TaskDao {
               .build());
     }
     return entitiesBuilder.build();
+  }
+
+  public boolean createAndUpdateIteration(
+      IterationEntity newIteration, IterationEntity from, IterationEntity to) {
+    Preconditions.checkArgument(from.getId().equals(to.getId()));
+    Timestamp now = TimestampInstantConverter.TO_TIMESTAMP.convert(instantSource.instant());
+    return getLastVersionOfIterationStatus(
+            from.getId(), from.getStatus(), from.getAggregationLevel())
+        .map(
+            currentStatusId -> {
+              return dbClient
+                  .readWriteTransaction()
+                  .run(
+                      transaction -> {
+                        // insert new status to status history
+                        insertIterationStatusHistory(
+                            transaction,
+                            to.getId(),
+                            currentStatusId + 1,
+                            to.getStatus(),
+                            now,
+                            to.getAggregationLevel());
+
+                        // update status in iteration table.
+                        updateIterationStatus(transaction, from, to);
+                        // insert new iteration in iteration table.
+                        createIteration(transaction, newIteration);
+
+                        // insert status history
+                        insertIterationStatusHistory(
+                            transaction,
+                            newIteration.getId(),
+                            Constants.FIRST_ITERATION_STATUS_ID,
+                            newIteration.getStatus(),
+                            now,
+                            newIteration.getAggregationLevel());
+                        return true;
+                      });
+            })
+        .orElse(false);
   }
 
   public IterationEntity createIteration(IterationEntity iteration) {

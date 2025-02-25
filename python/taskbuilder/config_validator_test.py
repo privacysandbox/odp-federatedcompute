@@ -19,9 +19,24 @@ import config_validator
 from shuffler.proto import task_builder_pb2
 import test_utils
 
+CLIP_NORM_FIXED_AGGREGATOR_ERROR_MSG = (
+    '[Invalid task config]: key `{key_name}` has a bad value: `{value_name}` in'
+    ' `{entity_name}`. {key_name} is required and must be a positive float '
+    'when using FIXED_GAUSSIAN or TREE_AGGREGATION DP Aggregator.'
+)
+
+CLIP_NORM_ADAPTIVE_AGGREGATOR_ERROR_MSG = (
+    '[Invalid task config]: key `{key_name}` has a bad value: `{value_name}` in'
+    ' `{entity_name}`. {key_name} must be a positive float or be left empty '
+    'when using ADAPTIVE_GAUSSIAN or ADAPTIVE_TREE DP Aggregator.'
+)
 POSITIVE_NUM_ERROR_MSG = (
     '[Invalid task config]: key `{key_name}` has a bad value: `{value_name}` in'
-    ' `{entity_name}`. {key_name} must be a positive number.'
+    ' `{entity_name}`. {key_name} is required and must be a positive number.'
+)
+NONNEGATIVE_NUM_ERROR_MSG = (
+    '[Invalid task config]: key `{key_name}` has a bad value: `{value_name}` in'
+    ' `{entity_name}`. {key_name} must be a nonnegative number.'
 )
 PROBABILITY_ERROR_MSG = (
     '[Invalid task config]: key `{key_name}` has a bad value: `{value_name}` in'
@@ -88,7 +103,7 @@ class ConfigValidatorTest(absltest.TestCase):
     self._test_data.policies.min_separation_policy.minimum_separation = -1
     with self.assertRaisesWithLiteralMatch(
         common.TaskBuilderException,
-        POSITIVE_NUM_ERROR_MSG.format(
+        NONNEGATIVE_NUM_ERROR_MSG.format(
             key_name='minimum_separation',
             value_name=-1,
             entity_name='min_separation_policy',
@@ -100,7 +115,7 @@ class ConfigValidatorTest(absltest.TestCase):
     self._test_data.policies.data_availability_policy.min_example_count = -1
     with self.assertRaisesWithLiteralMatch(
         common.TaskBuilderException,
-        POSITIVE_NUM_ERROR_MSG.format(
+        NONNEGATIVE_NUM_ERROR_MSG.format(
             key_name='min_example_count',
             value_name=-1,
             entity_name='data_availability_policy',
@@ -112,7 +127,7 @@ class ConfigValidatorTest(absltest.TestCase):
     self._test_data.policies.model_release_policy.num_max_training_rounds = -1
     with self.assertRaisesWithLiteralMatch(
         common.TaskBuilderException,
-        POSITIVE_NUM_ERROR_MSG.format(
+        NONNEGATIVE_NUM_ERROR_MSG.format(
             key_name='num_max_training_rounds',
             value_name=-1,
             entity_name='model_release_policy',
@@ -124,20 +139,8 @@ class ConfigValidatorTest(absltest.TestCase):
     self._test_data.differential_privacy.noise_multiplier = -0.1
     with self.assertRaisesWithLiteralMatch(
         common.TaskBuilderException,
-        POSITIVE_NUM_ERROR_MSG.format(
+        NONNEGATIVE_NUM_ERROR_MSG.format(
             key_name='noise_multiplier',
-            value_name=-0.1,
-            entity_name='differential_privacy',
-        ),
-    ):
-      config_validator.validate_metadata(self._test_data)
-
-    self._test_data.differential_privacy.noise_multiplier = 0.1
-    self._test_data.differential_privacy.clip_norm = -0.1
-    with self.assertRaisesWithLiteralMatch(
-        common.TaskBuilderException,
-        POSITIVE_NUM_ERROR_MSG.format(
-            key_name='clip_norm',
             value_name=-0.1,
             entity_name='differential_privacy',
         ),
@@ -150,7 +153,7 @@ class ConfigValidatorTest(absltest.TestCase):
     )
     with self.assertRaisesWithLiteralMatch(
         common.TaskBuilderException,
-        POSITIVE_NUM_ERROR_MSG.format(
+        NONNEGATIVE_NUM_ERROR_MSG.format(
             key_name='over_selection_rate',
             value_name=-0.1,
             entity_name='runtime_config',
@@ -164,7 +167,7 @@ class ConfigValidatorTest(absltest.TestCase):
     self._test_data.federated_learning.evaluation.over_selection_rate = -0.1
     with self.assertRaisesWithLiteralMatch(
         common.TaskBuilderException,
-        POSITIVE_NUM_ERROR_MSG.format(
+        NONNEGATIVE_NUM_ERROR_MSG.format(
             key_name='over_selection_rate',
             value_name=-0.1,
             entity_name='evaluation',
@@ -176,10 +179,22 @@ class ConfigValidatorTest(absltest.TestCase):
     self._test_data.policies.dataset_policy.batch_size = -1
     with self.assertRaisesWithLiteralMatch(
         common.TaskBuilderException,
-        POSITIVE_NUM_ERROR_MSG.format(
+        NONNEGATIVE_NUM_ERROR_MSG.format(
             key_name='batch_size',
             value_name=-1,
             entity_name='dataset_policy',
+        ),
+    ):
+      config_validator.validate_metadata(self._test_data)
+
+    self._test_data.policies.dataset_policy.batch_size = 3
+    self._test_data.federated_learning.evaluation.source_training_task_id = 0
+    with self.assertRaisesWithLiteralMatch(
+        common.TaskBuilderException,
+        POSITIVE_NUM_ERROR_MSG.format(
+            key_name='source_training_task_id',
+            value_name=0,
+            entity_name='evaluation',
         ),
     ):
       config_validator.validate_metadata(self._test_data)
@@ -278,6 +293,32 @@ class ConfigValidatorTest(absltest.TestCase):
     ):
       config_validator.validate_metadata(self._test_data)
 
+  def test_validate_clip_norm_bad_value(self):
+    self._test_data.differential_privacy.clip_norm = 0.0
+    with self.assertRaisesWithLiteralMatch(
+        common.TaskBuilderException,
+        CLIP_NORM_FIXED_AGGREGATOR_ERROR_MSG.format(
+            key_name='clip_norm',
+            value_name=0.0,
+            entity_name='differential_privacy',
+        ),
+    ):
+      config_validator.validate_metadata(self._test_data)
+
+    self._test_data.differential_privacy.init_clip_norm = -1.0
+    self._test_data.differential_privacy.type = (
+        task_builder_pb2.DpAggregator.ADAPTIVE_GAUSSIAN
+    )
+    with self.assertRaisesWithLiteralMatch(
+        common.TaskBuilderException,
+        CLIP_NORM_ADAPTIVE_AGGREGATOR_ERROR_MSG.format(
+            key_name='init_clip_norm',
+            value_name=-1.0,
+            entity_name='differential_privacy',
+        ),
+    ):
+      config_validator.validate_metadata(self._test_data)
+
   def test_validate_fcp_dp(self):
     dp_parameters = config_validator.validate_fcp_dp(
         task_config=self._test_data, flags=task_builder_pb2.ExperimentFlags()
@@ -298,6 +339,16 @@ class ConfigValidatorTest(absltest.TestCase):
     self.assertEqual(0.000000001, dp_parameters.dp_delta)
     self.assertEqual(6.0, dp_parameters.dp_epsilon)
     self.assertEqual(1000, dp_parameters.num_training_rounds)
+
+  def test_validate_fcp_dp_calibration_init_clip_norm(self):
+    self._test_data.differential_privacy.init_clip_norm = 0.0
+    self._test_data.differential_privacy.type = (
+        task_builder_pb2.DpAggregator.ADAPTIVE_GAUSSIAN
+    )
+    dp_parameters = config_validator.validate_fcp_dp(
+        task_config=self._test_data, flags=task_builder_pb2.ExperimentFlags()
+    )
+    self.assertEqual(0.1, dp_parameters.dp_clip_norm)
 
 
 if __name__ == '__main__':

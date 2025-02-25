@@ -22,7 +22,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.google.scp.shared.api.util.ErrorUtil;
 import java.net.URI;
 import java.util.Base64;
 import java.util.Objects;
@@ -90,14 +89,11 @@ public class KeyAttestationManager {
       CloseableHttpResponse response = httpClient.execute(request);
       try {
         String responseBody = new String(response.getEntity().getContent().readAllBytes());
-
         if (response.getCode() != HttpStatus.SC_OK) {
-          var errorResponse = ErrorUtil.parseErrorResponse(responseBody);
-          var exception = ErrorUtil.toServiceException(errorResponse);
-
-          var message = "Received error from KAVS when creating challenge";
-          logger.error(message, exception);
-          throw new IllegalStateException(message, exception);
+          var message =
+              String.format("Received error from KAVS when creating challenge:\n%s", responseBody);
+          logger.error(message);
+          throw new IllegalStateException(message);
         }
         return parseFetchChallengeBody(responseBody);
       } finally {
@@ -141,13 +137,20 @@ public class KeyAttestationManager {
       CloseableHttpResponse response = httpClient.execute(request);
       try {
         String responseBody = new String(response.getEntity().getContent().readAllBytes());
-
-        if (response.getCode() != HttpStatus.SC_OK) {
-          var errorResponse = ErrorUtil.parseErrorResponse(responseBody);
-          var exception = ErrorUtil.toServiceException(errorResponse);
-          String message = "Received error from KAVS when verifying challenge";
-          logger.error(message, exception);
-          throw new IllegalStateException(message, exception);
+        if (response.getCode() == HttpStatus.SC_BAD_REQUEST) {
+          String message =
+              String.format(
+                  "Invalid attestationRecord received. Invalid request from KAVS when verifying"
+                      + " challenge:\n"
+                      + "%s",
+                  responseBody);
+          logger.warn(message);
+          return false;
+        } else if (response.getCode() != HttpStatus.SC_OK) {
+          String message =
+              String.format("Received error from KAVS when verifying challenge:\n%s", responseBody);
+          logger.error(message);
+          throw new IllegalStateException(message);
         }
         return isVerificationResponseBodyValid(responseBody);
       } finally {

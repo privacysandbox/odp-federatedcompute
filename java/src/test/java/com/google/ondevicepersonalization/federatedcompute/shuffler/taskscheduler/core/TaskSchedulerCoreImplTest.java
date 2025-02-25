@@ -285,9 +285,10 @@ public final class TaskSchedulerCoreImplTest {
     taskScheduler.processActiveTasks();
 
     // assert
-    verify(mockTaskDao, times(1)).createIteration(expectedEntity);
-    verify(mockTaskSchedulerCoreHelper, times(1)).isApplyingDone(iteration);
     verify(mockTaskDao, times(1))
+        .createAndUpdateIteration(eq(expectedEntity), eq(iteration), any());
+    verify(mockTaskSchedulerCoreHelper, times(1)).isApplyingDone(iteration);
+    verify(mockTaskDao, times(0))
         .updateIterationStatus(iteration, iteration.toBuilder().status(Status.COMPLETED).build());
     verify(mockTaskDao, times(1)).getLastIterationOfTask("us", 13);
   }
@@ -335,6 +336,50 @@ public final class TaskSchedulerCoreImplTest {
     verify(mockBlobDao, times(0)).exists(any());
     verify(mockTaskDao, times(0))
         .updateIterationStatus(iteration, iteration.toBuilder().status(Status.COMPLETED).build());
+    verify(mockTaskDao, times(1)).getLastIterationOfTask("us", 13);
+  }
+
+  @Test
+  public void processPostProcessed_hasInsufficientCompletedIteration_createNextIteration() {
+    // arrange
+    IterationEntity iteration =
+        IterationEntity.builder()
+            .populationName("us")
+            .taskId(13)
+            .iterationId(1)
+            .reportGoal(333)
+            .status(Status.POST_PROCESSED)
+            .baseIterationId(0)
+            .baseOnResultId(0)
+            .resultId(1)
+            .build();
+    when(mockTaskDao.getActiveTasks()).thenReturn(ImmutableList.of(DEFAULT_TASK));
+    when(mockTaskDao.getLastIterationOfTask(anyString(), anyLong()))
+        .thenReturn(Optional.of(iteration));
+    when(mockTaskSchedulerCoreHelper.buildIterationInfo(any()))
+        .thenReturn(Optional.of(DEFAULT_ITERATION_INFO));
+    IterationEntity expectedEntity =
+        IterationEntity.builder()
+            .populationName("us")
+            .taskId(13)
+            .iterationId(2)
+            .reportGoal(333)
+            .status(IterationEntity.Status.COLLECTING)
+            .baseIterationId(1)
+            .baseOnResultId(1)
+            .resultId(2)
+            .info(DEFAULT_ITERATION_INFO_STRING)
+            .build();
+    when(mockTaskSchedulerCoreHelper.prepareNewIterationAndUploadDeviceCheckpointIfNeeded(
+            DEFAULT_TASK, 1, DEFAULT_ITERATION_INFO))
+        .thenReturn(expectedEntity);
+
+    // act
+    taskScheduler.processActiveTasks();
+
+    // assert
+    verify(mockTaskDao, times(1)).createIteration(expectedEntity);
+    verify(mockBlobDao, times(0)).exists(any());
     verify(mockTaskDao, times(1)).getLastIterationOfTask("us", 13);
   }
 
@@ -556,31 +601,6 @@ public final class TaskSchedulerCoreImplTest {
                 .contains(
                     String.format("Iteration %s in %s status", iteration.getId(), status.name())))
         .isTrue();
-  }
-
-  @Test
-  public void process_lastIterationStopped_doNothing() {
-    // arrange
-    when(mockTaskDao.getActiveTasks()).thenReturn(ImmutableList.of(DEFAULT_TASK));
-    when(mockTaskDao.getLastIterationOfTask(anyString(), anyLong()))
-        .thenReturn(
-            Optional.of(
-                IterationEntity.builder()
-                    .populationName("us")
-                    .taskId(13)
-                    .iterationId(1)
-                    .reportGoal(333)
-                    .status(Status.STOPPED)
-                    .baseIterationId(0)
-                    .baseOnResultId(0)
-                    .resultId(1)
-                    .build()));
-
-    // act
-    taskScheduler.processActiveTasks();
-
-    // assert
-    verify(mockTaskDao, times(0)).createIteration(any());
   }
 
   @Test

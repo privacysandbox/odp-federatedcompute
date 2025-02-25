@@ -67,6 +67,10 @@ public class AggregatorCoreImpl implements AggregatorCore {
   private PublicKeyEncryptionService publicKeyEncryptionService;
   private AppFiles appFiles;
   private HttpMessageSender httpMessageSender;
+  private Boolean enableAggregationSuccessNotifications;
+  // Output should be encrypted when DP is not guaranteed to be applied within the aggregator.
+  // The presence of this flag should be part of the generated aggregator image hash.
+  private boolean shouldEncryptAggregatorOutput;
 
   public AggregatorCoreImpl(
       BlobDao blobDao,
@@ -75,7 +79,9 @@ public class AggregatorCoreImpl implements AggregatorCore {
       DecryptionKeyService decryptionKeyService,
       PublicKeyEncryptionService publicKeyEncryptionService,
       AppFiles appFiles,
-      HttpMessageSender httpMessageSender) {
+      HttpMessageSender httpMessageSender,
+      Boolean enableAggregationSuccessNotifications,
+      boolean shouldEncryptAggregatorOutput) {
     this.blobDao = blobDao;
     this.instantSource = instantSource;
     this.tensorflowPlanSessionFactory = tensorflowPlanSessionFactory;
@@ -83,6 +89,8 @@ public class AggregatorCoreImpl implements AggregatorCore {
     this.publicKeyEncryptionService = publicKeyEncryptionService;
     this.appFiles = appFiles;
     this.httpMessageSender = httpMessageSender;
+    this.enableAggregationSuccessNotifications = enableAggregationSuccessNotifications;
+    this.shouldEncryptAggregatorOutput = shouldEncryptAggregatorOutput;
   }
 
   public void process(AggregatorMessage message) {
@@ -196,7 +204,8 @@ public class AggregatorCoreImpl implements AggregatorCore {
       throw new RuntimeException("Failed to compressAndUpload aggregated result", e);
     }
 
-    if (!Strings.isNullOrEmpty(message.getNotificationEndpoint())) {
+    if (!Strings.isNullOrEmpty(message.getNotificationEndpoint())
+        && enableAggregationSuccessNotifications) {
       try {
         AggregatorNotification notification =
             AggregatorNotification.builder()
@@ -222,11 +231,16 @@ public class AggregatorCoreImpl implements AggregatorCore {
   }
 
   private byte[] encryptAndPackage(byte[] data) {
-    Payload payload =
-        publicKeyEncryptionService.encryptPayload(
-            CompressionUtils.compressWithGzip(data), new byte[0]);
-    Gson gson = new Gson();
-    return gson.toJson(payload).getBytes();
+    byte[] payload = data;
+    if (shouldEncryptAggregatorOutput) {
+      Payload encryptedPayload =
+              publicKeyEncryptionService.encryptPayload(CompressionUtils.compressWithGzip(data), new byte[0]);
+      Gson gson = new Gson();
+      payload = gson.toJson(encryptedPayload).getBytes();
+    } else {
+      logger.warn("Output payload is NOT being encrypted.");
+    }
+    return payload;
   }
 
   private byte[] aggregate(

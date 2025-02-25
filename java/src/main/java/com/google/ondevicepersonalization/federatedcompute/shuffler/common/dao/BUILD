@@ -24,6 +24,7 @@ java_library(
         ":iteration_id",
         ":task_entity",
         ":task_id",
+        ":check_in_result"
     ],
 )
 
@@ -47,6 +48,17 @@ java_library(
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:lombok_java",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:proto_parser",
         "//shuffler/proto:task_java_proto",
+        "@maven//:com_google_guava_guava",
+    ],
+)
+
+java_library(
+    name = "check_in_result",
+    srcs = [
+        "CheckInResult.java",
+    ],
+    deps = [
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:lombok_java",
         "@maven//:com_google_guava_guava",
     ],
 )

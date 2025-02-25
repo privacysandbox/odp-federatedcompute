@@ -45,15 +45,15 @@ def build_metric_constructors_list(
 
   Returns:
     A `list` of no-arg callables matching the order of `metrics_enum_list`. Each
-    callable returns a `tf.kears.metrics.Metric` instance.
+    callable returns a `tf.keras.metrics.Metric` instance.
   """
 
   def _build_metric_constructor(
       metric_name: str,
   ) -> Callable[[], tf.keras.metrics.Metric]:
-    # Names have to be specified manually because some of the keras metrics
+    # Names have to be specified manually because some keras metrics
     # generates globally unique names (e.g. precision, precision_1). This will
-    # make some of the downstream checks in TFF side fail.
+    # make some downstream checks in TFF side fail.
     return common.METRICS_ALLOWLIST[metric_name]
 
   return [

@@ -122,8 +122,8 @@ def main(argv):
     )
 
 
-# FOR ADC local
-# ADC account must have roles/iam.serviceAccountTokenCreator permission on target_principal
+# FOR ADC local ADC account must have roles/iam.serviceAccountTokenCreator
+# permission on target_principal
 def get_id_token_from_adc(target_principal, target_audience):
   credentials, project_id = google.auth.default()
   target_scopes = ['https://www.googleapis.com/auth/cloud-platform']

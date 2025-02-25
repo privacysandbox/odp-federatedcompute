@@ -41,6 +41,20 @@ java_test(
 )
 
 java_test(
+    name = "check_in_result_test",
+    size = "small",
+    srcs = ["CheckInResultTest.java"],
+    test_class = "com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.CheckInResultTest",
+    deps = [
+        "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/dao:check_in_result",
+        "@maven//:com_google_guava_guava",
+        "@maven//:com_google_testparameterinjector_test_parameter_injector",
+        "@maven//:com_google_truth_truth",
+        "@maven//:junit_junit",
+    ],
+)
+
+java_test(
     name = "task_id_test",
     size = "small",
     srcs = ["TaskIdTest.java"],

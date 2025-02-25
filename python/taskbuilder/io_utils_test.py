@@ -44,7 +44,7 @@ class TaskUtilsTest(absltest.TestCase):
         common.TaskBuilderException,
         TEST_INVALID_URI_ERROR_MSG,
     ):
-      io_utils.parse_gcs_uri(client=self._mock_client, uri=TEST_INVALID_URI)
+      io_utils.parse_gcs_uri(uri=TEST_INVALID_URI)
 
   def test_gcs_upload_content_fail(self):
     self._mock_blob.upload_from_string.side_effect = Exception(

@@ -310,6 +310,18 @@ public class GcpParameterConfig {
   }
 
   @Bean
+  @Qualifier("shouldEncryptAggregatorOutput")
+  public boolean shouldEncryptAggregatorOutput() {
+    // The shouldEncryptAggregatorOutput must be provided via environment args and can not be fetched at
+    // runtime to enforce the value used can be attested as part of the built image. Environment image overrides can be
+    // used in non-confidential space images to modify the value.
+    // This should be default to True for attested production images.
+    boolean shouldEncryptAggregatorOutput = encryptionArgs.isShouldEncryptAggregatorOutput();
+    logger.info("Registering shouldEncryptAggregatorOutput parameter as: " + shouldEncryptAggregatorOutput);
+    return shouldEncryptAggregatorOutput;
+  }
+
+  @Bean
   @Qualifier("keyAttestationServiceBaseUrl")
   public String keyAttestationServiceBaseUrl() {
     String keyAttestationValidationUrl = securityArgs.getKeyAttestationServiceBaseUrl();
@@ -539,14 +551,18 @@ public class GcpParameterConfig {
     // Pull the key A/B directed by the key name.
     String paramKey = "MODEL_CDN_SIGNING_KEY_VALUE";
     String modelCdnSigningKeyValue = null;
-    if (modelCdnSigningKeyName.endsWith("a")) {
-      logger.info("Registering modelCdnSigningKeyValueA");
-      modelCdnSigningKeyValue = googleCloudArgs.getModelCdnSigningKeyValueA();
-      paramKey += "_A";
-    } else if (modelCdnSigningKeyName.endsWith("b")) {
-      logger.info("Registering modelCdnSigningKeyValueB");
-      modelCdnSigningKeyValue = googleCloudArgs.getModelCdnSigningKeyValueB();
-      paramKey += "_B";
+    if (!Strings.isNullOrEmpty(modelCdnSigningKeyName)) {
+      if (modelCdnSigningKeyName.endsWith("a")) {
+        logger.info("Registering modelCdnSigningKeyValueA");
+        modelCdnSigningKeyValue = googleCloudArgs.getModelCdnSigningKeyValueA();
+        paramKey += "_A";
+      } else if (modelCdnSigningKeyName.endsWith("b")) {
+        logger.info("Registering modelCdnSigningKeyValueB");
+        modelCdnSigningKeyValue = googleCloudArgs.getModelCdnSigningKeyValueB();
+        paramKey += "_B";
+      }
+    } else {
+      logger.info("modelCdnSigningKeyName not provided. Skipping CDN setup.");
     }
     if (Strings.isNullOrEmpty(modelCdnSigningKeyValue)) {
       modelCdnSigningKeyValue = gcpParameterClient.getParameter(paramKey).orElse(null);
@@ -583,5 +599,24 @@ public class GcpParameterConfig {
         "Registering aggregationBatchFailureThreshold parameter as: "
             + aggregationBatchFailureThreshold);
     return aggregationBatchFailureThreshold;
+  }
+
+  @Bean
+  @Qualifier("enableAggregationSuccessNotifications")
+  public Boolean enableAggregationSuccessNotifications() {
+    Boolean enableAggregationSuccessNotifications =
+        googleCloudArgs.getEnableAggregationSuccessNotifications();
+    if (enableAggregationSuccessNotifications == null) {
+      String enableAggregationSuccessNotificationsParameterValue =
+          gcpParameterClient.getParameter("ENABLE_AGGREGATION_SUCCESS_NOTIFICATIONS").orElse(null);
+      enableAggregationSuccessNotifications =
+          enableAggregationSuccessNotificationsParameterValue == null
+              ? false
+              : Boolean.parseBoolean(enableAggregationSuccessNotificationsParameterValue);
+    }
+    logger.info(
+        "Registering enableAggregationSuccessNotifications parameter as: "
+            + enableAggregationSuccessNotifications);
+    return enableAggregationSuccessNotifications;
   }
 }

@@ -15,27 +15,6 @@
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_push", "oci_tarball")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 
-_DEBS = [
-    "libcc1-16_amd64",
-    "libccabi1-16_amd64",
-    "libc6_amd64",
-    "libunwind-16_amd64",
-    "libgcc-s1_amd64",
-    "gcc-13-base_amd64",
-]
-
-[
-    genrule(
-        name = "decompress_" + deb,
-        srcs = [
-            "@{}//:layer".format(deb),
-        ],
-        outs = ["{}.tar".format(deb)],
-        cmd = "xz --decompress --stdout $< >$@",
-    )
-    for deb in _DEBS
-]
-
 pkg_tar(
     name = "binary_tar",
     # Bring the java_binary
@@ -58,6 +37,8 @@ oci_image(
         "-jar",
         "/aggregator_application.jar",
     ],
+    # Set ENCRYPTION_OPTS to below to disable encryption for local dev. Note this will change the resulting hash.
+    # "--public_key_service_base_url 'https://publickeyservice.odp.gcp.privacysandboxservices.com/.well-known/odp/v1/public-keys' --should_encrypt_aggregator_output 'false'"
     env = {"ENCRYPTION_OPTS": "--public_key_service_base_url 'https://publickeyservice.odp.gcp.privacysandboxservices.com/.well-known/odp/v1/public-keys'"},
     exposed_ports = ["8082/tcp"],
     labels = {
@@ -66,12 +47,8 @@ oci_image(
         "tee.launch_policy.monitoring_memory_allow": "always",
     },
     tars = [
-        "libcc1-16_amd64.tar",
-        "libccabi1-16_amd64.tar",
-        "libc6_amd64.tar",
-        "libunwind-16_amd64.tar",
-        "libgcc-s1_amd64.tar",
-        "gcc-13-base_amd64.tar",
+        # This target contains all the installed packages.
+        "@bookworm//:bookworm",
         ":binary_tar",
     ],
     user = "root"

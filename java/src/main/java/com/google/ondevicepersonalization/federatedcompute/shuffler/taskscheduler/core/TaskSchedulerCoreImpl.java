@@ -170,14 +170,10 @@ public class TaskSchedulerCoreImpl implements TaskSchedulerCore {
 
   private void processLastIteration(TaskEntity task, IterationEntity iteration) {
     switch (iteration.getStatus()) {
-      case COLLECTING:
-        return;
-      case AGGREGATING:
+      case COLLECTING, AGGREGATING:
         return;
       case APPLYING:
         if (taskSchedulerCoreHelper.isApplyingDone(iteration)) {
-          taskDao.updateIterationStatus(
-              iteration, iteration.toBuilder().status(Status.COMPLETED).build());
           handleCompletedIteration(task, iteration);
         } else {
           Optional<Instant> iterationCreatedTime = taskDao.getIterationCreatedTime(iteration);
@@ -192,7 +188,7 @@ public class TaskSchedulerCoreImpl implements TaskSchedulerCore {
                           iteration.getId()));
         }
         return;
-      case COMPLETED:
+      case COMPLETED, POST_PROCESSED:
         handleCompletedIteration(task, iteration);
         return;
       case AGGREGATING_FAILED:
@@ -203,19 +199,53 @@ public class TaskSchedulerCoreImpl implements TaskSchedulerCore {
         taskDao.updateTaskStatus(task.getId(), task.getStatus(), TaskEntity.Status.FAILED);
         logger.warn("Iteration {} in APPLYING_FAILED status", iteration.getId());
         return;
-      case STOPPED:
-        throw new UnsupportedOperationException(
-            "Iteration STOPPED status is currently unsupported");
       default:
         throw new IllegalStateException("cant' handle status " + iteration.getStatus(), null);
     }
   }
 
   private void handleCompletedIteration(TaskEntity task, IterationEntity iteration) {
+    /*
+     Cases this should handle:
+     1. Eval or Main task is done APPLYING (Ready to move out of an active status)
+       - Main task should always either fully close if the task is complete or
+        move to COMPLETE and create the next iteration.
+       - Eval task should do the same as Main task plus possibly just move to COMPLETE
+       without creating a new iteration if checkpoint selection is unsuccessful.
+     2. Eval Task is COMPLETED or POST_PROCESSED waiting for successful checkpoint selection.
+     3. It should be impossible for the Main task to enter this with a non-active state. If it
+     does happen, Spanner will throw an ALREADY_EXISTS error code.
+    */
     if (iteration.getIterationId() == task.getTotalIteration()) {
+      if (iteration.getStatus().code() <= Constants.MAX_ACTIVE_ITERATION_STATUS_CODE) {
+        taskDao.updateIterationStatus(
+            iteration, iteration.toBuilder().status(Status.COMPLETED).build());
+      }
       taskDao.updateTaskStatus(task.getId(), task.getStatus(), TaskEntity.Status.COMPLETED);
     } else {
-      createNewIteration(task, iteration.getIterationId());
+      IterationEntity newIteration = createNewIteration(task, iteration.getIterationId());
+      if (newIteration != null) {
+        try {
+          if (iteration.getStatus().code() <= Constants.MAX_ACTIVE_ITERATION_STATUS_CODE) {
+            taskDao.createAndUpdateIteration(
+                newIteration, iteration, iteration.toBuilder().status(Status.COMPLETED).build());
+          } else {
+            taskDao.createIteration(newIteration);
+          }
+        } catch (SpannerException exception) {
+          if (exception.getErrorCode() == ErrorCode.ALREADY_EXISTS) {
+            logger.atWarn().setCause(exception).log("{} already exists. ", task.getId());
+          } else {
+            throw exception;
+          }
+        }
+      } else {
+        // Eval task is not ready. Consider creating a unique status for eval tasks in this state.
+        if (iteration.getStatus().code() <= Constants.MAX_ACTIVE_ITERATION_STATUS_CODE) {
+          taskDao.updateIterationStatus(
+              iteration, iteration.toBuilder().status(Status.COMPLETED).build());
+        }
+      }
     }
   }
 
@@ -223,31 +253,32 @@ public class TaskSchedulerCoreImpl implements TaskSchedulerCore {
     if (!taskSchedulerCoreHelper.isActiveTaskReadyToStart(task)) {
       return;
     }
-    createNewIteration(task, 0);
+    IterationEntity newIteration = createNewIteration(task, 0);
+    if (newIteration != null) {
+      try {
+        taskDao.createIteration(newIteration);
+      } catch (SpannerException exception) {
+        if (exception.getErrorCode() == ErrorCode.ALREADY_EXISTS) {
+          logger.atWarn().setCause(exception).log("{} already exists. ", task.getId());
+        } else {
+          throw exception;
+        }
+      }
+    }
   }
 
-  private void createNewIteration(TaskEntity task, long baseIterationid) {
+  private IterationEntity createNewIteration(TaskEntity task, long baseIterationId) {
     Optional<IterationInfo> iterationInfo =
         taskSchedulerCoreHelper.buildIterationInfo(
             ProtoParser.toProto(task.getInfo(), TaskInfo.getDefaultInstance()));
 
     if (iterationInfo.isEmpty()) {
-      return;
+      // Eval task is not ready. Checkpoint selector returns no valid eval iterations.
+      return null;
     }
 
-    IterationEntity newIteration =
-        taskSchedulerCoreHelper.prepareNewIterationAndUploadDeviceCheckpointIfNeeded(
-            task, baseIterationid, iterationInfo.get());
-
-    try {
-      taskDao.createIteration(newIteration);
-    } catch (SpannerException exception) {
-      if (exception.getErrorCode() == ErrorCode.ALREADY_EXISTS) {
-        logger.atWarn().setCause(exception).log("{} already exists. ", task.getId());
-      } else {
-        throw exception;
-      }
-    }
+    return taskSchedulerCoreHelper.prepareNewIterationAndUploadDeviceCheckpointIfNeeded(
+        task, baseIterationId, iterationInfo.get());
   }
 
   private void processCompletedIteration(IterationEntity iterationEntity) {

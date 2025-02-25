@@ -15,12 +15,16 @@ explore: apm_assigned {
   sql_always_where: Status = 0 ;;
 }
 
-explore: apm_canceled {
-  sql_always_where: Status = 101 ;;
-}
-
 explore: apm_local_completed {
   sql_always_where: Status = 1 ;;
+}
+
+explore: apm_upload_completed {
+  sql_always_where: Status = 2 ;;
+}
+
+explore: apm_canceled {
+  sql_always_where: Status = 101 ;;
 }
 
 explore: apm_local_failed {
@@ -31,12 +35,24 @@ explore: apm_local_not_eligible {
   sql_always_where: Status = 103 ;;
 }
 
-explore: apm_local_timeout {
-  sql_always_where: Status = 151 ;;
+explore: apm_remote_failed{
+  sql_always_where: Status = 104 ;;
 }
 
-explore: apm_upload_completed {
-  sql_always_where: Status = 2 ;;
+explore: apm_local_failed_example_generation {
+  sql_always_where: Status = 105 ;;
+}
+
+explore: apm_local_failed_model_computation {
+  sql_always_where: Status = 106 ;;
+}
+
+explore: apm_local_failed_ops_error {
+  sql_always_where: Status = 107 ;;
+}
+
+explore: apm_local_timeout {
+  sql_always_where: Status = 151 ;;
 }
 
 explore: apm_upload_timeout {
@@ -68,9 +84,9 @@ explore: iteration_open {
 }
 
 explore: iteration_completion{
-  sql_always_where: Status = 0 or Status = 2;;
+  sql_always_where: Status = 0 or Status = 2 or Status = 50;;
 }
 
 explore: iteration_aggregating_to_complete{
-  sql_always_where: Status = 1 or Status = 2;;
+  sql_always_where: Status = 1 or Status = 2 or Status = 50;;
 }

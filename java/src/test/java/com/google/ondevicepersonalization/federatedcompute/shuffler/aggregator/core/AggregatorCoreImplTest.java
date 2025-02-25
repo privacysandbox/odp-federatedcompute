@@ -179,7 +179,9 @@ public final class AggregatorCoreImplTest {
             decryptionKeyService,
             publicKeyEncryptionService,
             appFiles,
-            httpMessageSender);
+            httpMessageSender,
+            true,
+            true);
     gradient =
         ("{\n"
              + "  \"encryptedPayload\":\"EqHpPLNug0sxrO+C/khNBauZxBFaBDAnm9YsriaW5FIUduNy6JRpSuwVTRu41tMjxA8uuRL5nbyqvKgd7qAKC2PpcmjnrQ4WpO/++a0Z\",\n"

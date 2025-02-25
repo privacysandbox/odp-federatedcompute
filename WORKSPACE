@@ -37,6 +37,28 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 ############
 # Java build dependencies.
 ############
+http_archive(
+    name = "bazel_skylib",
+    sha256 = "bc283cdfcd526a52c3201279cda4bc298652efa898b10b4db0837dc51652756f",
+    urls = [
+        "https://mirror.bazel.build/github.com/bazelbuild/bazel-skylib/releases/download/1.7.1/bazel-skylib-1.7.1.tar.gz",
+        "https://github.com/bazelbuild/bazel-skylib/releases/download/1.7.1/bazel-skylib-1.7.1.tar.gz",
+    ],
+)
+
+http_archive(
+    name = "rules_java",
+    sha256 = "c7bd858a132c7b8febe040a90fa138c2e3e7f0bce47122ac2ad43906036a276c",
+    urls = [
+        "https://github.com/bazelbuild/rules_java/releases/download/8.3.0/rules_java-8.3.0.tar.gz",
+    ],
+)
+
+load("@rules_java//java:repositories.bzl", "rules_java_dependencies", "rules_java_toolchains")
+
+rules_java_dependencies()
+
+rules_java_toolchains()
 
 RULES_JVM_EXTERNAL_TAG = "6.0"
 
@@ -197,11 +219,11 @@ http_archive(
 
 http_archive(
     name = "platforms",
+    sha256 = "3a561c99e7bdbe9173aa653fd579fe849f1d8d67395780ab4770b1f381431d51",
     urls = [
         "https://mirror.bazel.build/github.com/bazelbuild/platforms/releases/download/0.0.7/platforms-0.0.7.tar.gz",
         "https://github.com/bazelbuild/platforms/releases/download/0.0.7/platforms-0.0.7.tar.gz",
     ],
-    sha256 = "3a561c99e7bdbe9173aa653fd579fe849f1d8d67395780ab4770b1f381431d51",
 )
 
 # Tensorflow v2.14.0
@@ -228,19 +250,10 @@ http_archive(
 # The following is copied from TensorFlow's own WORKSPACE, see
 # https://github.com/tensorflow/tensorflow/blob/v2.14.0/WORKSPACE#L6
 http_archive(
-    name = "bazel_skylib",
-    sha256 = "74d544d96f4a5bb630d465ca8bbcfe231e3594e5aae57e1edbf17a6eb3ca2506",
-    urls = [
-        "https://storage.googleapis.com/mirror.tensorflow.org/github.com/bazelbuild/bazel-skylib/releases/download/1.3.0/bazel-skylib-1.3.0.tar.gz",
-        "https://github.com/bazelbuild/bazel-skylib/releases/download/1.3.0/bazel-skylib-1.3.0.tar.gz",
-    ],
-)
-
-http_archive(
     name = "rules_python",
-    sha256 = "be04b635c7be4604be1ef20542e9870af3c49778ce841ee2d92fcb42f9d9516a",
-    strip_prefix = "rules_python-0.35.0",
-    url = "https://github.com/bazelbuild/rules_python/releases/download/0.35.0/rules_python-0.35.0.tar.gz",
+    sha256 = "690e0141724abb568267e003c7b6d9a54925df40c275a870a4d934161dc9dd53",
+    strip_prefix = "rules_python-0.40.0",
+    url = "https://github.com/bazelbuild/rules_python/releases/download/0.40.0/rules_python-0.40.0.tar.gz",
 )
 
 load("@rules_python//python:repositories.bzl", "py_repositories", "python_register_toolchains")
@@ -297,7 +310,7 @@ pip_parse(
     annotations = {
         "tensorflow": package_annotation(
             additive_build_content = TF_ADDITIVE_BUILD_CONTENT,
-        )
+        ),
     },
     extra_pip_args = [
         # Disable build isolation to avoid un-pinned build dependencies to be installed
@@ -393,73 +406,41 @@ oci_pull(
 oci_pull(
     name = "java_base",
     # Using SHA-256 for reproducibility. The tag is nonroot.
-    digest = "sha256:fb33b0098b86d965a1ef64ec49b8ff0a28ae8be939f0df736c4af9251180a896",
-    image = "gcr.io/distroless/java17-debian11",
+    digest = "sha256:1316de1b3b592d292a6ceb093df5a430430bd8d104d6cbf3a0f8a79c810e0ee6",
+    image = "gcr.io/distroless/java21-debian12",
     platforms = ["linux/amd64"],
 )
 
-# Pull individual deb packages to support Tensorflow JNI.
-_DEB_TO_LAYER = """\
-alias(
-    name = "layer",
-    actual = ":data.tar.xz",
-    visibility = ["//visibility:public"],
-)
-"""
-
 http_archive(
-    name = "libcc1-16_amd64",
-    build_file_content = _DEB_TO_LAYER,
-    sha256 = "1703fb027276d6f57fc0aaedafe9ce5bc0317148e6b35c57d5d9e6ab2da84fcd",
-    urls = [
-        "https://snapshot.debian.org/archive/debian/20231015T085924Z/pool/main/l/llvm-toolchain-16/libc%2B%2B1-16_16.0.6-16_amd64.deb",
-    ],
+    name = "rules_distroless",
+    sha256 = "af93e1f178aea17ada4435881097f43f0392c57f01b6ff7fcd3591868ea53768",
+    strip_prefix = "rules_distroless-0.4.2",
+    url = "https://github.com/GoogleContainerTools/rules_distroless/releases/download/v0.4.2/rules_distroless-v0.4.2.tar.gz",
 )
 
-http_archive(
-    name = "libccabi1-16_amd64",
-    build_file_content = _DEB_TO_LAYER,
-    sha256 = "336673e61d95836b77a776b437bf705f1235cf69a8e848c810b2fdbade9c0a1e",
-    urls = [
-        "https://snapshot.debian.org/archive/debian/20231015T085924Z/pool/main/l/llvm-toolchain-16/libc%2B%2Babi1-16_16.0.6-16_amd64.deb",
-    ],
+######################
+# rules_distroless setup #
+######################
+load("@rules_distroless//distroless:dependencies.bzl", "distroless_dependencies")
+
+distroless_dependencies()
+
+load("@rules_distroless//distroless:toolchains.bzl", "distroless_register_toolchains")
+
+distroless_register_toolchains()
+
+load("@rules_distroless//apt:apt.bzl", "apt")
+
+# bazel run @bookworm//:lock
+apt.install(
+    name = "bookworm",
+    lock = "@//toolchain:bookworm.lock.json",
+    manifest = "//toolchain:bookworm.yaml",
 )
 
-http_archive(
-    name = "libc6_amd64",
-    build_file_content = _DEB_TO_LAYER,
-    sha256 = "f1b1479c4efbc78637d108b3ca281df6d44fe198a94be8f9621c78dc090340a2",
-    urls = [
-        "https://snapshot.debian.org/archive/debian/20231003T205808Z/pool/main/g/glibc/libc6_2.37-12_amd64.deb",
-    ],
-)
+load("@bookworm//:packages.bzl", "bookworm_packages")
 
-http_archive(
-    name = "libunwind-16_amd64",
-    build_file_content = _DEB_TO_LAYER,
-    sha256 = "cfe5e000e6f48479db390a88dbef30cd774e4b0e61aff3761d05027177c9cb3d",
-    urls = [
-        "https://snapshot.debian.org/archive/debian/20231015T085924Z/pool/main/l/llvm-toolchain-16/libunwind-16_16.0.6-16_amd64.deb",
-    ],
-)
-
-http_archive(
-    name = "libgcc-s1_amd64",
-    build_file_content = _DEB_TO_LAYER,
-    sha256 = "1e992a4f8e84890c29ca5984faeeebdc90e6a4b9b6dfcc5dbbc2dc1c248272e3",
-    urls = [
-        "https://snapshot.debian.org/archive/debian/20231007T024024Z/pool/main/g/gcc-13/libgcc-s1_13.2.0-5_amd64.deb",
-    ],
-)
-
-http_archive(
-    name = "gcc-13-base_amd64",
-    build_file_content = _DEB_TO_LAYER,
-    sha256 = "adf1429d782333621d7913bb9f2ff1e4b0bf50be06b49d3d0597ebeabaed4641",
-    urls = [
-        "https://snapshot.debian.org/archive/debian/20231007T024024Z/pool/main/g/gcc-13/gcc-13-base_13.2.0-5_amd64.deb",
-    ],
-)
+bookworm_packages()
 
 ################
 # C++ Clang/LLVM Toolchain
@@ -499,22 +480,22 @@ load("@llvm_toolchain//:toolchains.bzl", "llvm_register_toolchains")
 
 llvm_register_toolchains()
 
-
 ################
 # pybind11
 ################
 
 http_archive(
-  name = "pybind11_bazel",
-  strip_prefix = "pybind11_bazel-2.12.0",
-  sha256 = "a58c25c5fe063a70057fa20cb8e15f3bda19b1030305bcb533af1e45f36a4a55",
-  urls = ["https://github.com/pybind/pybind11_bazel/archive/pybind11_bazel-2.12.0.zip"],
+    name = "pybind11_bazel",
+    sha256 = "a58c25c5fe063a70057fa20cb8e15f3bda19b1030305bcb533af1e45f36a4a55",
+    strip_prefix = "pybind11_bazel-2.12.0",
+    urls = ["https://github.com/pybind/pybind11_bazel/archive/pybind11_bazel-2.12.0.zip"],
 )
+
 # We still require the pybind library.
 http_archive(
-  name = "pybind11",
-  build_file = "@pybind11_bazel//:pybind11-BUILD.bazel",
-  strip_prefix = "pybind11-2.12.0",
-  sha256 = "411f77380c43798506b39ec594fc7f2b532a13c4db674fcf2b1ca344efaefb68",
-  urls = ["https://github.com/pybind/pybind11/archive/pybind11-2.12.0.zip"],
+    name = "pybind11",
+    build_file = "@pybind11_bazel//:pybind11-BUILD.bazel",
+    sha256 = "411f77380c43798506b39ec594fc7f2b532a13c4db674fcf2b1ca344efaefb68",
+    strip_prefix = "pybind11-2.12.0",
+    urls = ["https://github.com/pybind/pybind11/archive/pybind11-2.12.0.zip"],
 )

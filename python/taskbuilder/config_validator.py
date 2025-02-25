@@ -73,7 +73,21 @@ def validate_fcp_dp(
   dp_setup = task_config.differential_privacy
   model_release_policy = task_config.policies.model_release_policy
   dp_clip_norm = dp_setup.clip_norm
+  dp_init_clip_norm = dp_setup.init_clip_norm
   noise_multiplier = dp_setup.noise_multiplier
+  dp_aggregator_type = dp_setup.type
+
+  if not dp_aggregator_type:
+    dp_aggregator_type = task_builder_pb2.DpAggregator.FIXED_GAUSSIAN
+    logging.info(f'`dp_aggregator_type` is set to default FIXED_GAUSSIAN')
+  if (
+      not dp_init_clip_norm
+      and dp_aggregator_type in common.ADAPTIVE_DP_AGGREGATORS
+  ):
+    dp_init_clip_norm = common.DEFAULT_INIT_CLIP_NORM
+    logging.info(
+        f'`dp_init_clip_norm` is set to default value: {dp_init_clip_norm}'
+    )
 
   dp_target_epsilon = model_release_policy.dp_target_epsilon
   dp_delta = model_release_policy.dp_delta
@@ -90,11 +104,12 @@ def validate_fcp_dp(
   # calibrate noise if not provided
   dp_epsilon = dp_target_epsilon
   if not noise_multiplier:
-    noise_multiplier = dp_utils.epislon_to_noise(
+    noise_multiplier = dp_utils.epsilon_to_noise(
         report_goal=training_report_goal,
         num_training_rounds=num_training_rounds,
         dp_delta=dp_delta,
         dp_epsilon=dp_epsilon,
+        dp_aggregator_type=dp_aggregator_type,
     )
   else:
     dp_epsilon = dp_utils.noise_to_epsilon(
@@ -102,6 +117,7 @@ def validate_fcp_dp(
         num_training_rounds=num_training_rounds,
         dp_delta=dp_delta,
         noise_multiplier=noise_multiplier,
+        dp_aggregator_type=dp_aggregator_type,
     )
     if not flags.skip_dp_check and dp_epsilon > dp_target_epsilon:
       raise common.TaskBuilderException(
@@ -110,19 +126,19 @@ def validate_fcp_dp(
       )
 
   # DP configs for building learning process
-  logging.info(
-      'DP hyper parameters adjusted: num_training_rounds:'
-      f' {num_training_rounds} dp_delta: {dp_delta} dp_epsilon:'
-      f' {dp_epsilon} noise_multiplier: {noise_multiplier} clip_norm:'
-      f' {dp_clip_norm}'
-  )
-  return common.DpParameter(
+  dp_parameters = common.DpParameter(
       dp_delta=dp_delta,
       dp_epsilon=dp_epsilon,
       noise_multiplier=noise_multiplier,
-      dp_clip_norm=dp_clip_norm,
+      dp_clip_norm=dp_clip_norm
+      if dp_aggregator_type in common.FIXED_DP_AGGREGATORS
+      else dp_init_clip_norm,
       num_training_rounds=num_training_rounds,
+      dp_aggregator_type=dp_aggregator_type,
   )
+  logging.info(dp_parameters)
+
+  return dp_parameters
 
 
 def _validate_policy_setup(policy_setup: task_builder_pb2.Policies):
@@ -135,14 +151,14 @@ def _validate_policy_setup(policy_setup: task_builder_pb2.Policies):
     TaskBuilderException: if any validation check fails.
   """
   # minimum separation
-  _validate_positive_number(
+  _validate_nonnegative_number(
       key_name='minimum_separation',
       number=policy_setup.min_separation_policy.minimum_separation,
       entity_name='min_separation_policy',
   )
 
   # minimum example count
-  _validate_positive_number(
+  _validate_nonnegative_number(
       key_name='min_example_count',
       number=policy_setup.data_availability_policy.min_example_count,
       entity_name='data_availability_policy',
@@ -151,13 +167,13 @@ def _validate_policy_setup(policy_setup: task_builder_pb2.Policies):
   model_release_policy = policy_setup.model_release_policy
 
   # dp target epsilon
-  _validate_dp_target(model_release_policy.dp_target_epsilon)
+  _validate_dp_target_epsilon(model_release_policy.dp_target_epsilon)
 
   # dp delta
   _validate_dp_delta(model_release_policy.dp_delta)
 
   # number of training rounds
-  _validate_positive_number(
+  _validate_nonnegative_number(
       key_name='num_max_training_rounds',
       number=model_release_policy.num_max_training_rounds,
       entity_name='model_release_policy',
@@ -165,7 +181,7 @@ def _validate_policy_setup(policy_setup: task_builder_pb2.Policies):
 
   # dataset preprocessing policies
   dataset_policy = policy_setup.dataset_policy
-  _validate_positive_number(
+  _validate_nonnegative_number(
       key_name='batch_size',
       number=dataset_policy.batch_size,
       entity_name='dataset_policy',
@@ -210,7 +226,7 @@ def _validate_federated_learning_setup(
   )
 
   # training over selection rate
-  _validate_positive_number(
+  _validate_nonnegative_number(
       key_name='over_selection_rate',
       number=learning_process.runtime_config.over_selection_rate,
       entity_name='runtime_config',
@@ -218,27 +234,34 @@ def _validate_federated_learning_setup(
 
   # check evaluation info
   if task_mode != task_builder_pb2.TaskMode.Enum.TRAINING_ONLY:
-    evalution_info = fl_setup.evaluation
+    evaluation_info = fl_setup.evaluation
 
     # eval task reporting goal
     _validate_report_goal(
-        report_goal=evalution_info.report_goal, entity_name='evaluation'
+        report_goal=evaluation_info.report_goal, entity_name='evaluation'
     )
 
     # eval over selection rate
-    _validate_positive_number(
+    _validate_nonnegative_number(
         key_name='over_selection_rate',
-        number=evalution_info.over_selection_rate,
+        number=evaluation_info.over_selection_rate,
         entity_name='evaluation',
     )
 
     # checkpoint selector
-    _validate_checkpoint_selector(evalution_info.checkpoint_selector)
+    _validate_checkpoint_selector(evaluation_info.checkpoint_selector)
 
     # evaluation traffic
     _validate_probability(
         key_name='evaluation_traffic',
-        number=evalution_info.evaluation_traffic,
+        number=evaluation_info.evaluation_traffic,
+        entity_name='evaluation',
+    )
+
+    # source training task id
+    _validate_positive_number(
+        key_name='source_training_task_id',
+        number=evaluation_info.source_training_task_id,
         entity_name='evaluation',
     )
 
@@ -254,30 +277,80 @@ def _validate_differential_privacy_setup(
   Raises:
     TaskBuilderException: if any validation check fails.
   """
-  _validate_positive_number(
+  _validate_nonnegative_number(
       key_name='noise_multiplier',
       number=dp_setup.noise_multiplier,
       entity_name='differential_privacy',
   )
-  _validate_positive_number(
-      key_name='clip_norm',
-      number=dp_setup.clip_norm,
-      entity_name='differential_privacy',
-  )
+  _validate_clip_norm(dp_setup)
+
+
+def _validate_clip_norm(dp_setup: task_builder_pb2.DifferentialPrivacy):
+  dp_aggregator_type = dp_setup.type
+
+  if (
+      dp_aggregator_type in common.FIXED_DP_AGGREGATORS
+      or not dp_aggregator_type
+  ):
+    if dp_setup.clip_norm <= 0:
+      raise common.TaskBuilderException(
+          common.CONFIG_VALIDATOR_ERROR_PREFIX
+          + common.BAD_VALUE_ERROR_MSG.format(
+              key_name='clip_norm',
+              value=dp_setup.clip_norm,
+              entity_name='differential_privacy',
+              debug_msg=(
+                  f'clip_norm is required and must be a positive float '
+                  f'when using FIXED_GAUSSIAN or TREE_AGGREGATION '
+                  f'DP Aggregator.'
+              ),
+          )
+      )
+  elif dp_aggregator_type in common.ADAPTIVE_DP_AGGREGATORS:
+    if dp_setup.init_clip_norm < 0:
+      raise common.TaskBuilderException(
+          common.CONFIG_VALIDATOR_ERROR_PREFIX
+          + common.BAD_VALUE_ERROR_MSG.format(
+              key_name='init_clip_norm',
+              value=dp_setup.init_clip_norm,
+              entity_name='differential_privacy',
+              debug_msg=(
+                  f'init_clip_norm must be a positive float or be left empty'
+                  f' when using ADAPTIVE_GAUSSIAN or ADAPTIVE_TREE '
+                  f'DP Aggregator.'
+              ),
+          )
+      )
+
+
+def _validate_nonnegative_number(
+    key_name: str, number: int | float, entity_name: str
+):
+  """Validate the value of `key_name` is a nonnegative number."""
+  if number < 0:
+    raise common.TaskBuilderException(
+        common.CONFIG_VALIDATOR_ERROR_PREFIX
+        + common.BAD_VALUE_ERROR_MSG.format(
+            key_name=key_name,
+            value=number,
+            entity_name=entity_name,
+            debug_msg=key_name + ' must be a nonnegative number.',
+        )
+    )
 
 
 def _validate_positive_number(
     key_name: str, number: int | float, entity_name: str
 ):
   """Validate the value of `key_name` is a positive number."""
-  if number < 0:
+  if number <= 0:
     raise common.TaskBuilderException(
         common.CONFIG_VALIDATOR_ERROR_PREFIX
         + common.BAD_VALUE_ERROR_MSG.format(
             key_name=key_name,
-            value_name=number,
+            value=number,
             entity_name=entity_name,
-            debug_msg=key_name + ' must be a positive number.',
+            debug_msg=key_name + ' is required and must be a positive number.',
         )
     )
 
@@ -298,7 +371,7 @@ def _validate_dp_delta(dp_delta: float):
         common.CONFIG_VALIDATOR_ERROR_PREFIX
         + common.BAD_VALUE_ERROR_MSG.format(
             key_name='dp_delta',
-            value_name=dp_delta,
+            value=dp_delta,
             entity_name='model_release_policy',
             debug_msg='dp_delta must be a float number between 0 and %E'
             % common.DEFAULT_DP_DELTA,
@@ -306,8 +379,8 @@ def _validate_dp_delta(dp_delta: float):
     )
 
 
-def _validate_dp_target(dp_target_epsilon: float):
-  """Validate the value of `dp_target` is in legitimate range.
+def _validate_dp_target_epsilon(dp_target_epsilon: float):
+  """Validate the value of `dp_target_epsilon` is in legitimate range.
 
   Range: (0.0, 6.0), where 6.0 is the system-provided target epsilon
 
@@ -319,7 +392,7 @@ def _validate_dp_target(dp_target_epsilon: float):
         common.CONFIG_VALIDATOR_ERROR_PREFIX
         + common.BAD_VALUE_ERROR_MSG.format(
             key_name='dp_target_epsilon',
-            value_name=dp_target_epsilon,
+            value=dp_target_epsilon,
             entity_name='model_release_policy',
             debug_msg=(
                 'dp_target_epsilon must be a float number between 0 and %f'
@@ -330,13 +403,16 @@ def _validate_dp_target(dp_target_epsilon: float):
 
 
 def _validate_probability(key_name: str, number: float, entity_name: str):
-  """Validate the value of `key_name` is a probability (float number from 0.0 to 1.0)."""
+  """Validate the value of `key_name` is a probability (float number from 0.0
+
+  to 1.0).
+  """
   if number < 0.0 or number > 1.0:
     raise common.TaskBuilderException(
         common.CONFIG_VALIDATOR_ERROR_PREFIX
         + common.BAD_VALUE_ERROR_MSG.format(
             key_name=key_name,
-            value_name=number,
+            value=number,
             entity_name=entity_name,
             debug_msg=key_name + ' must be a probability.',
         )
@@ -344,7 +420,10 @@ def _validate_probability(key_name: str, number: float, entity_name: str):
 
 
 def _validate_checkpoint_selector(checkpoint_selector: str):
-  """Validate the value of `checkpoint_selector` is correctly formatted as `every_k_{round|hour}`."""
+  """Validate the value of `checkpoint_selector` is correctly formatted as
+
+  `every_k_{round|hour}`.
+  """
   if not checkpoint_selector:
     return
   values = checkpoint_selector.split('_')
@@ -360,7 +439,7 @@ def _validate_checkpoint_selector(checkpoint_selector: str):
       common.CONFIG_VALIDATOR_ERROR_PREFIX
       + common.BAD_VALUE_ERROR_MSG.format(
           key_name='checkpoint_selector',
-          value_name=checkpoint_selector,
+          value=checkpoint_selector,
           entity_name='evaluation',
           debug_msg=(
               'checkpoint_selector must be in the format of every_k_round or'
@@ -376,7 +455,7 @@ def _validate_non_empty_string(key_name: str, value: str, entity_name: str):
         common.CONFIG_VALIDATOR_ERROR_PREFIX
         + common.BAD_VALUE_ERROR_MSG.format(
             key_name=key_name,
-            value_name=value,
+            value=value,
             entity_name=entity_name,
             debug_msg=key_name
             + ' is required and must be set to an non-empty string.',
@@ -390,7 +469,7 @@ def _validate_report_goal(report_goal: int, entity_name: str):
         common.CONFIG_VALIDATOR_ERROR_PREFIX
         + common.BAD_VALUE_ERROR_MSG.format(
             key_name='report_goal',
-            value_name=report_goal,
+            value=report_goal,
             entity_name=entity_name,
             debug_msg=(
                 'report_goal is required and must be set to an integer strictly'

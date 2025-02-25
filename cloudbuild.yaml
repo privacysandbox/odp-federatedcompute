@@ -1,0 +1,34 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Create a private pool. Default gcloud build instances are too small to build.artifacts:
+# gcloud builds worker-pools create odp-federatedcompute-privatepool --region us-central1 --worker-machine-type=e2-standard-32
+
+# Run build. Update ProjectId in the command below:
+# gcloud builds submit --substitutions=_PROJECT_ID="ProjectId" --region us-central1
+
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [ 'build', '--platform=linux/amd64', '-t',
+            'odp-federatedcompute-build:v1',
+            '.' ]
+  - name: 'odp-federatedcompute-build:v1'
+    args: ['./scripts/build_images.sh']
+# Uncomment to push images to specified registry
+# gcloud builds submit --substitutions=_PROJECT_ID="ProjectId",_REGISTRY="Registry" --region us-central1
+#  - name: 'odp-federatedcompute-build:v1'
+#    args: ['./scripts/upload_images.sh', '$_REGISTRY']
+options:
+  pool:
+    name: 'projects/$_PROJECT_ID/locations/us-central1/workerPools/odp-federatedcompute-privatepool'

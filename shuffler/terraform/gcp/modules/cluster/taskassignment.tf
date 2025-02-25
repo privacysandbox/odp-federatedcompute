@@ -107,7 +107,7 @@ resource "kubernetes_deployment_v1" "taskassignment" {
             requests = {
               cpu               = var.task_assignment_cpu
               ephemeral-storage = "1Gi"
-              memory            = "${var.task_assignment_cpu}Gi" # Use 1:1 CPU-to-memory
+              memory            = "${var.task_assignment_cpu * 2}Gi" # Use 1:2 CPU-to-memory
             }
           }
         }

@@ -25,4 +25,10 @@ public class EncryptionArgs {
       names = "--public_key_service_base_url",
       description = "The base url of the public key service.")
   private String publicKeyServiceBaseUrl;
+
+  @Parameter(
+          names = "--should_encrypt_aggregator_output",
+          description = "Whether the output of the aggregator should be encrypted.",
+          arity = 1)
+  private boolean shouldEncryptAggregatorOutput = true;
 }

@@ -63,4 +63,5 @@ module "shuffler" {
   parent_domain_name                                     = var.parent_domain_name
   aggregation_batch_failure_threshold                    = var.aggregation_batch_failure_threshold
   enable_exactly_once_delivery                           = var.enable_exactly_once_delivery
+  enable_aggregation_success_notifications               = var.enable_aggregation_success_notifications
 }

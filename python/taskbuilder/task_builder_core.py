@@ -155,9 +155,10 @@ def build_task_group_request_handler(
           task_report=task_report,
       )
 
-  # Create tasks in TM if task configuration is valid and artifact only mode is disabled.
-  # If artifact only is enabled, only artifact URIs will be attached on empty tasks.
-  # The created tasks should be a tuple, where the second task is optional.
+  # Create tasks in TM if task configuration is valid and artifact only mode
+  # is disabled. If artifact only is enabled, only artifact URIs will be
+  # attached on empty tasks. The created tasks should be a tuple, where the
+  # second task is optional.
   try:
     if not artifact_only:
       task_management_server = io_utils.get_task_management_server(

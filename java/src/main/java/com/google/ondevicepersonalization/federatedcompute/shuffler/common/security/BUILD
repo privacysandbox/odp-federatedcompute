@@ -19,8 +19,6 @@ java_library(
     srcs = ["KeyAttestationManager.java"],
     deps = [
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common:constants",
-        "@coordinator-services-and-shared-libraries//:error_utils",
-        "@coordinator-services-and-shared-libraries//:http_client_wrapper",
         "@maven//:com_google_code_gson_gson",
         "@maven//:com_google_guava_guava",
         "@maven//:org_apache_httpcomponents_client5_httpclient5",

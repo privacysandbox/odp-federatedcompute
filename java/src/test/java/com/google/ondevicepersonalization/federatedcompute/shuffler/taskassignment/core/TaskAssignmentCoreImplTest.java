@@ -25,8 +25,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.internal.federatedcompute.v1.RejectionReason;
 import com.google.internal.federatedcompute.v1.ResourceCompressionFormat;
+import com.google.ondevicepersonalization.federatedcompute.proto.CreateTaskAssignmentResponse;
 import com.google.ondevicepersonalization.federatedcompute.proto.EligibilityPolicyEvalSpec;
 import com.google.ondevicepersonalization.federatedcompute.proto.EligibilityTaskInfo;
 import com.google.ondevicepersonalization.federatedcompute.proto.MinimumSeparationPolicy;
@@ -40,6 +42,7 @@ import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.A
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AssignmentId;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.BlobDescription;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.BlobManager;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.CheckInResult;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.IterationEntity;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.TaskDao;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.TaskEntity;
@@ -171,8 +174,8 @@ public final class TaskAssignmentCoreImplTest {
   @Test
   public void testCreatTaskAssignment_Success() {
     // arrange
-    when(mockTaskDao.getOpenIterations(anyString(), anyString()))
-        .thenReturn(ImmutableList.of(DEFAULT_ITERATION_ENTITY));
+    when(mockTaskDao.getAvailableCheckInsForPopulation(anyString(), anyString()))
+        .thenReturn(ImmutableMap.of(DEFAULT_ITERATION_ENTITY, CheckInResult.SUCCESS));
     when(mockIdGenerator.generate()).thenReturn(DEFAULT_SESSION_ID);
     when(mockAssignmentDao.createAssignment(any(), anyString(), anyString()))
         .thenReturn(Optional.of(DEFAULT_ASSIGNMENT_ENTITY));
@@ -182,7 +185,7 @@ public final class TaskAssignmentCoreImplTest {
         .thenReturn(Optional.of(DEFAULT_TASK_ASSIGNMENT));
 
     // act
-    Optional<TaskAssignment> result =
+    CreateTaskAssignmentResponse result =
         taskAssignment.createTaskAssignment(
             DEFAULT_POPULATION_NAME,
             DEFAULT_CLIENT_VERSION,
@@ -190,9 +193,9 @@ public final class TaskAssignmentCoreImplTest {
             CompressionFormat.GZIP);
 
     // assert
-    assertThat(result).isEqualTo(Optional.of(DEFAULT_TASK_ASSIGNMENT));
+    assertThat(result.getTaskAssignment()).isEqualTo(DEFAULT_TASK_ASSIGNMENT);
     verify(mockTaskDao, times(1))
-        .getOpenIterations(DEFAULT_POPULATION_NAME, DEFAULT_CLIENT_VERSION);
+        .getAvailableCheckInsForPopulation(DEFAULT_POPULATION_NAME, DEFAULT_CLIENT_VERSION);
     verify(mockAssignmentDao, times(1))
         .createAssignment(DEFAULT_ITERATION_ENTITY, DEFAULT_CORRELATION_ID, DEFAULT_SESSION_ID);
     verify(mockIdGenerator, times(1)).generate();
@@ -205,10 +208,11 @@ public final class TaskAssignmentCoreImplTest {
   public void testCreatTaskAssignment_notOpenTaskAndIteration_returnEmpty() {
     // arrange
     when(mockIdGenerator.generate()).thenReturn(DEFAULT_SESSION_ID);
-    when(mockTaskDao.getOpenIterations(anyString(), anyString())).thenReturn(ImmutableList.of());
+    when(mockTaskDao.getAvailableCheckInsForPopulation(anyString(), anyString()))
+        .thenReturn(ImmutableMap.of());
 
     // act
-    Optional<TaskAssignment> result =
+    CreateTaskAssignmentResponse result =
         taskAssignment.createTaskAssignment(
             DEFAULT_POPULATION_NAME,
             DEFAULT_CLIENT_VERSION,
@@ -216,9 +220,10 @@ public final class TaskAssignmentCoreImplTest {
             CompressionFormat.GZIP);
 
     // assert
-    assertThat(result).isEqualTo(Optional.empty());
+    assertThat(result.getRejectionInfo().getReason())
+        .isEqualTo(RejectionReason.Enum.NO_ACTIVE_TASK_EXISTS);
     verify(mockTaskDao, times(1))
-        .getOpenIterations(DEFAULT_POPULATION_NAME, DEFAULT_CLIENT_VERSION);
+        .getAvailableCheckInsForPopulation(DEFAULT_POPULATION_NAME, DEFAULT_CLIENT_VERSION);
     verifyNoInteractions(mockAssignmentDao);
     verifyNoInteractions(mockIdGenerator);
   }

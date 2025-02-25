@@ -33,29 +33,28 @@ DEFAULT_APPLIED_ALGORITHMS = task_builder_pb2.TaskReport.AppliedAlgorithms(
     client_optimizer=task_builder_pb2.Optimizer.Enum.SGD,
     server_optimizer=task_builder_pb2.Optimizer.Enum.SGD,
 )
+TEST_DP_PARAMETERS = common.DpParameter(
+    noise_multiplier=1.0,
+    dp_clip_norm=0.1,
+    dp_delta=6.0,
+    dp_epsilon=0.1,
+    num_training_rounds=10,
+    dp_aggregator_type=task_builder_pb2.DpAggregator.FIXED_GAUSSIAN,
+)
 
 
 class LearningProcessUtilsTest(absltest.TestCase):
 
   def test_compose_iterative_processes(self):
-    dp_parameters = common.DpParameter(
-        noise_multiplier=1.0,
-        dp_clip_norm=0.1,
-        dp_delta=6.0,
-        dp_epsilon=0.1,
-        num_training_rounds=10,
-    )
     training_process, eval_process, task_report = (
         learning_process_utils.compose_iterative_processes(
             model=test_utils.get_functional_model_without_metrics(),
             learning_process=TEST_FL_SETUP,
-            dp_parameters=dp_parameters,
+            dp_parameters=TEST_DP_PARAMETERS,
             training_and_eval=True,
             eval_only=False,
             flags=task_builder_pb2.ExperimentFlags(),
-            task_report=task_builder_pb2.TaskReport(
-                dp_hyperparameters=asdict(dp_parameters)
-            ),
+            task_report=task_builder_pb2.TaskReport(),
         )
     )
     self.assertIsNotNone(training_process)
@@ -71,24 +70,15 @@ class LearningProcessUtilsTest(absltest.TestCase):
     self.assertEqual(task_report.applied_algorithms, DEFAULT_APPLIED_ALGORITHMS)
 
   def test_compose_iterative_process_training_only(self):
-    dp_parameters = common.DpParameter(
-        noise_multiplier=1.0,
-        dp_clip_norm=0.1,
-        dp_delta=6.0,
-        dp_epsilon=0.1,
-        num_training_rounds=10,
-    )
     training_process, empty, task_report = (
         learning_process_utils.compose_iterative_processes(
             model=test_utils.get_functional_model_without_metrics(),
             learning_process=TEST_FL_SETUP,
-            dp_parameters=dp_parameters,
+            dp_parameters=TEST_DP_PARAMETERS,
             training_and_eval=False,
             eval_only=False,
             flags=task_builder_pb2.ExperimentFlags(),
-            task_report=task_builder_pb2.TaskReport(
-                dp_hyperparameters=asdict(dp_parameters)
-            ),
+            task_report=task_builder_pb2.TaskReport(),
         )
     )
     self.assertIsNotNone(training_process)
@@ -101,24 +91,15 @@ class LearningProcessUtilsTest(absltest.TestCase):
     self.assertEqual(task_report.applied_algorithms, DEFAULT_APPLIED_ALGORITHMS)
 
   def test_compose_iterative_process_eval_only(self):
-    dp_parameters = common.DpParameter(
-        noise_multiplier=1.0,
-        dp_clip_norm=0.1,
-        dp_delta=6.0,
-        dp_epsilon=0.1,
-        num_training_rounds=10,
-    )
     empty, eval_process, task_report = (
         learning_process_utils.compose_iterative_processes(
             model=test_utils.get_functional_model_without_metrics(),
             learning_process=TEST_FL_SETUP,
-            dp_parameters=dp_parameters,
+            dp_parameters=TEST_DP_PARAMETERS,
             training_and_eval=False,
             eval_only=True,
             flags=task_builder_pb2.ExperimentFlags(),
-            task_report=task_builder_pb2.TaskReport(
-                dp_hyperparameters=asdict(dp_parameters)
-            ),
+            task_report=task_builder_pb2.TaskReport(),
         )
     )
     self.assertIsNotNone(eval_process)
@@ -129,6 +110,106 @@ class LearningProcessUtilsTest(absltest.TestCase):
 
     self.assertIsNotNone(task_report)
     self.assertEqual(task_report.applied_algorithms, DEFAULT_APPLIED_ALGORITHMS)
+
+  def test_compose_iterative_process_training_only_with_tree_aggregation(self):
+    dp_parameters = common.DpParameter(
+        noise_multiplier=1.0,
+        dp_clip_norm=0.1,
+        dp_delta=6.0,
+        dp_epsilon=0.1,
+        num_training_rounds=10,
+        dp_aggregator_type=task_builder_pb2.DpAggregator.TREE_AGGREGATION,
+    )
+
+    training_process, eval_process, task_report = (
+        learning_process_utils.compose_iterative_processes(
+            model=test_utils.get_functional_model_without_metrics(),
+            learning_process=TEST_FL_SETUP,
+            dp_parameters=dp_parameters,
+            training_and_eval=False,
+            eval_only=False,
+            flags=task_builder_pb2.ExperimentFlags(),
+            task_report=task_builder_pb2.TaskReport(),
+        )
+    )
+    self.assertIsNotNone(training_process)
+    self.assertIsNotNone(training_process.initialize)
+    self.assertIsNotNone(training_process.next)
+    self.assertIsNotNone(training_process.get_model_weights)
+
+    self.assertIsNotNone(task_report)
+    self.assertEqual(
+        task_report.applied_algorithms.dp_aggregator,
+        task_builder_pb2.DpAggregator.TREE_AGGREGATION,
+    )
+
+  def test_compose_iterative_process_training_only_with_adaptive_tree_aggregation(
+      self,
+  ):
+    dp_parameters = common.DpParameter(
+        noise_multiplier=1.0,
+        dp_clip_norm=0.1,
+        dp_delta=6.0,
+        dp_epsilon=0.1,
+        num_training_rounds=10,
+        dp_aggregator_type=task_builder_pb2.DpAggregator.ADAPTIVE_TREE,
+    )
+
+    training_process, eval_process, task_report = (
+        learning_process_utils.compose_iterative_processes(
+            model=test_utils.get_functional_model_without_metrics(),
+            learning_process=TEST_FL_SETUP,
+            dp_parameters=dp_parameters,
+            training_and_eval=False,
+            eval_only=False,
+            flags=task_builder_pb2.ExperimentFlags(),
+            task_report=task_builder_pb2.TaskReport(),
+        )
+    )
+    self.assertIsNotNone(training_process)
+    self.assertIsNotNone(training_process.initialize)
+    self.assertIsNotNone(training_process.next)
+    self.assertIsNotNone(training_process.get_model_weights)
+
+    self.assertIsNotNone(task_report)
+    self.assertEqual(
+        task_report.applied_algorithms.dp_aggregator,
+        task_builder_pb2.DpAggregator.ADAPTIVE_TREE,
+    )
+
+  def test_compose_iterative_process_training_only_with_adaptive_gaussian_aggregation(
+      self,
+  ):
+    dp_parameters = common.DpParameter(
+        noise_multiplier=1.0,
+        dp_clip_norm=0.1,
+        dp_delta=6.0,
+        dp_epsilon=0.1,
+        num_training_rounds=10,
+        dp_aggregator_type=task_builder_pb2.DpAggregator.ADAPTIVE_GAUSSIAN,
+    )
+
+    training_process, eval_process, task_report = (
+        learning_process_utils.compose_iterative_processes(
+            model=test_utils.get_functional_model_without_metrics(),
+            learning_process=TEST_FL_SETUP,
+            dp_parameters=dp_parameters,
+            training_and_eval=False,
+            eval_only=False,
+            flags=task_builder_pb2.ExperimentFlags(),
+            task_report=task_builder_pb2.TaskReport(),
+        )
+    )
+    self.assertIsNotNone(training_process)
+    self.assertIsNotNone(training_process.initialize)
+    self.assertIsNotNone(training_process.next)
+    self.assertIsNotNone(training_process.get_model_weights)
+
+    self.assertIsNotNone(task_report)
+    self.assertEqual(
+        task_report.applied_algorithms.dp_aggregator,
+        task_builder_pb2.DpAggregator.ADAPTIVE_GAUSSIAN,
+    )
 
 
 if __name__ == '__main__':

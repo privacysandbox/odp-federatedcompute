@@ -12,8 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# debian/snapshot:stable-20231030
-FROM debian/snapshot@sha256:b70259f2e38475f8efa81edf37bec56a9c538172a53458776655e048d3fb468a
+# debian:stable-20250113
+FROM --platform=linux/amd64 debian@sha256:49b5c367b1f381be3fb5693e3500d2ef30d074b600dfa9132f742dc6d1c26dd2
+
+# Set debian sources to use debian snapshot for deterministic packages
+RUN echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/docker-snapshot.conf
+
+RUN echo '\
+Types: deb\n\
+URIs: http://snapshot.debian.org/archive/debian/20250113T000000Z\n\
+Suites: stable stable-updates\n\
+Components: main\n\
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg\n\
+\n\
+Types: deb\n\
+URIs: http://snapshot.debian.org/archive/debian-security/20250113T000000Z\n\
+Suites: stable-security\n\
+Components: main\n\
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg' > /etc/apt/sources.list.d/debian.sources
+
+# Increase reties and timeout to account for stability issues with debian snapshot
+RUN echo '\
+Acquire::Retries "10";\
+Acquire::https::Timeout "600";\
+Acquire::http::Timeout "600";\
+' > /etc/apt/apt.conf.d/99custom
 
 # Install packages and bazel dependencies.
 RUN apt-get update && apt-get install --no-install-recommends -y \
@@ -30,12 +53,12 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     jq
 
 # Install bazel.
-RUN wget -q https://github.com/bazelbuild/bazel/releases/download/7.3.2/bazel-7.3.2-installer-linux-x86_64.sh && \
-    chmod +x bazel-7.3.2-installer-linux-x86_64.sh && \
-    ./bazel-7.3.2-installer-linux-x86_64.sh && \
+RUN wget -q https://github.com/bazelbuild/bazel/releases/download/7.4.0/bazel-7.4.0-installer-linux-x86_64.sh && \
+    chmod +x bazel-7.4.0-installer-linux-x86_64.sh && \
+    ./bazel-7.4.0-installer-linux-x86_64.sh && \
     cd "/usr/local/lib/bazel/bin" && \
-    wget -q https://releases.bazel.build/7.3.2/release/bazel-7.3.2-linux-x86_64 && \
-    chmod +x bazel-7.3.2-linux-x86_64
+    wget -q https://releases.bazel.build/7.4.0/release/bazel-7.4.0-linux-x86_64 && \
+    chmod +x bazel-7.4.0-linux-x86_64
 ENV PATH="/usr/local/bin:$PATH"
 
 # Install clang+llvm.

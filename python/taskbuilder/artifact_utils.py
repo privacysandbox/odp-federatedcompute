@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from collections.abc import Callable
 import logging
 import traceback
 from typing import Optional
@@ -50,29 +49,29 @@ def build_artifacts(
   Raises: TaskBuilderException if any step fails, with an error message.
 
   Returns:
-      Server-side `Plan` that encapsulates all training instuctions for a task,
+      Server-side `Plan` that encapsulates all training instructions for a task,
       including model information and other metadata, such as report goal.
       Client-side `ClientOnlyPlan`, consumed by devices, is a device-side
       subset of `Plan`.
       Initial model weights of the model in bytes.
   """
-  logging.log(logging.INFO, 'Start building artifacts...')
+  logging.info('Start building artifacts...')
   plan = _build_plan(
       learning_process_comp=learning_process.next,
       dataspec=dataspec,
       use_daf=use_daf,
   )
-  logging.log(logging.INFO, 'Plan was built successfully.')
+  logging.info('Plan was built successfully.')
   client_plan = _build_client_plan(
       plan=plan,
       task=task,
       skip_flex_ops_check=flags.skip_flex_ops_check,
   )
-  logging.log(logging.INFO, 'ClientOnlyPlan was built successfully.')
+  logging.info('ClientOnlyPlan was built successfully.')
   checkpoint_bytes = _build_initial_server_checkpoint(
       initialize_comp=learning_process.initialize
   )
-  logging.log(logging.INFO, 'Initial checkpoint was built successfully.')
+  logging.info('Initial checkpoint was built successfully.')
   return plan, client_plan, checkpoint_bytes
 
 
@@ -84,20 +83,20 @@ def upload_artifacts(
     checkpoint_bytes: bytes,
 ):
   # check if URIs are valid, otherwise do not start building artifacts.
-  logging.log(logging.INFO, 'Validating format of returned URIs...')
+  logging.info('Validating format of returned URIs...')
   checkpoint_blobs = [
-      io_utils.parse_gcs_uri(client=client, uri=checkpoint_url)
+      io_utils.parse_gcs_uri(uri=checkpoint_url)
       for checkpoint_url in task.init_checkpoint_url
   ]
   plan_blobs = [
-      io_utils.parse_gcs_uri(client=client, uri=checkpoint_url)
+      io_utils.parse_gcs_uri(uri=checkpoint_url)
       for checkpoint_url in task.server_phase_url
   ]
   client_blobs = [
-      io_utils.parse_gcs_uri(client=client, uri=checkpoint_url)
+      io_utils.parse_gcs_uri(uri=checkpoint_url)
       for checkpoint_url in task.client_only_plan_url
   ]
-  logging.log(logging.INFO, 'URIs are validated.')
+  logging.info('URIs are validated.')
 
   for checkpoint_blob in checkpoint_blobs:
     io_utils.upload_content_to_gcs(
@@ -122,7 +121,7 @@ def _build_plan(
     use_daf: Optional[bool] = False,
     compact_graph: Optional[bool] = True,
 ) -> plan_pb2.Plan:
-  logging.log(logging.INFO, 'Start building plan...')
+  logging.info('Start building plan...')
   try:
     if use_daf:
       logging.log(
@@ -144,14 +143,14 @@ def _build_plan(
     )
 
     if compact_graph:
-      logging.log(logging.INFO, 'Compacting client graph...')
+      logging.info('Compacting client graph...')
       keep_names = _find_all_plan_client_names(plan)
       client_graph = tf.compat.v1.GraphDef()
       plan.client_graph_bytes.Unpack(client_graph)
       graph_compactor.compact_graph(client_graph, keep_names, options=None)
       plan.client_graph_bytes.Pack(client_graph)
 
-    logging.log(logging.INFO, 'Adding TFLite graph to the plan...')
+    logging.info('Adding TFLite graph to the plan...')
     return plan_utils.generate_and_add_flat_buffer_to_plan(plan)
   except Exception as e:
     logging.error('Building plan failed with error: %s', e)
@@ -168,10 +167,9 @@ def _remove_nones(a_list):
 def _get_names_for_tensorflow_spec(
     tensorflow_spec: plan_pb2.TensorflowSpec,
 ) -> list[str]:
-  """Returns all of the ops/tensors defined in a TensorflowSpec message."""
+  """Returns all the ops/tensors defined in a TensorflowSpec message."""
   assert isinstance(tensorflow_spec, plan_pb2.TensorflowSpec)
-  values = []
-  values.append(tensorflow_spec.dataset_token_tensor_name)
+  values = [tensorflow_spec.dataset_token_tensor_name]
   values.extend(spec.name for spec in tensorflow_spec.input_tensor_specs)
   values.extend(spec.name for spec in tensorflow_spec.output_tensor_specs)
   values.extend(node_name for node_name in tensorflow_spec.target_node_names)
@@ -179,7 +177,7 @@ def _get_names_for_tensorflow_spec(
 
 
 def _find_all_plan_client_names(plan: plan_pb2.Plan) -> list[str]:
-  """Returns all of the ops/tensors defined in client side of a Plan message."""
+  """Returns all the ops/tensors defined in client side of a Plan message."""
   values = []
   for phase in plan.phase:
     values.extend(
@@ -193,9 +191,9 @@ def _build_client_plan(
     task: task_pb2.Task,
     skip_flex_ops_check: Optional[bool] = False,
 ) -> plan_pb2.ClientOnlyPlan:
-  logging.log(logging.INFO, 'Start building ClientOnlyPlan...')
+  """Build ClientOnlyPlan from corresponding Plan proto."""
+  logging.info('Start building ClientOnlyPlan...')
   try:
-    """The ClientOnlyPlan corresponding to the Plan proto."""
     if not skip_flex_ops_check:
       min_version = support_ops_utils.validate_flex_ops(plan)
       task.min_client_version = min_version
@@ -221,7 +219,7 @@ def _build_client_plan(
 def _build_initial_server_checkpoint(
     initialize_comp: tff.Computation,
 ) -> bytes:
-  logging.log(logging.INFO, 'Start building initial checkpoint...')
+  logging.info('Start building initial checkpoint...')
   try:
     return tensorflow_checkpoints.build_initial_checkpoint_bytes(
         initialize_comp=initialize_comp

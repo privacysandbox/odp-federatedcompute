@@ -66,6 +66,7 @@ java_library(
         "@maven//:org_apache_httpcomponents_core5_httpcore5_h2",
         "@maven//:com_google_auth_google_auth_library_oauth2_http",
     ],
+    javacopts = ["-XepDisableAllChecks"],
     visibility = ["//visibility:public"],
 )
 

@@ -16,9 +16,6 @@
 
 package com.google.ondevicepersonalization.federatedcompute.shuffler.taskassignment.controllers;
 
-import com.google.internal.federatedcompute.v1.RejectionInfo;
-import com.google.internal.federatedcompute.v1.RejectionReason;
-import com.google.internal.federatedcompute.v1.RetryWindow;
 import com.google.ondevicepersonalization.federatedcompute.proto.CreateTaskAssignmentRequest;
 import com.google.ondevicepersonalization.federatedcompute.proto.CreateTaskAssignmentResponse;
 import com.google.ondevicepersonalization.federatedcompute.proto.ReportResultRequest;
@@ -26,7 +23,6 @@ import com.google.ondevicepersonalization.federatedcompute.proto.ReportResultRes
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.CompressionUtils.CompressionFormat;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.logging.ResponseProto;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.taskassignment.core.TaskAssignmentCore;
-import com.google.protobuf.Duration;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
@@ -50,7 +46,6 @@ public class TaskAssignmentController {
   static final String POPULATION_TAG = "population";
   static final String RESULT_TAG = "result";
   static final String RESULT_CREATED = "CREATED";
-  static final String RESULT_NO_TASK_AVAILABLE = "NO_TASK_AVAILABLE";
   private static final Logger logger = LoggerFactory.getLogger(TaskAssignmentController.class);
   private final TaskAssignmentCore taskAssignment;
   private final MeterRegistry meterRegistry;
@@ -68,41 +63,26 @@ public class TaskAssignmentController {
     final Timer.Sample sample = Timer.start();
     // All clients versions support uploading gzip gradient, and gzip is the only
     // compression format supported by server, hard code it to gzip for now
-    return taskAssignment
-        .createTaskAssignment(
-            populationName, request.getClientVersion().getVersionCode(), "", CompressionFormat.GZIP)
-        .map(
-            ta -> {
-              sample.stop(
-                  buildTimerWithPopulationAndResult(
-                      meterRegistry,
-                      CREATE_TASK_ASSIGNMENT_TIMER_NAME,
-                      populationName,
-                      RESULT_CREATED));
-              return ResponseEntity.status(HttpStatus.CREATED)
-                  .body(CreateTaskAssignmentResponse.newBuilder().setTaskAssignment(ta).build());
-            })
-        .orElseGet(
-            () -> {
-              sample.stop(
-                  buildTimerWithPopulationAndResult(
-                      meterRegistry,
-                      CREATE_TASK_ASSIGNMENT_TIMER_NAME,
-                      populationName,
-                      RESULT_NO_TASK_AVAILABLE));
-              // TODO(b/296670478): Decide good retry window values
-              return ResponseEntity.status(HttpStatus.OK)
-                  .body(
-                      CreateTaskAssignmentResponse.newBuilder()
-                          .setRejectionInfo(
-                              RejectionInfo.newBuilder()
-                                  .setReason(RejectionReason.Enum.NO_TASK_AVAILABLE)
-                                  .setRetryWindow(
-                                      RetryWindow.newBuilder()
-                                          .setDelayMin(Duration.newBuilder().setSeconds(60))
-                                          .setDelayMax(Duration.newBuilder().setSeconds(300))))
-                          .build());
-            });
+    CreateTaskAssignmentResponse response =
+        taskAssignment.createTaskAssignment(
+            populationName,
+            request.getClientVersion().getVersionCode(),
+            "",
+            CompressionFormat.GZIP);
+    if (response.hasRejectionInfo()) {
+      sample.stop(
+          buildTimerWithPopulationAndResult(
+              meterRegistry,
+              CREATE_TASK_ASSIGNMENT_TIMER_NAME,
+              populationName,
+              response.getRejectionInfo().getReason().getValueDescriptor().getName()));
+      return ResponseEntity.status(HttpStatus.OK).body(response);
+    } else {
+      sample.stop(
+          buildTimerWithPopulationAndResult(
+              meterRegistry, CREATE_TASK_ASSIGNMENT_TIMER_NAME, populationName, RESULT_CREATED));
+      return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
   }
 
   private Timer buildTimerWithPopulationAndResult(

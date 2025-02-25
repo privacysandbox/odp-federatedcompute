@@ -101,7 +101,7 @@ class TaskBuilderCoreTest(absltest.TestCase):
     # Update task min_client_version when build artifacts.
     self.assertEqual(training_task.min_client_version, '341912000')
     self.assertEqual(eval_task.min_client_version, '341812000')
-    # Clear different min_client_verison to compare task
+    # Clear different min_client_version to compare task
     training_task.min_client_version = ''
     eval_task.min_client_version = ''
     self.assertEqual(

@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from enum import Enum
 import functools
 from typing import Optional
@@ -20,7 +20,8 @@ from shuffler.proto import task_builder_pb2
 import tensorflow as tf
 import tensorflow_federated as tff
 
-"""Constants for Task Management APIs."""
+
+# Constants for Task Management APIs
 TASK_MANAGEMENT_V1 = '/taskmanagement/v1/population/'
 TASK_BUILDER_V1 = '/taskbuilder/v1'
 CREATE_TASK_ACTION = ':create-task'
@@ -37,7 +38,7 @@ ENV_KEY = 'ENV'
 TASK_MANAGEMENT_SERVER_URL_KEY = 'TASK_MANAGEMENT_SERVER_URL'
 GCP_PROJECT_ID_METADATA_KEY = 'project/project-id'
 
-"""Constants for building and uploading training artifacts."""
+# Constants for building and uploading training artifacts.
 MODEL_PATH = flags.DEFINE_string(
     name='saved_model',
     help='GCS URI to the SavedModel resource.',
@@ -121,7 +122,7 @@ CLIENT_PLAN_BUILDING_ERROR_MESSAGE = 'Cannot build the ClientOnlyPlan: '
 CHECKPOINT_BUILDING_ERROR_MESSAGE = 'Cannot build the initial checkpoint: '
 CONFIG_VALIDATOR_ERROR_PREFIX = '[Invalid task config]: '
 BAD_VALUE_ERROR_MSG = (
-    'key `{key_name}` has a bad value: `{value_name}` in `{entity_name}`.'
+    'key `{key_name}` has a bad value: `{value}` in `{entity_name}`.'
     ' {debug_msg}'
 )
 DP_ACCOUNTING_CHECK_ERROR_MSG = (
@@ -131,7 +132,15 @@ DP_ACCOUNTING_CHECK_ERROR_MSG = (
 LOADING_MODEL_ERROR_MESSAGE = 'Cannot load TFF functional model from {path}.'
 LOADING_CONFIG_ERROR_MESSAGE = 'Cannot load task config from {path}.'
 
-"""Constants for config validation and DP accounting."""
+# Constants for config validation and DP accounting.
+FIXED_DP_AGGREGATORS = {
+    task_builder_pb2.DpAggregator.FIXED_GAUSSIAN,
+    task_builder_pb2.DpAggregator.TREE_AGGREGATION,
+}
+ADAPTIVE_DP_AGGREGATORS = {
+    task_builder_pb2.DpAggregator.ADAPTIVE_GAUSSIAN,
+    task_builder_pb2.DpAggregator.ADAPTIVE_TREE,
+}
 TRAFFIC_WEIGHT_SCALE = 10000
 TRAINING_TRAFFIC_WEIGHT = 100
 DEFAULT_DP_EPSILON = 10
@@ -141,6 +150,8 @@ DEFAULT_DP_DELTA = 1 / DEFAULT_TOTAL_POPULATION
 DEFAULT_DP_NOISE = 0.0
 DEFAULT_BATCH_SIZE = 3
 DEFAULT_MAX_BATCH_PER_CLIENT = -1
+DEFAULT_CLIP_NORM = 1.0
+DEFAULT_INIT_CLIP_NORM = 0.1
 DEFAULT_EXAMPLE_SELECTOR = 'app://test_collection_train'
 
 METRICS_ALLOWLIST = {
@@ -234,11 +245,19 @@ class BlobId:
 
 @dataclass
 class DpParameter:
+
+  def __str__(self):
+    return 'DP Parameters: ' + ', '.join(
+        f'{field.name}={getattr(self, field.name)}' for field in fields(self)
+    )
+
   noise_multiplier: float
+  # can be either clip_norm or init_clip_norm
   dp_clip_norm: float
   dp_delta: float
   dp_epsilon: float
   num_training_rounds: int
+  dp_aggregator_type: task_builder_pb2.DpAggregator.Enum
 
 
 @dataclass

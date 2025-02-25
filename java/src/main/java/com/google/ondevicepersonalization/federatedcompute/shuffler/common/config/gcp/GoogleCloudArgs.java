@@ -219,4 +219,9 @@ public final class GoogleCloudArgs {
               + " a failure state.",
       validateWith = PositiveInteger.class)
   private Long aggregationBatchFailureThreshold;
+
+  @Parameter(
+      names = "--enable_aggregation_success_notifications",
+      description = "Enable success notifications for aggregation jobs.")
+  private Boolean enableAggregationSuccessNotifications;
 }

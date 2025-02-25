@@ -75,7 +75,6 @@ java_library(
         ":gcp_http_message_sender_config",
         "//java/src/main/java/com/google/ondevicepersonalization/federatedcompute/shuffler/common/messaging:http_message_sender",
         "@maven//:com_google_auth_google_auth_library_oauth2_http",
-        "@coordinator-services-and-shared-libraries//:error_utils",
         "@maven//:com_google_code_gson_gson",
         "@maven//:org_apache_httpcomponents_client5_httpclient5",
         "@maven//:org_apache_httpcomponents_core5_httpcore5",

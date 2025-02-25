@@ -17,7 +17,6 @@ import common
 import example_model
 from shuffler.proto import common_pb2
 from shuffler.proto import task_builder_pb2
-from shuffler.proto import task_pb2
 import tensorflow as tf
 import tensorflow_federated as tff
 

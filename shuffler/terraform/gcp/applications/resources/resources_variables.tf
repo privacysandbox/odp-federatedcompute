@@ -243,3 +243,9 @@ variable "enable_exactly_once_delivery" {
   description = "Enable exactly once delivery on pubsub subscriptions. Consider disabling for improved performance at the cost of potentially redelivered messages. https://cloud.google.com/pubsub/docs/exactly-once-delivery"
   type        = bool
 }
+
+variable "enable_aggregation_success_notifications" {
+  description = "Enable success notifications for aggregation jobs."
+  type        = bool
+}
+

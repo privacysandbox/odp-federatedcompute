@@ -72,6 +72,18 @@ public final class TaskAssignmentControllerTest {
           .setAggregationId("/population/us/task/13/iteration/9/attempt/2")
           .setTaskName("/population/us/task/13")
           .build();
+  private static final CreateTaskAssignmentResponse DEFAULT_TASK_ASSIGNMENT_RESPONSE =
+      CreateTaskAssignmentResponse.newBuilder().setTaskAssignment(DEFAULT_TASK_ASSIGNMENT).build();
+  private static final CreateTaskAssignmentResponse REJECTION_TASK_ASSIGNMENT_RESPONSE =
+      CreateTaskAssignmentResponse.newBuilder()
+          .setRejectionInfo(
+              RejectionInfo.newBuilder()
+                  .setReason(RejectionReason.Enum.CLIENT_VERSION_MISMATCH)
+                  .setRetryWindow(
+                      RetryWindow.newBuilder()
+                          .setDelayMin(Duration.newBuilder().setSeconds(86400))
+                          .setDelayMax(Duration.newBuilder().setSeconds(86400 * 2))))
+          .build();
   private static final CreateTaskAssignmentRequest REQUEST =
       CreateTaskAssignmentRequest.newBuilder()
           .setClientVersion(ClientVersion.newBuilder().setVersionCode("1.2.3.4"))
@@ -91,7 +103,7 @@ public final class TaskAssignmentControllerTest {
   public void testTimerMetrics_Success() {
     // arrange
     when(mockCore.createTaskAssignment(anyString(), anyString(), anyString(), any()))
-        .thenReturn(Optional.of(DEFAULT_TASK_ASSIGNMENT));
+        .thenReturn(DEFAULT_TASK_ASSIGNMENT_RESPONSE);
 
     // act
     ResponseEntity<CreateTaskAssignmentResponse> response =
@@ -108,7 +120,7 @@ public final class TaskAssignmentControllerTest {
   public void testCreateTaskAssignment_Success() {
     // arrange
     when(mockCore.createTaskAssignment(anyString(), anyString(), anyString(), any()))
-        .thenReturn(Optional.of(DEFAULT_TASK_ASSIGNMENT));
+        .thenReturn(DEFAULT_TASK_ASSIGNMENT_RESPONSE);
 
     // act
     ResponseEntity<CreateTaskAssignmentResponse> response =
@@ -133,25 +145,19 @@ public final class TaskAssignmentControllerTest {
   public void testCreateTaskAssignment_NoAssignment() {
     // arrange
     when(mockCore.createTaskAssignment(anyString(), anyString(), anyString(), any()))
-        .thenReturn(Optional.empty());
+        .thenReturn(REJECTION_TASK_ASSIGNMENT_RESPONSE);
 
     // act
     ResponseEntity<CreateTaskAssignmentResponse> response =
         controller.createTaskAssignment("us", REQUEST);
 
     // assert
-    assertThat(response.getBody())
-        .isEqualTo(
-            CreateTaskAssignmentResponse.newBuilder()
-                .setRejectionInfo(
-                    RejectionInfo.newBuilder()
-                        .setReason(RejectionReason.Enum.NO_TASK_AVAILABLE)
-                        .setRetryWindow(
-                            RetryWindow.newBuilder()
-                                .setDelayMin(Duration.newBuilder().setSeconds(60))
-                                .setDelayMax(Duration.newBuilder().setSeconds(300))))
-                .build());
+    assertThat(response.getBody()).isEqualTo(REJECTION_TASK_ASSIGNMENT_RESPONSE);
     assertThat(response.getStatusCode()).isEqualTo(HttpStatusCode.valueOf(200));
+    Timer timer = meterRegistry.find(CREATE_TASK_ASSIGNMENT_TIMER_NAME).timer();
+    assertThat(timer.count()).isEqualTo(1);
+    assertThat(timer.getId().getTag(POPULATION_TAG)).isEqualTo("us");
+    assertThat(timer.getId().getTag(RESULT_TAG)).isEqualTo("CLIENT_VERSION_MISMATCH");
     verify(mockCore)
         .createTaskAssignment(
             /* populationName= */ "us",

@@ -97,12 +97,13 @@ public class IterationEntity {
     // active
     COLLECTING(0L),
     AGGREGATING(1L),
-    COMPLETED(2L),
-    STOPPED(3L),
     APPLYING(4L),
-    POST_PROCESSED(5L),
 
-    // inactive
+    // Valid end states
+    COMPLETED(50L), // Previously (2L)
+    POST_PROCESSED(51L), // Previously (5L)
+
+    // inactive -- Failure end states
     CANCELED(101L),
     AGGREGATING_FAILED(102L),
     APPLYING_FAILED(103L);

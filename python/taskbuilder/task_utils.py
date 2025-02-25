@@ -122,14 +122,14 @@ def _create_eval_task(
   num_training_rounds = (
       task_config.policies.model_release_policy.num_max_training_rounds
   )
-  evalution_config = task_config.federated_learning.evaluation
-  eval_reporting_goal = evalution_config.report_goal
-  source_training_population = evalution_config.source_training_population
+  evaluation_config = task_config.federated_learning.evaluation
+  eval_reporting_goal = evaluation_config.report_goal
+  source_training_population = evaluation_config.source_training_population
   if not source_training_population:
     source_training_population = population_name
 
-  eval_over_selection_rate = evalution_config.over_selection_rate
-  checkpoint_selector_config = evalution_config.checkpoint_selector
+  eval_over_selection_rate = evaluation_config.over_selection_rate
+  checkpoint_selector_config = evaluation_config.checkpoint_selector
   if not checkpoint_selector_config:
     checkpoint_selector_config = 'every_1_round'
   temp = checkpoint_selector_config.split('_')
@@ -150,7 +150,7 @@ def _create_eval_task(
   eval_info = task_pb2.EvaluationInfo(
       check_point_selector=checkpoint_selector,
       training_population_name=source_training_population,
-      training_task_id=evalution_config.source_training_task_id,
+      training_task_id=evaluation_config.source_training_task_id,
   )
   return task_pb2.Task(
       population_name=population_name,
@@ -164,7 +164,7 @@ def _create_eval_task(
       max_client_version=common.DEFAULT_MAX_CLIENT_VERSION,
       info=task_pb2.TaskInfo(
           traffic_weight=_get_eval_traffic_weight(
-              evalution_config.evaluation_traffic
+              evaluation_config.evaluation_traffic
           ),
           evaluation_info=eval_info,
       ),

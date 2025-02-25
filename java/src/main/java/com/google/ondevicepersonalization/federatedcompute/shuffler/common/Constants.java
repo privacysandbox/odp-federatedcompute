@@ -42,6 +42,10 @@ public final class Constants {
   // The range must be [0, 99]
   public static final long MAX_ACTIVE_ASSIGNMENT_STATUS_CODE = 99;
 
+  // Active iteration status code should be less than 49.
+  // The range must be [0, 49]
+  public static final long MAX_ACTIVE_ITERATION_STATUS_CODE = 49;
+
   public static final long FIRST_ASSIGNMENT_STATUS_ID = 1;
 
   public static final long FIRST_ITERATION_STATUS_ID = 1;

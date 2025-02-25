@@ -41,10 +41,9 @@ view: iteration {
     sql: CASE
       WHEN ${TABLE}.Status = 0 THEN 'COLLECTING'
       WHEN ${TABLE}.Status = 1 THEN 'AGGREGATING'
-      WHEN ${TABLE}.Status = 2 THEN 'COMPLETED'
-      WHEN ${TABLE}.Status = 3 THEN 'STOPPED'
+      WHEN ${TABLE}.Status = 2 OR ${TABLE}.Status = 50 THEN 'COMPLETED'
       WHEN ${TABLE}.Status = 4 THEN 'APPLYING'
-      WHEN ${TABLE}.Status = 5 THEN 'POST_PROCESSED'
+      WHEN ${TABLE}.Status = 5 OR ${TABLE}.Status = 51 THEN 'POST_PROCESSED'
       WHEN ${TABLE}.Status = 101 THEN 'CANCELED'
       WHEN ${TABLE}.Status = 102 THEN 'AGGREGATING_FAILED'
       WHEN ${TABLE}.Status = 103 THEN 'APPLYING_FAILED'

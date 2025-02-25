@@ -476,3 +476,9 @@ variable "enable_exactly_once_delivery" {
   type        = bool
   default     = false
 }
+
+variable "enable_aggregation_success_notifications" {
+  description = "Enable success notifications for aggregation jobs."
+  type        = bool
+  default     = false
+}

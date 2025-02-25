@@ -33,6 +33,7 @@ import com.google.cloud.spanner.Value;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.AssignmentEntity;
+import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.CheckInResult;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.IterationEntity;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.IterationId;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao.TaskEntity;
@@ -45,6 +46,7 @@ import java.time.Instant;
 import java.time.InstantSource;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -77,8 +79,8 @@ public final class TaskSpannerDaoTest {
   private static final long TASK_OPEN = 0;
   private static final long TASK_CREATED = 2;
   private static final long TASK_COMPLETED = 1;
-  private static final String MIN_CLIENT_VERSION = "0.0.0.0";
-  private static final String MAX_CLIENT_VERSION = "3.0.0.0";
+  private static final String MIN_CLIENT_VERSION = "00000000";
+  private static final String MAX_CLIENT_VERSION = "99999999";
   private static final long MIN_AGGREGATION_SIZE = 1;
   private static final long MAX_AGGREGATION_SIZE = 2;
   private static final long ASSIGNED = AssignmentEntity.Status.ASSIGNED.code();
@@ -469,7 +471,7 @@ public final class TaskSpannerDaoTest {
                   /* populationName= */ "us",
                   /* taskId= */ 111,
                   /* iterationId= */ 9,
-                  /* status= */ 2,
+                  /* status= */ 50,
                   /* reportGoal= */ 300,
                   /* insertStatusHist= */ true);
               insertIteration(
@@ -526,7 +528,7 @@ public final class TaskSpannerDaoTest {
                   /* populationName= */ "us",
                   /* taskId= */ 111,
                   /* iterationId= */ 9,
-                  /* status= */ 2,
+                  /* status= */ 50,
                   /* reportGoal= */ 300,
                   /* insertStatusHist= */ true);
               insertIteration(
@@ -591,7 +593,7 @@ public final class TaskSpannerDaoTest {
                   /* populationName= */ "us",
                   /* taskId= */ 111,
                   /* iterationId= */ 9,
-                  /* status= */ 2,
+                  /* status= */ 50,
                   /* reportGoal= */ 300,
                   /* insertStatusHist= */ true);
               insertIteration(
@@ -618,7 +620,7 @@ public final class TaskSpannerDaoTest {
                     .iterationId(9)
                     .attemptId(0)
                     .reportGoal(300)
-                    .status(IterationEntity.Status.fromCode(2))
+                    .status(IterationEntity.Status.fromCode(50))
                     .baseIterationId(8)
                     .baseOnResultId(8)
                     .resultId(9)
@@ -654,7 +656,7 @@ public final class TaskSpannerDaoTest {
                   /* populationName= */ "us",
                   /* taskId= */ 111,
                   /* iterationId= */ 9,
-                  /* status= */ 2,
+                  /* status= */ 50,
                   /* reportGoal= */ 300,
                   /* insertStatusHist= */ true);
               return null;
@@ -694,6 +696,109 @@ public final class TaskSpannerDaoTest {
 
     // assert
     assertThat(iteration).isEqualTo(Optional.empty());
+  }
+
+  @Test
+  public void testCreateAndUpdateIteration_Succeeded() {
+    // arrange
+    dbClient
+        .readWriteTransaction()
+        .run(
+            transaction -> {
+              insertTask(
+                  transaction,
+                  "us",
+                  /* taskId= */ 111,
+                  /* status= */ 0,
+                  /* insertStatusHist= */ true);
+              insertIteration(
+                  transaction,
+                  /* populationName= */ "us",
+                  /* taskId= */ 111,
+                  /* iterationId= */ 1,
+                  /* status= */ 0,
+                  /* reportGoal= */ 300,
+                  /* insertStatusHist= */ true);
+              return null;
+            });
+    IterationEntity toCreated =
+        DEFAULT_ITERATION.toBuilder()
+            .iterationId(1)
+            .attemptId(2)
+            .status(IterationEntity.Status.fromCode(ITERATION_APPLYING))
+            .baseIterationId(3)
+            .baseOnResultId(4)
+            .reportGoal(333)
+            .resultId(5)
+            .aggregationLevel(0)
+            .build();
+    IterationEntity iter =
+        DEFAULT_ITERATION.toBuilder()
+            .populationName("us")
+            .taskId(111)
+            .iterationId(1)
+            .attemptId(0)
+            .build();
+    // act
+    boolean updated =
+        dao.createAndUpdateIteration(
+            toCreated, iter, iter.toBuilder().status(IterationEntity.Status.AGGREGATING).build());
+
+    // assert
+    assertThat(updated).isTrue();
+    assertThat(queryIterationById(toCreated.getId()).get().getStatus())
+        .isEqualTo(toCreated.getStatus());
+    assertThat(queryIterationStatusHistories(toCreated.getId()))
+        .isEqualTo(Arrays.asList(ITERATION_APPLYING));
+
+    // assert
+    assertThat(queryIterationById(iter.getId()).get().getStatus())
+        .isEqualTo(IterationEntity.Status.AGGREGATING);
+    assertThat(queryIterationStatusHistories(iter.getId()))
+        .isEqualTo(Arrays.asList(ITERATION_COLLECTING, ITERATION_AGGREGATING));
+  }
+
+  @Test
+  public void testCreateAndUpdateIteration_Failed() {
+    // arrange
+    dbClient
+        .readWriteTransaction()
+        .run(
+            transaction -> {
+              insertTask(
+                  transaction,
+                  "us",
+                  /* taskId= */ 111,
+                  /* status= */ 0,
+                  /* insertStatusHist= */ true);
+              return null;
+            });
+    IterationEntity toCreated =
+        DEFAULT_ITERATION.toBuilder()
+            .iterationId(1)
+            .attemptId(2)
+            .status(IterationEntity.Status.fromCode(ITERATION_APPLYING))
+            .baseIterationId(3)
+            .baseOnResultId(4)
+            .reportGoal(333)
+            .resultId(5)
+            .aggregationLevel(0)
+            .build();
+    IterationEntity iter =
+        DEFAULT_ITERATION.toBuilder()
+            .populationName("us")
+            .taskId(111)
+            .iterationId(1)
+            .attemptId(0)
+            .build();
+    // act
+    boolean updated =
+        dao.createAndUpdateIteration(
+            toCreated, iter, iter.toBuilder().status(IterationEntity.Status.AGGREGATING).build());
+
+    // assert
+    assertThat(updated).isFalse();
+    assertThat(queryIterationById(toCreated.getId()).isEmpty());
   }
 
   @Test
@@ -1456,7 +1561,7 @@ public final class TaskSpannerDaoTest {
                   /* populationName= */ "us",
                   /* taskId= */ 111,
                   /* iterationId= */ 9,
-                  /* status= */ 2,
+                  /* status= */ 50,
                   /* reportGoal= */ 300,
                   /* insertStatusHist= */ true);
               insertIteration(
@@ -1537,7 +1642,7 @@ public final class TaskSpannerDaoTest {
                   /* populationName= */ "us",
                   /* taskId= */ 111,
                   /* iterationId= */ 9,
-                  /* status= */ 2,
+                  /* status= */ 50,
                   /* reportGoal= */ 300,
                   /* insertStatusHist= */ true);
               insertIteration(
@@ -1602,7 +1707,7 @@ public final class TaskSpannerDaoTest {
                   /* populationName= */ "us",
                   /* taskId= */ 111,
                   /* iterationId= */ 9,
-                  /* status= */ 2,
+                  /* status= */ 50,
                   /* reportGoal= */ 300,
                   /* insertStatusHist= */ true);
               insertIteration(
@@ -1635,14 +1740,14 @@ public final class TaskSpannerDaoTest {
                   transaction,
                   "us",
                   /* taskId= */ 111,
-                  /* status= CANCELED */ 0,
+                  /* status= OPEN */ 0,
                   /* insertStatusHist= */ true);
               insertIteration(
                   transaction,
                   /* populationName= */ "us",
                   /* taskId= */ 111,
                   /* iterationId= */ 8,
-                  /* status= COMPLETED*/ 2,
+                  /* status= COMPLETED*/ 50,
                   /* reportGoal= */ 300,
                   /* insertStatusHist= */ true);
               insertIteration(
@@ -1674,14 +1779,14 @@ public final class TaskSpannerDaoTest {
                   transaction,
                   "us",
                   /* taskId= */ 111,
-                  /* status= CANCELED */ 0,
+                  /* status= OPEN */ 0,
                   /* insertStatusHist= */ true);
               insertIteration(
                   transaction,
                   /* populationName= */ "us",
                   /* taskId= */ 111,
                   /* iterationId= */ 8,
-                  /* status= COMPLETED*/ 2,
+                  /* status= COMPLETED*/ 50,
                   /* reportGoal= */ 300,
                   /* insertStatusHist= */ true);
               insertIteration(
@@ -1725,7 +1830,7 @@ public final class TaskSpannerDaoTest {
                   transaction,
                   "us",
                   /* taskId= */ 111,
-                  /* status= CANCELED */ 0,
+                  /* status= OPEN */ 0,
                   /* insertStatusHist= */ true);
               insertIteration(
                   transaction,
@@ -1757,7 +1862,7 @@ public final class TaskSpannerDaoTest {
                   transaction,
                   "us",
                   /* taskId= */ 222,
-                  /* status= CANCELED */ 0,
+                  /* status= OPEN */ 0,
                   /* insertStatusHist= */ true);
               insertIteration(
                   transaction,
@@ -1813,7 +1918,7 @@ public final class TaskSpannerDaoTest {
                   transaction,
                   "us",
                   /* taskId= */ 111,
-                  /* status= CANCELED */ 0,
+                  /* status= OPEN */ 0,
                   /* insertStatusHist= */ true);
               insertIteration(
                   transaction,
@@ -1827,7 +1932,7 @@ public final class TaskSpannerDaoTest {
                   transaction,
                   "us",
                   /* taskId= */ 222,
-                  /* status= CANCELED */ 0,
+                  /* status= OPEN */ 0,
                   /* insertStatusHist= */ true);
               insertIteration(
                   transaction,
@@ -1841,7 +1946,7 @@ public final class TaskSpannerDaoTest {
                   transaction,
                   "ca",
                   /* taskId= */ 123,
-                  /* status= CANCELED */ 0,
+                  /* status= OPEN */ 0,
                   /* insertStatusHist= */ true);
               insertIteration(
                   transaction,
@@ -1977,6 +2082,316 @@ public final class TaskSpannerDaoTest {
   }
 
   @Test
+  public void getAvailableCheckInsForPopulation_returnMultipleSuccess() {
+    // arrange
+    dbClient
+        .readWriteTransaction()
+        .run(
+            transaction -> {
+              insertTask(
+                  transaction,
+                  "us",
+                  /* taskId= */ 111,
+                  /* status= OPEN */ 0,
+                  /* insertStatusHist= */ true);
+              insertIteration(
+                  transaction,
+                  /* populationName= */ "us",
+                  /* taskId= */ 111,
+                  /* iterationId= */ 9,
+                  /* status= COLLECTING*/ 0,
+                  /* reportGoal= */ 300,
+                  /* insertStatusHist= */ true);
+              insertAssignment(
+                  transaction,
+                  /* populationName= */ "us",
+                  /* taskId= */ 111,
+                  /* iterationId= */ 9,
+                  /* sessionId */ "assignment-1",
+                  /* createdTime */ TS_NOW,
+                  /* active */ true,
+                  /* withStatusHistory */ true);
+              insertAssignment(
+                  transaction,
+                  /* populationName= */ "us",
+                  /* taskId= */ 111,
+                  /* iterationId= */ 9,
+                  /* sessionId */ "assignment-2",
+                  /* createdTime */ TS_NOW,
+                  /* active */ false,
+                  /* withStatusHistory */ true);
+              insertTask(
+                  transaction,
+                  "us",
+                  /* taskId= */ 222,
+                  /* status= OPEN */ 0,
+                  /* insertStatusHist= */ true);
+              insertIteration(
+                  transaction,
+                  /* populationName= */ "us",
+                  /* taskId= */ 222,
+                  /* iterationId= */ 5,
+                  /* status= COLLECTING*/ 0,
+                  /* reportGoal= */ 300,
+                  /* insertStatusHist= */ true);
+              insertAssignment(
+                  transaction,
+                  /* populationName= */ "us",
+                  /* taskId= */ 222,
+                  /* iterationId= */ 5,
+                  /* sessionId */ "assignment-1",
+                  /* createdTime */ TS_NOW,
+                  /* active */ true,
+                  /* withStatusHistory */ true);
+              return null;
+            });
+
+    // act
+    Map<IterationEntity, CheckInResult> iterations =
+        dao.getAvailableCheckInsForPopulation("us", MIN_CLIENT_VERSION);
+
+    // assert
+    ImmutableList<IterationId> iterationIds =
+        iterations.keySet().stream().map(i -> i.getId()).collect(toImmutableList());
+    assertThat(iterationIds)
+        .containsExactlyElementsIn(
+            ImmutableList.of(
+                IterationId.builder()
+                    .populationName("us")
+                    .taskId(111)
+                    .iterationId(9)
+                    .attemptId(0)
+                    .build(),
+                IterationId.builder()
+                    .populationName("us")
+                    .taskId(222)
+                    .iterationId(5)
+                    .attemptId(0)
+                    .build()));
+    Collection<CheckInResult> results = iterations.values();
+    assertThat(results)
+        .containsExactlyElementsIn(ImmutableList.of(CheckInResult.SUCCESS, CheckInResult.SUCCESS));
+  }
+
+  @Test
+  public void getAvailableCheckInsForPopulation_returnSingleSuccessSingleFull() {
+    // arrange
+    dbClient
+        .readWriteTransaction()
+        .run(
+            transaction -> {
+              insertTask(
+                  transaction,
+                  "us",
+                  /* taskId= */ 111,
+                  /* status= OPEN */ 0,
+                  /* insertStatusHist= */ true);
+              insertIteration(
+                  transaction,
+                  /* populationName= */ "us",
+                  /* taskId= */ 111,
+                  /* iterationId= */ 9,
+                  /* status= COLLECTING*/ 0,
+                  /* reportGoal= */ 1,
+                  /* insertStatusHist= */ true);
+              insertAssignment(
+                  transaction,
+                  /* populationName= */ "us",
+                  /* taskId= */ 111,
+                  /* iterationId= */ 9,
+                  /* sessionId */ "assignment-1",
+                  /* createdTime */ TS_NOW,
+                  /* active */ true,
+                  /* withStatusHistory */ true);
+              insertAssignment(
+                  transaction,
+                  /* populationName= */ "us",
+                  /* taskId= */ 111,
+                  /* iterationId= */ 9,
+                  /* sessionId */ "assignment-2",
+                  /* createdTime */ TS_NOW,
+                  /* active */ true,
+                  /* withStatusHistory */ true);
+              insertTask(
+                  transaction,
+                  "us",
+                  /* taskId= */ 222,
+                  /* status= OPEN */ 0,
+                  /* insertStatusHist= */ true);
+              insertIteration(
+                  transaction,
+                  /* populationName= */ "us",
+                  /* taskId= */ 222,
+                  /* iterationId= */ 5,
+                  /* status= COLLECTING*/ 0,
+                  /* reportGoal= */ 300,
+                  /* insertStatusHist= */ true);
+              insertAssignment(
+                  transaction,
+                  /* populationName= */ "us",
+                  /* taskId= */ 222,
+                  /* iterationId= */ 5,
+                  /* sessionId */ "assignment-1",
+                  /* createdTime */ TS_NOW,
+                  /* active */ true,
+                  /* withStatusHistory */ true);
+              return null;
+            });
+
+    // act
+    Map<IterationEntity, CheckInResult> iterations =
+        dao.getAvailableCheckInsForPopulation("us", MIN_CLIENT_VERSION);
+
+    // assert
+    ImmutableList<IterationId> iterationIds =
+        iterations.keySet().stream().map(i -> i.getId()).collect(toImmutableList());
+    assertThat(iterationIds)
+        .containsExactlyElementsIn(
+            ImmutableList.of(
+                IterationId.builder()
+                    .populationName("us")
+                    .taskId(111)
+                    .iterationId(9)
+                    .attemptId(0)
+                    .build(),
+                IterationId.builder()
+                    .populationName("us")
+                    .taskId(222)
+                    .iterationId(5)
+                    .attemptId(0)
+                    .build()));
+    Collection<CheckInResult> results = iterations.values();
+    assertThat(results)
+        .containsExactlyElementsIn(
+            ImmutableList.of(CheckInResult.SUCCESS, CheckInResult.ITERATION_FULL));
+  }
+
+  @Test
+  public void getAvailableCheckInsForPopulation_returnSingleMismatch() {
+    // arrange
+    dbClient
+        .readWriteTransaction()
+        .run(
+            transaction -> {
+              insertTask(
+                  transaction,
+                  "us",
+                  /* taskId= */ 111,
+                  /* status= OPEN */ 0,
+                  /* insertStatusHist= */ true);
+              insertIteration(
+                  transaction,
+                  /* populationName= */ "us",
+                  /* taskId= */ 111,
+                  /* iterationId= */ 9,
+                  /* status= COLLECTING*/ 0,
+                  /* reportGoal= */ 1,
+                  /* insertStatusHist= */ true);
+              return null;
+            });
+
+    // act
+    Map<IterationEntity, CheckInResult> iterations =
+        dao.getAvailableCheckInsForPopulation(
+            "us", String.valueOf(Long.parseLong(MAX_CLIENT_VERSION) + 1L));
+
+    // assert
+    ImmutableList<IterationId> iterationIds =
+        iterations.keySet().stream().map(i -> i.getId()).collect(toImmutableList());
+    assertThat(iterationIds)
+        .containsExactlyElementsIn(
+            ImmutableList.of(
+                IterationId.builder()
+                    .populationName("us")
+                    .taskId(111)
+                    .iterationId(9)
+                    .attemptId(0)
+                    .build()));
+    Collection<CheckInResult> results = iterations.values();
+    assertThat(results)
+        .containsExactlyElementsIn(ImmutableList.of(CheckInResult.CLIENT_VERSION_MISMATCH));
+  }
+
+  @Test
+  public void getAvailableCheckInsForPopulation_returnSingleNotOpen() {
+    // arrange
+    dbClient
+        .readWriteTransaction()
+        .run(
+            transaction -> {
+              insertTask(
+                  transaction,
+                  "us",
+                  /* taskId= */ 111,
+                  /* status= CANCELED */ 1,
+                  /* insertStatusHist= */ true);
+              insertIteration(
+                  transaction,
+                  /* populationName= */ "us",
+                  /* taskId= */ 111,
+                  /* iterationId= */ 9,
+                  /* status= AGGREGATING*/ 1,
+                  /* reportGoal= */ 1,
+                  /* insertStatusHist= */ true);
+              return null;
+            });
+
+    // act
+    Map<IterationEntity, CheckInResult> iterations =
+        dao.getAvailableCheckInsForPopulation(
+            "us", String.valueOf(Long.parseLong(MAX_CLIENT_VERSION) + 1L));
+
+    // assert
+    ImmutableList<IterationId> iterationIds =
+        iterations.keySet().stream().map(i -> i.getId()).collect(toImmutableList());
+    assertThat(iterationIds)
+        .containsExactlyElementsIn(
+            ImmutableList.of(
+                IterationId.builder()
+                    .populationName("us")
+                    .taskId(111)
+                    .iterationId(9)
+                    .attemptId(0)
+                    .build()));
+    Collection<CheckInResult> results = iterations.values();
+    assertThat(results)
+        .containsExactlyElementsIn(ImmutableList.of(CheckInResult.ITERATION_NOT_OPEN));
+  }
+
+  @Test
+  public void getAvailableCheckInsForPopulation_returnSingleNotActive() {
+    // arrange
+    dbClient
+        .readWriteTransaction()
+        .run(
+            transaction -> {
+              insertTask(
+                  transaction,
+                  "us",
+                  /* taskId= */ 111,
+                  /* status= CANCELED */ 1,
+                  /* insertStatusHist= */ true);
+              insertIteration(
+                  transaction,
+                  /* populationName= */ "us",
+                  /* taskId= */ 111,
+                  /* iterationId= */ 9,
+                  /* status= POST_PROCESSED*/ 51,
+                  /* reportGoal= */ 1,
+                  /* insertStatusHist= */ true);
+              return null;
+            });
+
+    // act
+    Map<IterationEntity, CheckInResult> iterations =
+        dao.getAvailableCheckInsForPopulation(
+            "us", String.valueOf(Long.parseLong(MAX_CLIENT_VERSION) + 1L));
+
+    // assert
+    assertThat(iterations).isEmpty();
+  }
+
+  @Test
   public void
       getIterationIdsPerEveryKIterationsSelector_hasValidTrainingIterations_returnCorrectOnes() {
     ImmutableList<Long> iterationIds = ImmutableList.of(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L);
@@ -1996,7 +2411,7 @@ public final class TaskSpannerDaoTest {
                   /* populationName= */ "us",
                   /* taskId= */ 111,
                   /* iterationIds= */ iterationIds,
-                  /* status= COMPLETED*/ 2,
+                  /* status= COMPLETED*/ 50,
                   /* reportGoal= */ 300,
                   /* insertStatusHist= */ true,
                   /* timestamp= */ TS_NOW);
@@ -2060,7 +2475,7 @@ public final class TaskSpannerDaoTest {
                   /* populationName= */ "us",
                   /* taskId= */ 111,
                   /* iterationIds= */ iterationIds,
-                  /* status= COMPLETED*/ 2,
+                  /* status= COMPLETED*/ 50,
                   /* reportGoal= */ 300,
                   /* insertStatusHist= */ true,
                   past25Hours);
@@ -2096,7 +2511,7 @@ public final class TaskSpannerDaoTest {
                   transaction,
                   /* populationName= */ "us",
                   /* taskId= */ 111,
-                  /* status= COMPLETED*/ 2,
+                  /* status= COMPLETED*/ 50,
                   /* reportGoal= */ 300,
                   true,
                   iterationIdTimestampMap);
@@ -2156,7 +2571,7 @@ public final class TaskSpannerDaoTest {
                   transaction,
                   /* populationName= */ "us",
                   /* taskId= */ 111,
-                  /* status= COMPLETED*/ 2,
+                  /* status= COMPLETED*/ 50,
                   /* reportGoal= */ 300,
                   true,
                   iterationIdTimestampMap);
