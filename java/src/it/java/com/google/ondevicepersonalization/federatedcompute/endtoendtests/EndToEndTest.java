@@ -170,7 +170,7 @@ public final class EndToEndTest {
                                 EveryKIterationsCheckpointSelector.newBuilder()
                                     .setSize(endToEndArgs.getEvalEveryKIteration())))
                     .build();
-            endToEndTest.createEvaluationTask(endToEndArgs.getPopulationName(), evaluationInfo);
+            endToEndTest.createEvaluationTask(endToEndArgs.getEvalTrainingPopulationName(), evaluationInfo);
             break;
           }
         case RUN_TASK:

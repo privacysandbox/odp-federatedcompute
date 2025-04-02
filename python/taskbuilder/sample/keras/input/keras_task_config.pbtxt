@@ -1,0 +1,37 @@
+# Task Configuration in pbtxt format
+  mode: TRAINING_AND_EVAL  # Task execution mode
+  population_name: "keras_example_int64_task_builder"  # Dataset name
+  use_daf: true # Use Distributed aggregated form
+
+  # Policies
+  policies {
+    min_separation_policy {
+      minimum_separation: 0  # Minimum distance between examples
+    }
+    data_availability_policy {
+      min_example_count: 1  # Minimum examples required
+    }
+    model_release_policy {
+      num_max_training_rounds: 1000
+    }
+  }
+
+  # Federated Learning Configuration
+  federated_learning {
+    learning_process {
+      client_learning_rate: 0.1
+      server_learning_rate: 1.0
+      runtime_config { report_goal: 2 }  # Reporting frequency
+    }
+    evaluation {
+      source_training_task_id: 1
+      checkpoint_selector: "every_1_round"
+      evaluation_traffic: 0.2
+      report_goal: 2
+    }
+  }
+
+  # Differential Privacy Configuration
+  differential_privacy {
+    clip_norm: 0.1
+  }

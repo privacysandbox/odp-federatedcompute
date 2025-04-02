@@ -19,6 +19,8 @@ package com.google.ondevicepersonalization.federatedcompute.shuffler.common.dao;
 import com.google.ondevicepersonalization.federatedcompute.proto.EvaluationInfo;
 import com.google.ondevicepersonalization.federatedcompute.proto.IterationInfo;
 import com.google.ondevicepersonalization.federatedcompute.shuffler.common.ProtoParser;
+
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -56,6 +58,20 @@ public class IterationEntity {
         .iterationId(iterationId)
         .attemptId(attemptId)
         .build();
+  }
+
+  @Getter
+  @EqualsAndHashCode
+  @Builder(toBuilder = true)
+  static class StatusHistory {
+    private String populationName;
+    private long taskId;
+    private long iterationId;
+    private long attemptId;
+    private long statusId;
+    private Status status;
+    private Instant createdTime;
+    private long aggregationLevel;
   }
 
   /**

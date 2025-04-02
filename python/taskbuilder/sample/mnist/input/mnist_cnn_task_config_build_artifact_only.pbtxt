@@ -1,4 +1,4 @@
-# Task Configuration in pbtxt format 
+# Task Configuration in pbtxt format
   mode: TRAINING_AND_EVAL  # Task execution mode
   population_name: "mnist_cnn_task"
   # Policies
@@ -7,7 +7,7 @@
       minimum_separation: 0  # Minimum distance between examples
     }
     data_availability_policy {
-      min_example_count: 1  # Minimum examples required 
+      min_example_count: 1  # Minimum examples required
     }
     model_release_policy {
       num_max_training_rounds: 512
@@ -22,7 +22,7 @@
       server_optimizer: SGD
       server_learning_rate: 1.0
       runtime_config {
-	report_goal: 2
+        report_goal: 2
       }
       metrics {
         name: "sparse_categorical_accuracy"

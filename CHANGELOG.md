@@ -1,5 +1,14 @@
 # Changelog
 
+## [v0.7.1]
+
+- Fixed api_key based auth in TaskBuilder Client to no longer attempt to generate a Bearer token.
+- Small cleanup and fixes to terraform and taskbuilder.
+- Additional logging added to Collector.
+- Add pointer to [OnDevicePersonalization E2E tutorial](BUILDING.md#L53).
+- Add new [Keras model sample](python/taskbuilder/sample/keras) for Python TaskBuilder
+- Update [Java sample artifacts](java/src/it/java/com/google/ondevicepersonalization/federatedcompute/endtoendtests/resources) to use the Keras model from TaskBuilder [sample](python/taskbuilder/sample/keras).
+
 ## [v0.7.0]
 
 ### Changes

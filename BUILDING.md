@@ -17,12 +17,12 @@ Images can be built using the provided script
 The expected output for images built within the provided [Dockerfile](Dockerfile):
 ```
 bazel-bin/shuffler/services/aggregator/aggregator_image/index.json:      "digest": "sha256:a9cdcadff8b1c5c4d4225a129428dd86b65e75be80df48c6b3aecc8b68b46e30"
-bazel-bin/shuffler/services/collector/collector_image/index.json:      "digest": "sha256:d5eca9963f3ca1d722fd1d9c6f689badf1bbb9d06a020b14e21a80458b3a8b68"
+bazel-bin/shuffler/services/collector/collector_image/index.json:      "digest": "sha256:51e50b4984af0f06143f92d62e70ca2d68af50747d26649d0e492f0070765440"
 bazel-bin/shuffler/services/modelupdater/model_updater_image/index.json:      "digest": "sha256:b0bc213e4cb34c99525345b1d544371ce5c9d647ec08405a9ca96d61e0b272fa"
-bazel-bin/shuffler/services/taskassignment/task_assignment_image/index.json:      "digest": "sha256:6cabefa2a45c8a8240b7a813bd799ff2979ee97ff18831a083c383da114d6fee"
-bazel-bin/shuffler/services/taskbuilder/task_builder_image/index.json:      "digest": "sha256:5d6424e86e07e8f38d015959a5157f662e5d229e6c901849105b798b666af38e"
-bazel-bin/shuffler/services/taskmanagement/task_management_image/index.json:      "digest": "sha256:dc5405620fcc2299bbd9e6efed217ffbd46a58f0a7365e8e31b7b5d0f5698932"
-bazel-bin/shuffler/services/taskscheduler/task_scheduler_image/index.json:      "digest": "sha256:9a475248ddd5f8498b300047f6a6f2955b0ccb099472869ebebbfc6795efa96b"
+bazel-bin/shuffler/services/taskassignment/task_assignment_image/index.json:      "digest": "sha256:6b5d42272b07a62dd42eca1f7d36f2da4a4b483cafef142c607a7002abaa0cda"
+bazel-bin/shuffler/services/taskbuilder/task_builder_image/index.json:      "digest": "sha256:30d687c11d143efa2ad48d1080f5b5d6f7eed7d119501304ab95c19026cb8bc1"
+bazel-bin/shuffler/services/taskmanagement/task_management_image/index.json:      "digest": "sha256:feff80bace0d49effe07e0277e56a90a2d958b06859414988e82239023957a14"
+bazel-bin/shuffler/services/taskscheduler/task_scheduler_image/index.json:      "digest": "sha256:d66aa68a48386243fac930d1d583ea00d693ff4f07e175c66fa021e70615d3f1"
 ```
 
 ## Publishing
@@ -49,3 +49,6 @@ Instructions on building artifacts can be found [here](python/taskbuilder/README
 GCP Infrastructure deployment instructions are provided [here](shuffler/terraform/gcp/README.md).
 
 The server can then be reached using the [EndToEnd client](java/src/it/java/com/google/ondevicepersonalization/federatedcompute/endtoendtests/README.md).
+
+## Android Device E2E
+A tutorial on running a full E2E with an Android device is provided [here](https://github.com/privacysandbox/ondevicepersonalization/OdpSamples/federated-learning.md).

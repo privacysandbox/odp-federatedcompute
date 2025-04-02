@@ -40,7 +40,7 @@ def build_task_group():
   )
   return Response(
       build_task_group_response.SerializeToString(),
-      content_type=common.PROROBUF_HEADERS['Content-Type'],
+      content_type=common.PROTOBUF_HEADERS['Content-Type'],
   )
 
 
@@ -60,7 +60,7 @@ def build_artifacts():
   )
   return Response(
       build_task_group_response.SerializeToString(),
-      content_type=common.PROROBUF_HEADERS['Content-Type'],
+      content_type=common.PROTOBUF_HEADERS['Content-Type'],
   )
 
 

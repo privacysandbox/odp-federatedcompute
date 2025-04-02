@@ -28,7 +28,7 @@ CREATE_TASK_ACTION = ':create-task'
 CANCEL_TASK_ACTION = ':cancel'
 BUILD_TASK_GROUP_ACTION = ':build-task-group'
 BUILD_ARTIFACT_ONLY_ACTION = ':build-artifacts'
-PROROBUF_HEADERS = {'Content-Type': 'application/x-protobuf'}
+PROTOBUF_HEADERS = {'Content-Type': 'application/x-protobuf'}
 VM_METADATA_HEADERS = {'Metadata-Flavor': 'Google'}
 
 COMPUTE_METADATA_SERVER = 'http://metadata.google.internal/computeMetadata/v1'

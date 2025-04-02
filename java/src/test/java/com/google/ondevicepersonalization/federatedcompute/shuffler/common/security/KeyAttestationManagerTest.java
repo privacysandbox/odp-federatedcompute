@@ -17,6 +17,7 @@
 package com.google.ondevicepersonalization.federatedcompute.shuffler.common.security;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -25,12 +26,14 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
+import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.core5.http.io.entity.StringEntity;
@@ -38,6 +41,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -71,6 +75,7 @@ public class KeyAttestationManagerTest {
   @Mock CloseableHttpResponse mockResponse;
 
   KeyAttestationManager kaMgr;
+  ArgumentCaptor<HttpPost> postArgumentCaptor;
 
   private static final String FILE_SUFFIX = "java/src/test/java/resources/";
 
@@ -93,6 +98,7 @@ public class KeyAttestationManagerTest {
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
+    postArgumentCaptor = ArgumentCaptor.forClass(HttpPost.class);
     kaMgr =
         new KeyAttestationManager(Optional.of(URI), Optional.of(API_KEY), mockClient, true, false);
   }
@@ -105,7 +111,12 @@ public class KeyAttestationManagerTest {
 
     byte[] challenge = kaMgr.fetchChallenge();
     assertArrayEquals(challenge, Base64.getDecoder().decode(CHALLENGE));
-    verify(mockClient, times(1)).execute(any());
+    verify(mockClient, times(1)).execute(postArgumentCaptor.capture());
+    String requestBody =
+        new String(postArgumentCaptor.getValue().getEntity().getContent().readAllBytes());
+    assertEquals(
+        JsonParser.parseString("{\"ttl\": {\"seconds\": 3600}}"),
+        JsonParser.parseString(requestBody));
   }
 
   @Test
@@ -127,7 +138,15 @@ public class KeyAttestationManagerTest {
     boolean isVerified = kaMgr.isAttestationRecordVerified(ATTESTATION_RECORD);
 
     assertTrue(isVerified);
-    verify(mockClient, times(1)).execute(any());
+    verify(mockClient, times(1)).execute(postArgumentCaptor.capture());
+    String requestBody =
+        new String(postArgumentCaptor.getValue().getEntity().getContent().readAllBytes());
+    assertEquals(
+        JsonParser.parseString(
+            "{\"keyAttestationCertificateChain\": "
+                + ATTESTATION_RECORD
+                + ", \"internalChallengeTtl\": {\"seconds\": 3600}}"),
+        JsonParser.parseString(requestBody));
   }
 
   @Test

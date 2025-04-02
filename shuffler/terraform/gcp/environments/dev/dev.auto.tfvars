@@ -32,6 +32,7 @@ spanner_instance_config = "regional-us-central1"
 aggregator_image      = "<location>/<project>/<repository>/<image>:<tag or digest>"
 model_updater_image   = "<location>/<project>/<repository>/<image>:<tag or digest>"
 task_management_image = "<location>/<project>/<repository>/<image>:<tag or digest>"
+task_builder_image    = "<location>/<project>/<repository>/<image>:<tag or digest>"
 
 # Coordinator Configuration
 allowed_operator_service_accounts = "ca-opallowedusr@dev-env.iam.gserviceaccount.com,cb-opallowedusr@dev-env.iam.gserviceaccount.com"
