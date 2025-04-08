@@ -52,7 +52,8 @@ public class KeyAttestationManager {
   private final CloseableHttpClient httpClient;
   private final Boolean allowRootedDevices;
 
-  private static final String CHALLENGE_BODY = "{\"ttl\": {\"seconds\": 3600}}";
+  private static final String CHALLENGE_TTL = "{\"seconds\": 3600}";
+  private static final String CHALLENGE_BODY = String.format("{\"ttl\": %s}", CHALLENGE_TTL);
 
   @Autowired
   public KeyAttestationManager(
@@ -129,6 +130,7 @@ public class KeyAttestationManager {
       verifyRequestJson.add(
           "keyAttestationCertificateChain",
           JsonParser.parseString(attestationRecord).getAsJsonArray());
+      verifyRequestJson.add("internalChallengeTtl", JsonParser.parseString(CHALLENGE_TTL));
       logger.debug(
           "Sending request to KAVS server for verification with entity: "
               + verifyRequestJson.toString());

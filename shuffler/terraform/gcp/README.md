@@ -75,7 +75,8 @@ terraform plan
 terraform apply -auto-approve -var='initial_deployment=true'
 terraform apply -auto-approve
 ```
-Note that the deployment requires two separate terraform applies. One for initial deployment and one for following deployment.
+Note that the deployment requires two separate terraform applies. One for initial deployment and one for following deployment. If the initial deployment is not done first, you may run into errors and need to manually delete the task-builder cloud run in GCP before re-applying.
+
 9. Retrieve and save output for the following for the following deployments
    - Cluster:
      - `static_ip_name`
@@ -90,6 +91,8 @@ Note that the deployment requires two separate terraform applies. One for initia
 ```bash
 terraform output -json
 ```
+
+10. Aggregator and Model Updater deployment failures will not be visible from Terraform. They can be validated by viewing the logs in of the VMs in Compute Engine and ensuring the instance group shows "ready".
 
 ### Deploy Cluster Infrastructure
 

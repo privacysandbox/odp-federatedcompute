@@ -37,14 +37,14 @@ def task_builder_request_handler(
     endpoint = http_utils.get_task_builder_endpoint(
         request_type=common.RequestType.BUILD_ARTIFACT_ONLY
     )
-  if common.API_KEY.value is not None:
-    endpoint = endpoint + '?key=' + common.API_KEY.value
-  logging.log(logging.INFO, 'Send HTTP request to: ' + endpoint)
   try:
-    headers = common.PROROBUF_HEADERS
-    if common.IMPERSONATE_SERVICE_ACCOUNT.value is None:
+    headers = common.PROTOBUF_HEADERS
+    if common.API_KEY.value is not None:
+      endpoint = endpoint + '?key=' + common.API_KEY.value
+    elif common.IMPERSONATE_SERVICE_ACCOUNT.value is None:
       logging.log(logging.INFO, 'Retrieving id token from metadata server.')
       access_token = http_utils.get_idtoken_from_metadata_server(endpoint)
+      headers['Authorization'] = f'Bearer {access_token}'
     else:
       logging.log(
           logging.INFO,
@@ -54,7 +54,8 @@ def task_builder_request_handler(
       access_token = get_id_token_from_adc(
           common.IMPERSONATE_SERVICE_ACCOUNT.value, endpoint
       )
-    headers['Authorization'] = f'Bearer {access_token}'
+      headers['Authorization'] = f'Bearer {access_token}'
+    logging.log(logging.INFO, 'Send HTTP request to: ' + endpoint)
     response = requests.post(
         url=endpoint,
         data=request.SerializeToString(),

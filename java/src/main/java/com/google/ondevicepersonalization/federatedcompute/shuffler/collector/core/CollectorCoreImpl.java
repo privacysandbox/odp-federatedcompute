@@ -336,7 +336,7 @@ public class CollectorCoreImpl implements CollectorCore {
         } finally {
           lock.unlock();
           Duration duration = Duration.between(startTime, instantSource.instant());
-          logger.info(
+          logger.debug(
               "processing completed in {} second for iteration in status {} level {}.",
               duration.getSeconds(),
               iteration.getStatus(),
@@ -380,7 +380,8 @@ public class CollectorCoreImpl implements CollectorCore {
                 iteration.getAggregationLevel() - 1,
                 AggregationBatchEntity.Status.PUBLISH_COMPLETED,
                 Optional.empty()));
-    Sets.intersection(allUploadedBatchIds, allPublishCompleted).stream()
+    Set<String> uploadCompleteBatches = Sets.intersection(allUploadedBatchIds, allPublishCompleted);
+    uploadCompleteBatches.stream()
         .parallel()
         .forEach(
             (batchId) -> {
@@ -400,7 +401,9 @@ public class CollectorCoreImpl implements CollectorCore {
                   from,
                   from.toBuilder().status(AggregationBatchEntity.Status.UPLOAD_COMPLETED).build());
             });
-
+    logger.info(
+        "Updated {} batches from PUBLISH_COMPLETED to UPLOAD_COMPLETED",
+        uploadCompleteBatches.size());
     // Count all publish_completed.
     long publishedAssignments =
         aggregationBatchDao.querySumOfAggregationBatchesOfStatus(
@@ -426,6 +429,12 @@ public class CollectorCoreImpl implements CollectorCore {
           iteration, iteration.toBuilder().status(Status.APPLYING).aggregationLevel(2).build())) {
         logger.warn(
             "Failed to update iteration {} from {} to {}",
+            iteration.getId().toString(),
+            iteration.getStatus(),
+            Status.APPLYING);
+      } else {
+        logger.info(
+            "Updated iteration {} from {} to {}",
             iteration.getId().toString(),
             iteration.getStatus(),
             Status.APPLYING);
@@ -482,14 +491,22 @@ public class CollectorCoreImpl implements CollectorCore {
               .map(CollectorCoreImpl::trimSlash)
               .collect(Collectors.toSet());
 
+      List<String> uploadedAssignments =
+          new ArrayList<>(
+              new TreeSet<>(Sets.intersection(allUploadedAssignmentIds, allLocalCompleted)));
       List<String> leftoverAssignments =
           partitionAndBatchAssignments(
               iteration,
-              new ArrayList<>(
-                  new TreeSet<>(Sets.intersection(allUploadedAssignmentIds, allLocalCompleted))),
+              uploadedAssignments,
               partition,
               /* from= */ AssignmentEntity.Status.LOCAL_COMPLETED,
               /* to= */ AssignmentEntity.Status.UPLOAD_COMPLETED);
+      int updatedAssignmentCount = uploadedAssignments.size() - leftoverAssignments.size();
+      if (updatedAssignmentCount > 0) {
+        logger.info(
+                "Updated {} assignments from LOCAL_COMPLETED to UPLOAD_COMPLETED",
+                updatedAssignmentCount);
+      }
       batchUpdateAssignments(
           /* iteration= */ iteration,
           /* assignmentIds= */ leftoverAssignments,
@@ -622,6 +639,12 @@ public class CollectorCoreImpl implements CollectorCore {
             iteration.getId().toString(),
             iteration.getStatus(),
             Status.AGGREGATING);
+      } else {
+        logger.info(
+            "Updated iteration {} from {} to {}",
+            iteration.getId().toString(),
+            iteration.getStatus(),
+            Status.AGGREGATING);
       }
     }
     return publishedAssignments;
@@ -697,6 +720,12 @@ public class CollectorCoreImpl implements CollectorCore {
         logger.warn(
             "Failed to update {} assignment statuses from {} to {}.",
             assignmentIdStrings.size() - updates,
+            from,
+            to);
+      } else {
+        logger.info(
+            "Updated {} assignment statuses from {} to {}.",
+            updates,
             from,
             to);
       }

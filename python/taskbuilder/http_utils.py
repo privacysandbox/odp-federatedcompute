@@ -57,7 +57,7 @@ def create_task(
 ) -> task_pb2.CreateTaskResponse:
   logging.log(logging.INFO, 'Send HTTP request to: ' + endpoint)
   try:
-    headers = common.PROROBUF_HEADERS
+    headers = common.PROTOBUF_HEADERS
     if access_token:
       headers['Authorization'] = f'Bearer {access_token}'
     response = requests.post(

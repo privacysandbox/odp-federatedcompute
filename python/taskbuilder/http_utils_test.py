@@ -93,7 +93,7 @@ class CreateTaskTest(absltest.TestCase):
         CREATE_TASK_ENDPOINT,
         body='bad-content',
         status=http.HTTPStatus.OK,
-        adding_headers=common.PROROBUF_HEADERS,
+        adding_headers=common.PROTOBUF_HEADERS,
     )
     with self.assertRaisesWithLiteralMatch(
         common.TaskBuilderException, common.DECODE_ERROR_MSG
@@ -111,7 +111,7 @@ class CreateTaskTest(absltest.TestCase):
         CREATE_TASK_ENDPOINT,
         body=response_bytes,
         status=http.HTTPStatus.OK,
-        adding_headers=common.PROROBUF_HEADERS,
+        adding_headers=common.PROTOBUF_HEADERS,
     )
     result = http_utils.create_task(CREATE_TASK_ENDPOINT, request)
     self.assertIsInstance(task_pb2.CreateTaskResponse(), type(result))
@@ -128,7 +128,7 @@ class CreateTaskTest(absltest.TestCase):
         CREATE_TASK_ENDPOINT,
         body=response_bytes,
         status=http.HTTPStatus.OK,
-        adding_headers=common.PROROBUF_HEADERS,
+        adding_headers=common.PROTOBUF_HEADERS,
     )
     task_group = (
         task_pb2.Task(population_name='test'),
@@ -152,7 +152,7 @@ class CreateTaskTest(absltest.TestCase):
         CREATE_TASK_ENDPOINT,
         body=response_bytes,
         status=http.HTTPStatus.OK,
-        adding_headers=common.PROROBUF_HEADERS,
+        adding_headers=common.PROTOBUF_HEADERS,
     )
     task_group = (
         task_pb2.Task(population_name='test'),

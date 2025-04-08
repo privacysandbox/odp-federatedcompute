@@ -43,6 +43,20 @@ public class AssignmentEntity {
   long baseOnResultId;
   long resultId;
 
+  @Getter
+  @EqualsAndHashCode
+  @Builder(toBuilder = true)
+  static class StatusHistory {
+    private String populationName;
+    private long taskId;
+    private long iterationId;
+    private long attemptId;
+    private String sessionId;
+    private long statusId;
+    private Status status;
+    private Instant createdTime;
+    private String batchId;
+  }
   /** The assignment status. */
   public enum Status {
     // Active status
