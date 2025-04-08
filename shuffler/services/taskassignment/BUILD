@@ -43,7 +43,7 @@ oci_push(
     name = "task_assignment_image_publish",
     image = ":task_assignment_image",
     remote_tags = ["latest"],
-    repository = "<registry>/<ORG>/task_assignment_image",
+    repository = "europe-west4-docker.pkg.dev/jetbrains-fed-compute/odp/task_assignment_image",
 )
 
 # Run a local container with:

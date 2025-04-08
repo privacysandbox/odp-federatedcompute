@@ -54,7 +54,7 @@ oci_push(
     name = "model_updater_image_publish",
     image = ":model_updater_image",
     remote_tags = ["latest"],
-    repository = "<registry>/<ORG>/model_updater_image",
+    repository = "europe-west2-docker.pkg.dev/jetbrains-fed-compute/odp-w2/model_updater_image",
 )
 
 # Run a local container with:

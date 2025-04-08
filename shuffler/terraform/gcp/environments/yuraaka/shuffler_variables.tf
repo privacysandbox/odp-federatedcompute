@@ -1,0 +1,1 @@
+../shared/shuffler_variables.tf

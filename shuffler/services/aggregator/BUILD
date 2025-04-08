@@ -39,7 +39,8 @@ oci_image(
     ],
     # Set ENCRYPTION_OPTS to below to disable encryption for local dev. Note this will change the resulting hash.
     # "--public_key_service_base_url 'https://publickeyservice.odp.gcp.privacysandboxservices.com/.well-known/odp/v1/public-keys' --should_encrypt_aggregator_output 'false'"
-    env = {"ENCRYPTION_OPTS": "--public_key_service_base_url 'https://publickeyservice.odp.gcp.privacysandboxservices.com/.well-known/odp/v1/public-keys'"},
+    # env = {"ENCRYPTION_OPTS": "--public_key_service_base_url 'https://publickeyservice.odp.gcp.privacysandboxservices.com/.well-known/odp/v1/public-keys'"},
+    env = {"ENCRYPTION_OPTS": "--public_key_service_base_url 'https://publickeyservice.odp.gcp.privacysandboxservices.com/.well-known/odp/v1/public-keys' --should_encrypt_aggregator_output 'false'"},
     exposed_ports = ["8082/tcp"],
     labels = {
         "tee.launch_policy.allow_env_override": "FCP_OPTS",
@@ -58,7 +59,7 @@ oci_push(
     name = "aggregator_image_publish",
     image = ":aggregator_image",
     remote_tags = ["latest"],
-    repository = "<registry>/<ORG>/aggregator_image",
+    repository = "europe-west2-docker.pkg.dev/jetbrains-fed-compute/odp-w2/aggregator_image",
 )
 
 # Run a local container with:

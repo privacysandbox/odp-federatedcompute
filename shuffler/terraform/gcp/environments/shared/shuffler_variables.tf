@@ -69,7 +69,7 @@ variable "cluster_service_account" {
 variable "cluster_deletion_protection" {
   description = "Whether or not to allow Terraform to destroy the cluster."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "model_bucket_force_destroy" {
@@ -166,7 +166,7 @@ variable "metric_spanner_processing_units" {
 variable "spanner_database_deletion_protection" {
   description = "Prevents destruction of the Spanner database."
   type        = bool
-  default     = true
+  default     = false
 }
 
 # Service input variables

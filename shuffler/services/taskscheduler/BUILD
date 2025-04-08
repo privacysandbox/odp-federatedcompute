@@ -46,7 +46,7 @@ oci_push(
     name = "task_scheduler_image_publish",
     image = ":task_scheduler_image",
     remote_tags = ["latest"],
-    repository = "<registry>/<ORG>/task_scheduler_image",
+    repository = "europe-west4-docker.pkg.dev/jetbrains-fed-compute/odp/task_scheduler_image",
 )
 
 # Run a local container with:
