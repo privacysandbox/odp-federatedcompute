@@ -47,3 +47,8 @@ wip_provider_b                             = "projects/291466669625/locations/gl
 service_account_b                          = "tee-operator-b@jetbrains-fed-compute.iam.gserviceaccount.com"
 
 deletion_protection=false
+aggregator_max_replicas=1
+aggregator_min_replicas=1
+model_updater_max_replicas=1
+model_updater_min_replicas=1
+spanner_processing_units=100
