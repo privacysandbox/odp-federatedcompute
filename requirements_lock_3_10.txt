@@ -872,9 +872,9 @@ joblib==1.4.2 \
 kaggle==1.6.17 \
     --hash=sha256:439a7dea1d5039f320fd6ad5ec21b688dcfa70d405cb42095b81f41edc401b81
     # via tf-models-official
-keras==2.14.0 \
-    --hash=sha256:22788bdbc86d9988794fe9703bb5205141da797c4faeeb59497c58c3d94d34ed \
-    --hash=sha256:d7429d1d2131cc7eb1f2ea2ec330227c7d9d38dab3dfdf2e78defee4ecc43fcd
+keras==3.12.0 \
+    --hash=sha256:02b69e007d5df8042286c3bcc2a888539e3e487590ffb08f6be1b4354df50aa8 \
+    --hash=sha256:536e3f8385a05ae04e82e08715a1a59988578087e187b04cb0a6fad11743f07f
     # via tensorflow
 kiwisolver==1.4.7 \
     --hash=sha256:073a36c8273647592ea332e816e75ef8da5c303236ec0167196793eb1e34657a \
